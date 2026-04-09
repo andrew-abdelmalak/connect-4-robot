@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+.env
+.venv
+env/
+venv/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build / packaging artifacts
+*.egg-info/
+dist/
+build/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.bbl
+*.blg
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.pdf
+
+# Large raw media (keep assets/figures only)
+*.mp4
+*.avi
+*.mov
+
+# SolidWorks files (binary, not version-controlled)
+*.SLDPRT
+*.SLDASM
+*.sldprt
+*.sldasm
+
+# Archives (source already extracted)
+*.rar
+*.zip
+*.7z
