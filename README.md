@@ -10,6 +10,18 @@ The image processing pipeline is implemented and validated on both a Raspberry P
 and a laptop. The game AI, HSV color segmentation, and full integration are planned
 for subsequent milestones.
 
+## Visual Highlights
+
+<p align="center">
+    <img src="assets/figures/m2_perspective_warp.png" alt="Perspective warp pipeline for board isolation" width="760"/>
+</p>
+<p align="center"><em>Figure 1. Perspective-warp stage used to isolate the Connect-4 board before downstream feature extraction and actuation mapping.</em></p>
+
+<p align="center">
+    <img src="assets/figures/m1_proteus_circuit.png" alt="Proteus circuit schematic for Raspberry Pi and Arduino integration" width="760"/>
+</p>
+<p align="center"><em>Figure 2. Proteus circuit schematic showing the Raspberry Pi, Arduino Uno, L298N drivers, and actuator wiring used in the milestone hardware setup.</em></p>
+
 ---
 
 ## Team
