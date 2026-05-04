@@ -99,7 +99,7 @@ The system comprises three integrated subsystems:
 \item \emph{Perception}: a Pi Camera~V2 capturing overhead RGB frames,
   followed by an OpenCV-based preprocessing pipeline;
 \item \emph{Computation}: a Raspberry~Pi~4 (4~GB) running Python, extracting
-  board-state information, evaluating game logic, and transmitting serial
+  board-state information, running the game logic, and transmitting serial
   commands;
 \item \emph{Actuation}: an Arduino~Uno receiving scalar commands and driving
   NEMA~17 stepper motors via L298N H-bridge drivers, with a servo-controlled
@@ -168,9 +168,9 @@ Proteus simulation. The system is organized as a layered pipeline:
 
 \begin{enumerate}
 \item \emph{Sensing layer}: Pi Camera~V2 acquires RGB frames from above the board.
-\item \emph{Processing layer}: Raspberry~Pi~4 runs the Python/OpenCV pipeline
-  (geometric normalization, intensity conditioning, smoothing, HSV
-  segmentation, and morphological cleanup).
+\item \emph{Processing layer}: Raspberry~Pi~4 executes geometric normalization,
+  intensity conditioning, smoothing, HSV segmentation, and morphological
+  cleanup.
 \item \emph{State-estimation layer}: A \(6\times7\) game-state matrix is
   extracted from the warped board image.
 \item \emph{Decision layer}: Raspberry~Pi~4 evaluates the extracted board using
@@ -443,8 +443,9 @@ the limitation of the Raspberry~Pi is temporal throughput, not spatial accuracy.
       Contrast \(\alpha=1.8\) & 1.111 & 0.201 \\
       Gaussian blur 5\(\times\)5 & 0.757 & 0.097 \\
       \bottomrule
-      \multicolumn{3}{l}{\textsuperscript{a}Pi faster than laptop for this saturating-add
-        operation, likely due to ARM NEON SIMD efficiency.}
+      \multicolumn{3}{p{0.92\columnwidth}}{\textsuperscript{a}Pi faster than
+        laptop for this saturating-add operation, likely due to ARM NEON SIMD
+        efficiency.}
     \end{tabular}
   \end{center}
 \end{table}
