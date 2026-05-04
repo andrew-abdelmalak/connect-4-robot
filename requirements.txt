@@ -6,5 +6,5 @@ numpy>=1.21.0
 matplotlib>=3.4.0
 jupyter>=1.0.0
 
-# Future (serial communication with Arduino):
-# pyserial>=3.5
+# Serial communication with Arduino
+pyserial>=3.5

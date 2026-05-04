@@ -1,28 +1,28 @@
 # Vision-Based Connect-4 Robot
 
-A mechatronics project implementing an autonomous Connect-4 playing robot.
-The system uses computer vision on a Raspberry Pi 4 to process the board state,
-extracts image features to drive an Arduino-controlled actuation stage, and
-physically dispenses tokens into the selected column.
+This repository documents a cumulative mechatronics project that combines computer vision, embedded decision-making, and physical actuation to play Connect-4 autonomously. The system uses a Raspberry Pi 4 for board perception and move selection, then forwards the selected column to an Arduino-controlled dispensing mechanism.
 
-**Status: Milestone 2 complete.**
-The image processing pipeline is implemented and validated on both a Raspberry Pi 4
-and a laptop. The game AI, HSV color segmentation, and full integration are planned
-for subsequent milestones.
+## Current System Status
+
+The current project state reflects Milestones 1, 2, and 3 together:
+
+- MS1 established the hardware architecture, Proteus circuit design, and the initial mechanical concept for the dispensing mechanism.
+- MS2 implemented and benchmarked the OpenCV preprocessing pipeline, including rotation correction, perspective warping, brightness and contrast conditioning, and Gaussian smoothing.
+- MS3 extended the project into a closed-loop system by extracting a board-state matrix, evaluating the next move with Minimax plus alpha-beta pruning, and commanding the dispenser through serial communication.
+
+At this stage the project demonstrates a complete perception-to-actuation loop, but performance and robustness are still being improved for real-world play.
 
 ## Visual Highlights
 
 <p align="center">
     <img src="assets/figures/m2_perspective_warp.png" alt="Perspective warp pipeline for board isolation" width="760"/>
 </p>
-<p align="center"><em>Figure 1. Perspective-warp stage used to isolate the Connect-4 board before downstream feature extraction and actuation mapping.</em></p>
+<p align="center"><em>Perspective-warp stage used to isolate the Connect-4 board before board-state extraction.</em></p>
 
 <p align="center">
     <img src="assets/figures/m1_proteus_circuit.png" alt="Proteus circuit schematic for Raspberry Pi and Arduino integration" width="760"/>
 </p>
-<p align="center"><em>Figure 2. Proteus circuit schematic showing the Raspberry Pi, Arduino Uno, L298N drivers, and actuator wiring used in the milestone hardware setup.</em></p>
-
----
+<p align="center"><em>Proteus circuit schematic showing the Raspberry Pi, Arduino Uno, L298N drivers, and actuator wiring used in the hardware setup.</em></p>
 
 ## Team
 
@@ -37,54 +37,89 @@ for subsequent milestones.
 
 **Affiliation**: Department of Mechatronics Engineering, German University in Cairo (GUC)
 
----
+## End-to-End Architecture
 
-## System Overview
-
-```
-[Pi Camera V2]
-      |
-      v
-[Raspberry Pi 4 (4 GB)]  ← Python / OpenCV pipeline
-      | USB Serial (9600 baud)
-      v
-[Arduino Uno]
-    |           |
-    v           v
-[L298N x2]   [SG90 Servo]
-    |               |
-[NEMA 17 x2]   [Column Gate]
-(token pusher)  (column select)
-```
-
----
+1. Pi Camera V2 captures the Connect-4 board from an overhead view.
+2. Raspberry Pi 4 preprocesses the frame using OpenCV.
+3. HSV segmentation and morphological cleanup estimate token occupancy per cell.
+4. The processed frame is converted into a `6 x 7` game-state matrix.
+5. A Minimax-based decision layer selects the next legal move.
+6. The chosen column is transmitted to the Arduino over serial.
+7. The Arduino drives the dispenser to the requested column and releases a token.
 
 ## Repository Structure
 
-```
+```text
 connect-4-robot/
-├── src/
-│   └── image_pipeline/
-│       ├── m1_image_acquisition.py          # ML1: Webcam image capture
-│       └── m2_member1_pipeline_notebook.ipynb   # ML2: Full processing pipeline
 ├── arduino/
-│   └── m1_servo_gate_controller/
-│       └── m1_servo_gate_controller.ino           # Serial-controlled servo sketch
+│   ├── m1_servo_gate_controller/
+│   └── ms3_connectfour_dispenser/
 ├── assets/
 │   └── figures/
-│       ├── m1_proteus_circuit.png      # Proteus circuit diagram
-│       ├── m2_input_board.png             # Input board image
-│       ├── m2_rotation_comparison.png             # Rotation comparison
-│       ├── m2_perspective_warp.png     # Perspective warp comparison
-│       ├── m2_brightness_adjustment.png           # Brightness adjustment
-│       ├── m2_contrast_scaling.png             # Contrast scaling
-│       └── m2_smoothing_comparison.png            # Smoothing comparison
+├── milestones/
+│   └── MS3.md
+├── paper/
+│   ├── main.tex
+│   ├── references.bib
+│   └── IEEEtran.cls
+├── src/
+│   └── image_pipeline/
+├── .github/
+│   └── workflows/
+│       └── build-paper.yml
 ├── README.md
-├── .gitignore
-└── LICENSE
+└── requirements.txt
 ```
 
----
+## Milestone Timeline
+
+### MS1
+
+- Defined the electrical architecture in Proteus.
+- Developed the mechanical dispenser concept in SolidWorks.
+- Established the Raspberry Pi, Arduino, driver, and actuator stack.
+
+### MS2
+
+- Implemented the core image-processing pipeline in Python/OpenCV.
+- Benchmarked the preprocessing stages on Raspberry Pi 4 and laptop hardware.
+- Produced the cumulative MS2 paper draft and supporting figures.
+
+### MS3
+
+- Added board-state extraction from the processed camera image.
+- Integrated Minimax with alpha-beta pruning for move selection.
+- Demonstrated closed-loop serial handoff from perception to actuation.
+- Validated physical token dispensing by column using the Arduino firmware in this repository.
+
+## Published Artifacts
+
+Available in this repository now:
+
+- `paper/main.tex`: cumulative IEEE-style paper source through MS3.
+- `paper/references.bib`: bibliography for the cumulative paper.
+- `milestones/MS3.md`: concise MS3 milestone summary.
+- `arduino/ms3_connectfour_dispenser/ConnectFour_Dispenser.ino`: MS3 dispenser firmware.
+- `.github/workflows/build-paper.yml`: GitHub Actions workflow for report compilation.
+
+Claimed in the cumulative paper but not fully published in this repository yet:
+
+- Raspberry Pi Python/OpenCV board-state extraction pipeline used for MS3 validation.
+- Minimax integration code used during milestone validation.
+
+Those software components should be added in a later sync once the source files are gathered and cleaned for publication.
+
+## Benchmarks (100-Iteration Mean)
+
+| Operation | Raspberry Pi 4 (ms) | Laptop (ms) |
+|-----------|---------------------|-------------|
+| Rotation (bilinear) | 8.468 | 3.273 |
+| Perspective warp | 3.596 | 1.768 |
+| Brightness +60 | 0.734 | 0.888 |
+| Contrast α=1.8 | 1.111 | 0.201 |
+| Gaussian blur 5×5 | 0.757 | 0.097 |
+
+Output quality is bit-for-bit identical on both platforms.
 
 ## Hardware Bill of Materials
 
@@ -100,56 +135,16 @@ connect-4-robot/
 | Wires & breadboard | 1 | 150 |
 | **Total** | | **10,135 EGP** |
 
----
-
-## Image Processing Pipeline
-
-Implemented in `src/image_pipeline/m2_member1_pipeline_notebook.ipynb`:
-
-1. **Load & display** — Load `Image.png`, convert BGR→RGB, display.
-2. **Rotation** — `cv2.getRotationMatrix2D` + `cv2.warpAffine` at 15°. Bilinear interpolation selected over nearest-neighbor.
-3. **Perspective warp** — 4-corner homography to 800×800 top-down view with `cv2.getPerspectiveTransform`.
-4. **Brightness** — ±60 offset; histograms verify distribution shift.
-5. **Contrast** — `cv2.convertScaleAbs` at α=1.8 (high) and α=0.5 (low).
-6. **Smoothing** — Gaussian 3×3, 5×5, 7×7 and box filter; 5×5 Gaussian selected.
-7. **Feature extraction**:
-   - Feature 1: mean board brightness → PWM duty cycle (%)
-   - Feature 2: board rotation angle → motor direction (CW/CCW)
-8. **Serial output**: two scalar bytes transmitted to Arduino at 9600 baud.
-
----
-
-## Benchmarks (100-Iteration Mean)
-
-| Operation | Raspberry Pi 4 (ms) | Laptop (ms) |
-|-----------|---------------------|-------------|
-| Rotation (bilinear) | 8.468 | 3.273 |
-| Perspective warp | 3.596 | 1.768 |
-| Brightness +60 | 0.734 | 0.888 |
-| Contrast α=1.8 | 1.111 | 0.201 |
-| Gaussian blur 5×5 | 0.757 | 0.097 |
-
-Output quality is bit-for-bit identical on both platforms.
-
----
-
-## Mechanical Design
-
-CAD modeled in SolidWorks (`.SLDPRT` / `.SLDASM` files).
-Assembly: token magazine → pusher disk (DC motor) → slide channel → servo gate → column entry.
-SolidWorks files are not included in this repository (require SolidWorks to open).
-
----
-
 ## Known Limitations
 
-1. **Single-image validation**: Pipeline validated on one board image only.
-2. **No color segmentation**: HSV-based token classification not yet implemented.
-3. **No game AI**: Minimax with alpha-beta pruning not yet implemented.
-4. **Partial actuation firmware**: Full NEMA 17 stepper control firmware not found.
-5. **Lighting sensitivity**: Fixed pipeline parameters may require retuning under different lighting.
+- HSV segmentation is sensitive to glare and lighting changes on the plastic board.
+- Deeper Minimax search increases turn latency on the Raspberry Pi 4.
+- Full-board analysis currently runs at a low frame rate relative to real-time play.
+- Motor timing and acceleration still need tuning for faster, more repeatable actuation.
 
----
+## Paper Build
+
+The cumulative report lives in `paper/main.tex`. The repository now includes a GitHub Actions workflow that compiles the paper automatically on pushes affecting `paper/**` or `assets/figures/**`, and also supports manual runs from the Actions tab.
 
 ## License
 
