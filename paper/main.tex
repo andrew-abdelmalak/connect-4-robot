@@ -7,7 +7,6 @@
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
-\graphicspath{{../assets/}}
 \def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
     T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
 
@@ -71,7 +70,9 @@ against a laptop platform. Execution times per operation range from
 0.73~ms to 8.47~ms on the Raspberry~Pi. Output image quality is
 bit-for-bit identical on both platforms. The mechanical assembly,
 modeled in SolidWorks, uses a magazine-and-slide dispensing mechanism
-with a servo-controlled gate for column selection.
+driven by a two-stage Arduino-controlled actuator, while an optional
+lightweight machine-learning classifier is retained as a deployable
+bonus path for cell classification.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -99,20 +100,21 @@ The system comprises three integrated subsystems:
 \item \emph{Perception}: a Pi Camera~V2 capturing overhead RGB frames,
   followed by an OpenCV-based preprocessing pipeline;
 \item \emph{Computation}: a Raspberry~Pi~4 (4~GB) running Python, extracting
-  board-state information, running the game logic, and transmitting serial
+  board-state information, evaluating game logic, and transmitting serial
   commands;
 \item \emph{Actuation}: an Arduino~Uno receiving scalar commands and driving
-  NEMA~17 stepper motors via L298N H-bridge drivers, with a servo-controlled
-  gate for column selection.
+  a column-positioning motor together with an encoder-coupled
+  magazine-release motor through L298N H-bridge drivers.
 \end{enumerate}
 
-This paper reports the system through Milestone~3: the image processing
+This paper reports the final integrated milestone state: the image processing
 pipeline has been implemented and benchmarked, the mechanical assembly has been
 fabricated and connected, and closed-loop operation has been established by
-using the camera as the primary sensing element for board-state extraction and
-move selection. The current implementation therefore covers perception,
-decision making, and physical token dispensing, while still requiring further
-optimization for speed and robustness on the Raspberry~Pi.
+using the camera as the primary sensing element for board-state extraction,
+move selection, serial actuation handoff, and post-move verification. The
+current implementation therefore covers perception, decision making, physical
+token dispensing, and browser-visible operator supervision, while still
+requiring further optimization for speed and robustness on the Raspberry~Pi.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Related Work}
@@ -168,26 +170,26 @@ Proteus simulation. The system is organized as a layered pipeline:
 
 \begin{enumerate}
 \item \emph{Sensing layer}: Pi Camera~V2 acquires RGB frames from above the board.
-\item \emph{Processing layer}: Raspberry~Pi~4 executes geometric normalization,
-  intensity conditioning, smoothing, HSV segmentation, and morphological
-  cleanup.
+\item \emph{Processing layer}: Raspberry~Pi~4 runs the Python/OpenCV pipeline
+  (geometric normalization, intensity conditioning, smoothing, HSV
+  segmentation, and morphological cleanup).
 \item \emph{State-estimation layer}: A \(6\times7\) game-state matrix is
   extracted from the warped board image.
 \item \emph{Decision layer}: Raspberry~Pi~4 evaluates the extracted board using
   minimax with alpha-beta pruning and selects the next column.
 \item \emph{Control interface}: The selected column is serialized and
   transmitted at 9600~baud to the Arduino.
-\item \emph{Actuation layer}: Arduino drives NEMA~17 steppers via two L298N
-  modules; an SG90 servo controls the column-selection gate.
+\item \emph{Actuation layer}: Arduino drives a column-positioning motor and an
+  encoder-coupled token-magazine motor via L298N modules; the first moves to
+  the requested slot and the second releases exactly one token.
 \end{enumerate}
 
 \begin{figure}[htbp]
   \centerline{\includegraphics[width=\columnwidth]{figures/m1_proteus_circuit.png}}
   \caption{Proteus circuit simulation of the electrical architecture.
     Raspberry~Pi~4 (U1, top-left) communicates with Arduino~UNO (UNO1) via
-    serial; two L298N H-bridge modules (U2, U3) drive the stepper motors;
-    12~V battery (B1) provides main power; servo motor (right) handles
-    column selection.}
+    serial; two L298N H-bridge modules (U2, U3) drive the column-positioning
+    and token-magazine motors; 12~V battery (B1) provides main power.}
   \label{fig:circuit}
 \end{figure}
 
@@ -198,19 +200,18 @@ Proteus simulation. The system is organized as a layered pipeline:
 
 The mechanical assembly was modeled in SolidWorks. The design features a magazine
 holding a stack of tokens of one color mounted over a sliding channel (Path.SLDPRT).
-A DC motor drives a disk end-effector (Motor~disk.SLDPRT) that pushes the
-bottom token from the magazine through the slide toward the Connect-4 board.
-An SG90 micro-servo controls a gate that covers unwanted columns, ensuring the
-released token is directed into the selected column only. The base
+An encoder-coupled DC motor drives a disk end-effector (Motor~disk.SLDPRT) that
+pushes the bottom token from the magazine through the slide toward the Connect-4 board.
+A second motor positions the dispensing carriage laterally to the selected
+column, after which the carriage returns to its home position. The base
 (Base.SLDPRT) and the tunnel-and-base assembly (Assem~1) provide the structural
 frame securing the board and the dispensing mechanism in a fixed geometric
 relationship.
 
-This mechanism requires that the arm traverse a single horizontal axis: the
-column-selection gate performs the lateral work while the pusher mechanism
-provides the ejection force. This is consistent with the design guidance
-from~\cite{Abarkan2024}, which demonstrates that only one active translational
-axis is necessary for Connect-4 column selection.
+This mechanism therefore separates the physical action into two repeatable
+stages: token release and column positioning. The approach preserves the
+single-axis positioning requirement discussed in~\cite{Abarkan2024} while
+making the release quantity controllable through encoder pulse counting.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Image Processing Pipeline}
@@ -362,6 +363,19 @@ and decision making. This matrix representation is more informative than the
 two-scalar control proxy used in earlier milestones because it preserves the
 full playable state needed by the game solver.
 
+\subsection{Optional Machine-Learning Cell Classifier}
+
+To satisfy the bonus machine-learning deliverable without replacing the full
+classical pipeline, an optional lightweight classifier is attached only at the
+cell-classification stage. After the board is warped and divided into 42 fixed
+regions of interest, each cell can be classified as empty, red, or yellow
+either by HSV thresholding or by a trained three-class model operating on
+compact color-statistical features. This keeps board localization and geometric
+rectification deterministic while allowing the final token decision to be made
+by a deployable ML model on the Raspberry~Pi. The system therefore supports
+three inference modes: HSV-only, ML-only, and an automatic hybrid fallback in
+which ML is used when confidence is high and HSV is retained as a safe backup.
+
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Game-State Evaluation and Closed-Loop Control}
 \label{sec:features}
@@ -414,10 +428,22 @@ search depth must still be limited to preserve acceptable turn latency.
 The selected move is serialized as a column identifier in the range 1--7. The
 Pi transmits the chosen column over USB serial at 9600 baud; the Arduino reads
 the incoming byte using \texttt{Serial.read()}, dispatches the corresponding
-column routine, moves the ruler to the required position, dispenses one token,
-and returns the mechanism to the home position. This establishes a complete
+column routine, releases one token from the magazine, moves the carriage to the
+required position, and returns the mechanism to the home position. This establishes a complete
 camera-to-actuator loop in which the physical move is driven by the extracted
 game state rather than by a manually supplied command.
+
+\subsection{Operator Modes and Post-Move Verification}
+
+The Raspberry~Pi dashboard supports manual, semi-automatic, and fully automatic
+operator modes. In manual mode, the user confirms board updates and explicitly
+dispatches robot moves. In semi-automatic mode, visually clean user moves are
+accepted automatically while suspicious detections still require confirmation.
+In automatic mode, the full sequence is executed without intervention.
+Regardless of mode, once a serial command is sent the camera is reused as the
+feedback element: the post-actuation frame is reprocessed and accepted only if
+exactly one new robot token appears in the commanded column. This closes the
+perception--decision--actuation loop required by the final milestone.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \section{Embedded Platform Benchmarking}
@@ -443,9 +469,8 @@ the limitation of the Raspberry~Pi is temporal throughput, not spatial accuracy.
       Contrast \(\alpha=1.8\) & 1.111 & 0.201 \\
       Gaussian blur 5\(\times\)5 & 0.757 & 0.097 \\
       \bottomrule
-      \multicolumn{3}{p{0.92\columnwidth}}{\textsuperscript{a}Pi faster than
-        laptop for this saturating-add operation, likely due to ARM NEON SIMD
-        efficiency.}
+      \multicolumn{3}{l}{\textsuperscript{a}Pi faster than laptop for this saturating-add
+        operation, likely due to ARM NEON SIMD efficiency.}
     \end{tabular}
   \end{center}
 \end{table}
@@ -486,7 +511,7 @@ in Egyptian Pounds (EGP) at procurement time.
 \label{sec:future}
 % ─────────────────────────────────────────────────────────────────────────────
 
-The Milestone~3 implementation establishes a functional end-to-end
+The final integrated implementation establishes a functional end-to-end
 perception-to-actuation loop, but several practical limitations remain:
 
 \begin{enumerate}
@@ -503,8 +528,9 @@ perception-to-actuation loop, but several practical limitations remain:
   at approximately 5~FPS. This is sufficient for milestone validation but not
   for highly responsive competitive play.
 \item \emph{Actuation tuning}: Closed-loop dispenser operation has been
-  demonstrated, but the NEMA~17 drive profile still requires acceleration and
-  timing optimization to improve repeatability and reduce wasted motion.
+  demonstrated, but the relationship between carriage timing, encoder stop
+  target, friction, and token release repeatability still requires calibration
+  across the full 1--7 column range.
 \end{enumerate}
 
 % ─────────────────────────────────────────────────────────────────────────────
@@ -513,16 +539,19 @@ perception-to-actuation loop, but several practical limitations remain:
 % ─────────────────────────────────────────────────────────────────────────────
 
 This paper presented the image processing pipeline and hardware architecture
-of a Vision-Based Connect-4 Robot through Milestone~3. The Python/OpenCV
+of a Vision-Based Connect-4 Robot in its final integrated milestone state. The Python/OpenCV
 pipeline executes reliably on a Raspberry~Pi~4, producing a verified
 \(6\times7\) game-state matrix using geometric normalization, filtering, and
 cell-level classification, while retaining the benchmarked preprocessing
 performance reported earlier. This visual state integrates directly with
-minimax-based decision logic to provide an intelligent interface to the
-Arduino-based actuation stage. The SolidWorks mechanical model, Proteus
-circuit simulation, and fabricated dispenser hardware together establish a
-complete mechatronic system capable of sensing the board, selecting a move,
-and physically executing that move under camera feedback.
+minimax-based decision logic, serial actuation handoff, browser-visible
+operator modes, and post-move camera verification to provide an intelligent
+interface to the Arduino-based actuation stage. The same pipeline also admits
+an optional lightweight ML classifier for token recognition as a deployable
+bonus path. The SolidWorks mechanical model, Proteus circuit simulation, and
+fabricated dispenser hardware together establish a complete mechatronic system
+capable of sensing the board, selecting a move, and physically executing that
+move under camera feedback.
 
 \section*{Acknowledgment}
 

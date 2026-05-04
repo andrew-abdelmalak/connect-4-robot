@@ -8,3 +8,6 @@ jupyter>=1.0.0
 
 # Serial communication with Arduino
 pyserial>=3.5
+
+# Optional ML bonus path for cell classification
+scikit-learn>=1.3.0
