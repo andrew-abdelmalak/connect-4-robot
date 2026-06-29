@@ -1,156 +1,195 @@
 # Vision-Based Connect-4 Robot
 
-This repository documents a cumulative mechatronics project that combines computer vision, embedded decision-making, and physical actuation to play Connect-4 autonomously. The system uses a Raspberry Pi 4 for board perception and move selection, then forwards the selected column to an Arduino-controlled dispensing mechanism.
+**MCTR 1010 — Image Processing for Mechatronics · German University in Cairo · 2025/2026**
 
-## Current System Status
+| Member | ID |
+|---|---|
+| Andrew Abdelmalak ([@andrew-abdelmalak](https://github.com/andrew-abdelmalak)) | 55-22771 |
+| Daniel Boules | 55-5055 |
+| David Girgis | 55-1481 |
+| Kirolous Kirolous | 55-18081 |
+| Samir Yacoub | 55-25111 |
+| Youssef Salama | 55-0540 |
 
-The current project state reflects Milestones 1, 2, and 3 together:
+A Raspberry Pi 4 + Arduino Uno robot that plays Connect-4 autonomously: a Pi Camera V2 captures the board, an OpenCV pipeline extracts the 6×7 game state, a minimax search picks the robot's move, and an Arduino-driven dispenser drops the token — then the camera re-verifies the move.
 
-- MS1 established the hardware architecture, Proteus circuit design, and the initial mechanical concept for the dispensing mechanism.
-- MS2 implemented and benchmarked the OpenCV preprocessing pipeline, including rotation correction, perspective warping, brightness and contrast conditioning, and Gaussian smoothing.
-- MS3 extended the project into a closed-loop system by extracting a board-state matrix, evaluating the next move with Minimax plus alpha-beta pruning, and commanding the dispenser through serial communication.
+![Connect-4 board detection pipeline](results/m2_perspective_warp.png)
 
-At this stage the project demonstrates a complete perception-to-actuation loop with browser-visible operator modes, post-move camera verification, and an optional lightweight ML bonus path for token classification.
-
-## Visual Highlights
-
-<p align="center">
-    <img src="assets/figures/m2_perspective_warp.png" alt="Perspective warp pipeline for board isolation" width="760"/>
-</p>
-<p align="center"><em>Perspective-warp stage used to isolate the Connect-4 board before board-state extraction.</em></p>
-
-<p align="center">
-    <img src="assets/figures/m1_proteus_circuit.png" alt="Proteus circuit schematic for Raspberry Pi and Arduino integration" width="760"/>
-</p>
-<p align="center"><em>Proteus circuit schematic showing the Raspberry Pi, Arduino Uno, L298N drivers, and actuator wiring used in the hardware setup.</em></p>
-
-## Team
-
-| Name | Student ID | Email |
-|------|-----------|-------|
-| Andrew Abdelmalak | 55-22771 | andrew.abdelmalak@student.guc.edu.eg |
-| Daniel Boules | 55-5055 | daniel.boules@student.guc.edu.eg |
-| David Girgis | 55-1481 | david.girgis@student.guc.edu.eg |
-| Kirolous Kirolous | 55-18081 | kirolous.kirolous@student.guc.edu.eg |
-| Samir Yacoub | 55-25111 | samir.yacoub@student.guc.edu.eg |
-| Youssef Salama | 55-0540 | youssef.salama@student.guc.edu.eg |
-
-**Affiliation**: Department of Mechatronics Engineering, German University in Cairo (GUC)
-
-## End-to-End Architecture
-
-1. Pi Camera V2 captures the Connect-4 board from an overhead view.
-2. Raspberry Pi 4 preprocesses the frame using OpenCV.
-3. HSV segmentation and morphological cleanup estimate token occupancy per cell.
-4. The processed frame is converted into a `6 x 7` game-state matrix.
-5. A Minimax-based decision layer selects the next legal move.
-6. The chosen column is transmitted to the Arduino over serial as `1..7`.
-7. The Arduino releases one token from the magazine, moves the carriage to the requested column, and returns home.
-8. The Raspberry Pi re-observes the board and verifies that the commanded robot move appeared in the correct column.
+---
 
 ## Repository Structure
 
-```text
+```
 connect-4-robot/
 ├── arduino/
 │   ├── m1_servo_gate_controller/
+│   │   └── m1_servo_gate_controller.ino
 │   └── ms3_connectfour_dispenser/
-├── assets/
-│   └── figures/
-├── milestones/
-│   └── MS3.md
-├── paper/
-│   ├── main.tex
-│   ├── references.bib
-│   └── IEEEtran.cls
+│       └── ConnectFour_Dispenser.ino
 ├── src/
 │   ├── image_pipeline/
+│   │   ├── Image.png
+│   │   ├── m1_image_acquisition.py
+│   │   └── m2_member1_pipeline_notebook.ipynb
 │   └── runtime/
-├── .github/
-│   └── workflows/
-│       └── build-paper.yml
-├── README.md
-└── requirements.txt
+│       ├── connect4_brain.py
+│       └── train_cell_model.py
+├── paper/
+│   ├── figures/
+│   │   ├── Image.png
+│   │   ├── m1_proteus_circuit.png
+│   │   ├── m2_brightness_adjustment.png
+│   │   ├── m2_contrast_scaling.png
+│   │   ├── m2_input_board.png
+│   │   ├── m2_perspective_warp.png
+│   │   ├── m2_rotation_comparison.png
+│   │   └── m2_smoothing_comparison.png
+│   ├── IEEEtran.cls
+│   ├── main.tex
+│   ├── main.pdf
+│   └── references.bib
+├── results/
+│   ├── Image.png
+│   ├── m1_proteus_circuit.png
+│   ├── m2_brightness_adjustment.png
+│   ├── m2_contrast_scaling.png
+│   ├── m2_input_board.png
+│   ├── m2_perspective_warp.png
+│   ├── m2_rotation_comparison.png
+│   └── m2_smoothing_comparison.png
+├── docs/
+│   ├── MS1_Literature_Review.pdf
+│   ├── MS2_Pipeline_Hardware.pdf
+│   ├── MS3_Closed_Loop_Integration.pdf
+│   ├── MS4_5_Final_Report.pdf
+│   └── Final_Presentation.pptx
+├── .gitignore
+├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── requirements.txt
+└── README.md
 ```
 
-## Milestone Timeline
+## System Overview
 
-### MS1
+```
+Camera → Pi 4 (OpenCV pipeline) → 6×7 matrix → Minimax → Serial → Arduino → Motors → Board → Camera (verification)
+```
 
-- Defined the electrical architecture in Proteus.
-- Developed the mechanical dispenser concept in SolidWorks.
-- Established the Raspberry Pi, Arduino, driver, and actuator stack.
+Seven stages: image acquisition → vision pipeline → state validation → minimax search → serial link → actuation → closed-loop verification.
 
-### MS2
+## Key Parameters
 
-- Implemented the core image-processing pipeline in Python/OpenCV.
-- Benchmarked the preprocessing stages on Raspberry Pi 4 and laptop hardware.
-- Produced the cumulative MS2 paper draft and supporting figures.
+| Parameter | Value |
+|---|---|
+| Rotation angle θ | 15° CCW (bilinear) |
+| Perspective warp output | 800×800 px |
+| Brightness offset c | +30 |
+| Contrast α / β | 1.4 / 0 |
+| Gaussian kernel | 5×5 |
+| HSV red (range 1) | [0,80,50] → [10,255,255] |
+| HSV red (range 2) | [160,80,50] → [179,255,255] |
+| HSV yellow | [18,100,80] → [42,255,255] |
+| Occupancy threshold | ≥ 30 px |
+| Minimax depth | 5 (alpha-beta pruning) |
+| Serial baud | 9600 |
+| Carriage PWM | 100/255 |
+| Magazine fast / slow PWM | 50 / 30 |
+| Encoder target / slow-down | 430 / 40 pulses |
+| ML confidence fallback | 0.65 |
+| RandomForest trees / depth | 200 / 10 |
+| ML features | 18-dim |
+| Verification timeout | 10 s (poll 0.4 s) |
+| Preview / analysis FPS | 5 / 1 |
 
-### MS3 and Final Integration
+## Test Results
 
-- Added board-state extraction from the processed camera image.
-- Integrated Minimax with alpha-beta pruning for move selection.
-- Added browser-visible `manual`, `semi_auto`, and `auto` operator modes.
-- Added serial robot dispatch and camera-based post-move verification.
-- Updated Arduino firmware to accept column commands `1..7`, release exactly one token, move to the selected slot, and return home.
-- Added an optional lightweight ML training and inference path for the milestone bonus.
+| Metric | Result |
+|---|---|
+| HSV classifier accuracy | 98% |
+| Auto-hybrid classifier accuracy | 96% |
+| ML-only classifier accuracy | 91% |
+| Drop success (140 trials) | 95% overall |
+| End-to-end task time | 7.5 s avg (3–15 s range) |
+| Integration tests | 31/31 passed |
+| Pi 4 per-frame time | 16.81 ms |
+| Laptop per-frame time | 6.85 ms |
+| Total BOM cost | 6,100 EGP |
 
-## Published Artifacts
+## Key Equations
 
-Available in this repository now:
+**Rotation** (θ = 15°):
 
-- `paper/main.tex`: cumulative IEEE-style paper source for the final integrated milestone state.
-- `paper/references.bib`: bibliography for the cumulative paper.
-- `milestones/MS3.md`: concise milestone summary.
-- `arduino/ms3_connectfour_dispenser/ConnectFour_Dispenser.ino`: integrated dispenser firmware.
-- `src/runtime/connect4_brain.py`: main Raspberry Pi dashboard, control, and verification runtime.
-- `src/runtime/train_cell_model.py`: lightweight ML training utility for cell classification.
-- `.github/workflows/build-paper.yml`: GitHub Actions workflow for report compilation.
+$$\begin{bmatrix} x' \\ y' \end{bmatrix} = \begin{bmatrix} \cos\theta & -\sin\theta \\ \sin\theta & \cos\theta \end{bmatrix} \begin{bmatrix} x - c_x \\ y - c_y \end{bmatrix} + \begin{bmatrix} c_x \\ c_y \end{bmatrix}$$
 
-The ML path is optional and safe by design:
+**Perspective warp** (homography to 800×800):
 
-- `HSV` mode keeps the classical board-state pipeline only.
-- `ML Only` uses a trained 3-class cell classifier (`empty`, `red`, `yellow`).
-- `ML Auto` uses the ML classifier when confidence is high and falls back to HSV otherwise.
+$$\lambda \begin{bmatrix} u \\ v \\ 1 \end{bmatrix} = \mathbf{H} \begin{bmatrix} x \\ y \\ 1 \end{bmatrix}$$
 
-## Benchmarks (100-Iteration Mean)
+**Brightness** (c = +30):
 
-| Operation | Raspberry Pi 4 (ms) | Laptop (ms) |
-|-----------|---------------------|-------------|
-| Rotation (bilinear) | 8.468 | 3.273 |
-| Perspective warp | 3.596 | 1.768 |
-| Brightness +60 | 0.734 | 0.888 |
-| Contrast α=1.8 | 1.111 | 0.201 |
-| Gaussian blur 5×5 | 0.757 | 0.097 |
+$$I_b(x,y) = \mathrm{clip}(I(x,y) + c)$$
 
-Output quality is bit-for-bit identical on both platforms.
+**Contrast** (α = 1.4, β = 0):
 
-## Hardware Bill of Materials
+$$I_c(x,y) = \mathrm{clip}(\alpha \, I(x,y) + \beta)$$
 
-| Component | Qty | Total (EGP) |
-|-----------|-----|-------------|
-| Raspberry Pi 4 (4 GB) | 1 | 5,950 |
-| Arduino Uno | 1 | 450 |
-| Pi Camera V2 | 1 | 2,150 |
-| Positioning / release motors | 2 | 880 |
-| L298N H-bridge driver | 2 | 170 |
-| 12V 5A power supply | 1 | 300 |
-| Wires & breadboard | 1 | 150 |
-| **Total** | | **10,050 EGP** |
+**Gaussian smoothing** (5×5 kernel):
 
-## Known Limitations
+$$I_G(x,y) = \sum_{i=-k}^{k} \sum_{j=-k}^{k} G_\sigma(i,j)\, I(x-i, y-j)$$
 
-- HSV segmentation is sensitive to glare and lighting changes on the plastic board.
-- The ML bonus path requires a labeled dataset of cropped cell images before it can replace or augment HSV reliably.
-- Deeper Minimax search increases turn latency on the Raspberry Pi 4.
-- Full-board analysis currently runs at a low frame rate relative to real-time play.
-- Motor timing, encoder stop target, and return travel still need tuning for faster, more repeatable actuation.
+**Cell classification** (state matrix S_{r,c} ∈ {0,1,2}):
 
-## Paper Build
+$$S_{r,c} = \begin{cases} 1, & M_R(r,c) > \tau_R \\ 2, & M_Y(r,c) > \tau_Y \\ 0, & \text{otherwise} \end{cases}$$
 
-The cumulative report lives in `paper/main.tex`. The repository now includes a GitHub Actions workflow that compiles the paper automatically on pushes affecting `paper/**` or `assets/figures/**`, and also supports manual runs from the Actions tab.
+**Minimax** (depth 5, alpha-beta):
+
+$$V(S) = \begin{cases} \max_{a \in \mathcal{A}(S)} V(T(S,a)), & \text{robot turn} \\ \min_{a \in \mathcal{A}(S)} V(T(S,a)), & \text{opponent turn} \end{cases}$$
+
+## Usage
+
+### Python (vision + AI)
+
+```bash
+pip install -r requirements.txt
+
+# Simulation mode (no camera/hardware)
+python src/runtime/connect4_brain.py --sim
+
+# Live camera mode
+python src/runtime/connect4_brain.py
+
+# Train ML cell classifier
+python src/runtime/train_cell_model.py
+```
+
+### Arduino (dispenser firmware)
+
+1. Open `arduino/ms3_connectfour_dispenser/ConnectFour_Dispenser.ino` in the Arduino IDE.
+2. Select board: Arduino Uno.
+3. Upload to the Arduino connected via USB to the Raspberry Pi.
+
+### Overleaf (paper)
+
+1. Create a new Overleaf project.
+2. Upload `paper/main.tex`, `paper/references.bib`, `paper/IEEEtran.cls`, and all 8 PNGs from `paper/figures/`.
+3. Set compiler to **pdflatex**.
+4. Compile: pdflatex → bibtex → pdflatex → pdflatex.
+
+## References
+
+1. G. Wölflein and O. Arandjelović, "Determining Chess Game State from an Image," *J. Imaging*, vol. 7, no. 6, p. 94, Jun. 2021.
+2. S. M. Zubek, H. Kummerfeld, and J. Wollersheim, "Teach Me What You Want to Play: Learning Variants of Connect Four through Human–Robot Interaction," arXiv:2001.01004, 2021.
+3. A. Rezaei and M. S. A. Raihan, "End-to-End Chess Recognition," arXiv:2310.04086, 2023.
+4. J. K. Park and S. H. Lee, "Intelligent Lighting System Using Color-Based Image Processing for Object Detection in Robotic Handling Applications," *Appl. Sci.*, vol. 14, no. 7, p. 3002, Apr. 2024.
+5. R. Abarkan and J. Wollersheim, "An Open-Source Three-Axis Gantry Robot for Automated Chess Play," *HardwareX*, vol. 17, p. e00517, Mar. 2024.
+6. X. Wang, Y. Zhang, and L. Chen, "Structural Design and Position Tracking of the Reconfigurable SCARA Robot by the Pre-Filter AFE PID Controller," *Appl. Sci.*, vol. 12, no. 3, p. 1626, Feb. 2022.
+7. OpenCV team, "OpenCV: Open Source Computer Vision Library," 2024. [Online]. Available: https://opencv.org/
+8. S. Russell and P. Norvig, *Artificial Intelligence: A Modern Approach*, 4th ed. Pearson, 2020.
+9. Raspberry Pi Foundation, "Raspberry Pi 4 Model B," 2024. [Online]. Available: https://www.raspberrypi.org/
+10. Arduino, "Arduino UNO R3," 2024. [Online]. Available: https://www.arduino.cc/
 
 ## License
 
-This repository is licensed under the MIT License. See `LICENSE`.
+MIT — see [LICENSE](LICENSE).
