@@ -1,50 +1,52 @@
-# Python
+# ── Python ───────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*$py.class
-*.pyc
-.env
-.venv
-env/
+*.pyo
+.venv/
 venv/
-
-# Jupyter
-.ipynb_checkpoints/
-*/.ipynb_checkpoints/*
-
-# OS
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Build / packaging artifacts
+env/
 *.egg-info/
 dist/
 build/
 
-# LaTeX build artifacts
-*.aux
-*.log
-*.bbl
-*.blg
-*.out
-*.synctex.gz
-*.fls
-*.fdb_latexmk
-*.pdf
+# ── Jupyter ──────────────────────────────────────────────────────────
+.ipynb_checkpoints/
 
-# Large raw media (keep assets/figures only)
+# ── LaTeX build artefacts ────────────────────────────────────────────
+paper/*.aux
+paper/*.bbl
+paper/*.blg
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.fls
+paper/*.fdb_latexmk
+paper/*.synctex.gz
+paper/_minted-*/
+
+# ── OS / editor ──────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# ── SolidWorks (too large for git, use Git LFS if needed) ────────────
+*.SLDPRT
+*.SLDASM
+*.STL
+
+# ── Media (too large for git) ────────────────────────────────────────
 *.mp4
 *.avi
 *.mov
 
-# SolidWorks files (binary, not version-controlled)
-*.SLDPRT
-*.SLDASM
-*.sldprt
-*.sldasm
-
-# Archives (source already extracted)
+# ── Archives ─────────────────────────────────────────────────────────
 *.rar
 *.zip
-*.7z
+
+# ── Secrets ──────────────────────────────────────────────────────────
+.env
+*.key
