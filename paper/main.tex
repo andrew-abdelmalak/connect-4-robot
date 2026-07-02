@@ -8,46 +8,46 @@
 \usepackage{tikz}
 \usepackage{pgfplots}
 \pgfplotsset{compat=1.18}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{hyperref}
 
 \begin{document}
 
-\title{Vision-Based Connect-4 Robot: Image Processing Pipeline for Autonomous Game-State Extraction and Motor Control}
+\title{Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement}
 
 \author{%
 \IEEEauthorblockN{Andrew Abdelmalak}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-22771}
 \and
 \IEEEauthorblockN{Daniel Boules}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-5055}
 \and
 \IEEEauthorblockN{David Girgis}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-1481}
 \and
 \IEEEauthorblockN{Kirolous Kirolous}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-18081}
 \and
 \IEEEauthorblockN{Samir Yacoub}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-25111}
 \and
 \IEEEauthorblockN{Youssef Salama}
-\IEEEauthorblockA{\textit{Dept.\ of Mechatronics Engineering}\\
+\IEEEauthorblockA{\textit{Dept. of Mechatronics Engineering}\\
 \textit{German University in Cairo}\\
 Cairo, Egypt\\
 55-0540}
@@ -56,650 +56,214 @@ Cairo, Egypt\\
 \maketitle
 
 \begin{abstract}
-
-This paper presents a Vision-Based Connect-4 Robot built on a Raspberry Pi~4 with a Pi Camera~V2 that captures overhead board frames and processes them through a Python/OpenCV pipeline comprising geometric rotation, perspective warping, brightness and contrast adjustment, Gaussian smoothing, and HSV-based cell classification. The pipeline extracts a verified $6\times7$ game-state matrix, which a trusted-state validator checks against six legality rules before a depth-5 minimax search with alpha-beta pruning selects the robot's move. The chosen column is transmitted over a 9600-baud serial link to an Arduino Uno that drives a TT carriage motor and an encoder-coupled magazine motor through an L298N H-bridge, dispensing one token. The camera then re-reads the board to verify correct execution, closing the perception-to-actuation loop. The HSV classifier achieved 98\% per-cell accuracy, the Auto hybrid achieved 96\%, and the ML classifier achieved 91\%. The drop mechanism attained a 95\% overall success rate, and the full system passed all 31 integration tests. These results demonstrate that real-time vision, trusted-state validation, and closed-loop actuation can be integrated on low-cost embedded hardware for autonomous game play.
-
+This paper presents a full vision-guided Connect-4 robot that couples board-state extraction, trusted-state validation, minimax move planning, physical token dispensing, and post-move camera verification. An overhead Raspberry Pi camera module observes the board while a Raspberry Pi~4~\cite{RaspberryPi2024} runs a Python/OpenCV~\cite{OpenCV2024} pipeline that localizes the blue frame, warps the board to an $800\times800$ view, conditions the image, and classifies each cell in one of three modes: HSV, Auto, or ML. The accepted state is passed through a six-rule validator before a depth-5 minimax solver selects the robot move. The target column is then sent at 9600 baud to an Arduino-controlled carriage and magazine mechanism, and the camera re-reads the board to confirm that the expected token actually appeared. Across approximately 200 labeled cell ROIs in the final evaluation set, HSV achieved 98\% per-cell accuracy, Auto achieved 96\%, and ML achieved 91\%, making HSV the strongest practical mode under the tested indoor setup. The drop mechanism achieved 95\% overall success, with 100\% success in columns 1--3 and 85\% in column~7, showing that open-loop carriage travel, not segmentation, was the dominant physical bottleneck. The reported end-to-end cycle averaged 7.5~s, and the final course test suite recorded 31/31 passed core logic checks. These results document representative end-to-end closed-loop demonstrations backed by separate logic-layer validation, while remaining limited by lighting shift, domain shift, and dispenser mechanics.
 \end{abstract}
 
 \begin{IEEEkeywords}
-
-connect-4 robot, HSV color segmentation, minimax algorithm, closed-loop verification, Raspberry Pi
-
+Connect-4 robot, computer vision, HSV segmentation, trusted-state validation, closed-loop verification
 \end{IEEEkeywords}
 
-% ===========================================================================
 \section{Introduction}
-\label{sec:intro}
-% ===========================================================================
+Autonomous board-game robots are useful mechatronic benchmarks because they force perception, reasoning, and actuation to agree on the same physical state in real time~\cite{Zubek2021}. A Connect-4 robot must read the board, infer the next legal move, position a dispenser over the chosen column, and verify that the physical outcome matches the internal plan. The challenge is not only to solve each stage independently, but to prevent small perception or actuation errors from silently corrupting the game state.
 
-Autonomous game-playing robots are compelling mechatronic testbeds because they demand tightly integrated perception, cognition, and actuation operating in a real-time loop~\cite{Zubek2021}. Board games such as chess and Connect-4 require a robot to acquire an image of the board, extract the complete game state, reason about the optimal move, and physically execute that move with repeatable accuracy---all within a time frame acceptable for human--robot interaction.
+Prior work has treated the main subproblems separately. Vision papers show that canonical board rectification and per-cell inference are effective for structured tabletop games~\cite{Wolflein2021,Rezaei2023}. HSV-based color segmentation remains attractive in robotic handling when illumination is reasonably controlled and the target colors are well separated~\cite{Park2024}. Open-source chess robots also show that low-cost motion systems can be accurate enough for educational game playing when the mechanics are matched to the task~\cite{Abarkan2024}. Connect-4 simplifies the manipulator geometry because only lateral positioning is needed, but it still requires robust token-color recognition and gravity-aware validation.
 
-The open-source chess robot in~\cite{Abarkan2024} demonstrated that a three-axis Cartesian gantry can achieve $\pm 1.5$\,mm repeatability at 3\,s per move, while the modular CNN chess-recognition pipeline in~\cite{Wolflein2021} achieved greater than 98\% per-square occupancy accuracy on a standard chessboard with both white and black pieces. Connect-4 offers a simpler mechanical requirement---only a single horizontal axis is needed for column selection---but adds the challenge of reliable two-color (red/yellow) token classification under variable ambient lighting, together with the need for gravity-aware state validation since tokens fall to the lowest available row in each column.
+The gap addressed in this project is the lack of a tightly documented end-to-end Connect-4 implementation in which camera-based perception, trusted board-state acceptance, physical token placement, and post-move re-verification are all treated as one closed loop. For course deliverables, it is easy to report a working classifier, a working minimax solver, or a working dispenser separately. The harder and more important question is whether the complete system keeps a trustworthy state when the real hardware misses, stalls, or sees ambiguous frames.
 
-Connect-4 is a two-player, zero-sum game with a game-tree complexity of approximately $4.5\times10^{21}$ positions. The game was solved in 1988 by James Allen and Victor Allis, who proved that the first player can force a win with perfect play. The first player to align four same-colored discs horizontally, vertically, or diagonally wins. Tokens fall under gravity once released above the correct column, which simplifies the end-effector requirement: the mechanism must achieve repeatable lateral positioning over each column entry with an error smaller than half the column pitch (approximately 20\,mm for a standard board), but need not execute a grasp-and-insert motion.
-
-The combination of a constrained search space, simple mechanics, and the need for robust two-color vision makes Connect-4 an ideal capstone problem for undergraduate mechatronics education. This project was completed by a six-member team over a 15-week semester as part of MCTR~1010: Image Processing for Mechatronics at the German University in Cairo.
-
-Despite the breadth of prior work in individual sub-domains---board detection, color segmentation, manipulator control, and game AI are each well-studied in isolation---comprehensive open implementations linking real-time vision, trusted-state validation, and closed-loop actuation remain scarce. Many published systems address one or two of these stages but omit the validation and verification layers that are essential for reliable autonomous operation. This paper addresses that gap.
-
-The main contributions of this paper are as follows:
+This paper makes four concrete contributions.
 
 \begin{enumerate}
-
-\item A complete Python/OpenCV image processing pipeline for Connect-4 board-state extraction, integrating geometric rotation ($\theta=15^\circ$ bilinear), perspective warping ($800\times800$\,px homography), brightness ($c=+30$) and contrast ($\alpha=1.4$) adjustment, $5\times5$ Gaussian smoothing, and HSV-based cell classification on a Raspberry Pi~4, with all per-operation timings benchmarked.
-
-\item A trusted-state validator enforcing six legality rules---board-changed, chip-persistence, single-chip-increment, gravity, column-capacity, and turn-order---to reject physically impossible board transitions caused by vision noise, glare, or lighting artifacts before they reach the decision layer.
-
-\item A depth-5 minimax search with alpha-beta pruning that selects moves in real time on the Raspberry Pi~4, with immediate-win and must-block shortcuts to reduce average search latency, and a center-column bias encoded in the leaf evaluation function.
-
-\item A closed-loop actuation system linking the vision pipeline to an Arduino-controlled token dispenser via 9600-baud serial communication, with post-move camera verification polling at 0.4\,s intervals within a 10\,s timeout.
-
-\item A comprehensive experimental evaluation benchmarking per-cell classification accuracy across three classifier modes (HSV, ML, and Auto hybrid), per-column drop success rates over 140 trials, and end-to-end integration testing covering all six validation rules and multiple full gameplay sequences.
-
+\item It documents a complete vision-guided Connect-4 robot in which a trusted-state validator gates the board before action and a camera re-check gates the board after action.
+\item It benchmarks three perception modes -- HSV, Auto, and ML -- and shows that HSV is the strongest practical operating mode under the tested indoor conditions.
+\item It shows that the dominant real-world bottleneck is mechanical drop reliability, especially for long carriage travel toward the edge columns, rather than image segmentation accuracy.
+\item It reports representative end-to-end demonstrations with honest limits: the integrated robot closes the loop in the archived demos, while the separate 31/31 logic checks show that the state machine remained stable before hardware uncertainty entered the loop.
 \end{enumerate}
 
-The remainder of this paper is structured as follows. Section~II reviews related work in board detection, color segmentation, and manipulator design for game-playing robots, and identifies the gap addressed by this work. Section~III describes the system architecture as a seven-stage pipeline spanning image acquisition through closed-loop verification. Section~IV details the image processing pipeline, including geometric transformations, intensity adjustments, Gaussian smoothing, and HSV cell classification across three operating modes. Section~V covers the trusted-state validator, minimax decision making with alpha-beta pruning, and the closed-loop verification protocol. Section~VI describes the embedded platform, serial protocol, and actuation hardware including the TT carriage and encoder magazine. Section~VII presents experimental results for per-operation timing, classification accuracy, drop reliability, and end-to-end integration testing. Section~VIII discusses the underlying reasons for key results and identifies principal limitations. Section~IX concludes.
+The remainder of the paper is organized as follows. Section~II reviews the most relevant literature and motivates the system boundary used here. Section~III summarizes the integrated architecture and the final physical setup. Section~IV explains the vision and state-estimation pipeline and compares the three classifier modes. Section~V describes trusted-state validation, move planning, and post-drop verification. Section~VI interprets the final experimental results. Section~VII discusses the main lessons and limitations. Section~VIII concludes.
 
-% ===========================================================================
 \section{Related Work}
-\label{sec:related}
-% ===========================================================================
+\subsection{Board-State Extraction}
+Wolflein and Arandjelovic decomposed chess-state extraction into board localization, homographic rectification, and square-level recognition~\cite{Wolflein2021}. That decomposition transfers well to Connect-4 because the board is still a fixed grid, but the classifier changes from piece identity to three states: empty, red, and yellow. Rezaei and Raihan later showed that end-to-end learning can reduce hand-crafted geometry stages at the cost of a larger training burden~\cite{Rezaei2023}. For a course project with modest data, the modular route is more practical because each failure can be inspected directly.
 
-\subsection{Board Detection and Game-State Extraction}
+\subsection{Color Segmentation Under Lighting Variation}
+Park and Lee showed that HSV-based object detection remains strong in robotic handling when color is the dominant cue and lighting is managed carefully~\cite{Park2024}. Their findings match the Connect-4 setting: token hue is informative, while raw RGB intensity alone is less stable. The same literature also warns that fixed thresholds weaken under large lighting shifts, which matters here because the board and tokens are glossy plastic surfaces.
 
-Extracting a complete game state from a camera image is the foundational perceptual task for any board-game robot. W{\"o}lflein and Arandjelovi{\'c}~\cite{Wolflein2021} described a modular CNN pipeline for chess recognition consisting of automated corner localization, homographic perspective rectification, and per-cell CNN inference, achieving greater than 98\% per-square occupancy accuracy on a 64-square chessboard with both white and black pieces. Their modular decomposition---localize the board corners, rectify to a canonical orthographic view, then classify each cell---transfers directly to a $7\times6$ Connect-4 grid by replacing the six-class piece classifier (pawn, rook, knight, bishop, queen, king per color) with a three-class one (red token, yellow token, empty cell).
+\subsection{Game Robots and Embedded Decision Layers}
+Open-source game robots demonstrate that affordable hardware can support precise board interaction when the manipulator is aligned to the task~\cite{Abarkan2024}. On the decision side, depth-limited minimax with alpha-beta pruning remains a practical baseline for Connect-4 because the game is structured, discrete, and fully observable~\cite{Russell2020}. The missing piece is the interface between these subsystems: a robot still needs a trusted physical board state before the search is meaningful, and a verified post-move state before the next turn is safe.
 
-Rezaei and Raihan~\cite{Rezaei2023} extended this line with a fully end-to-end convolutional model that eliminates the explicit rectification stage entirely, reducing processing latency and removing the critical failure mode of missed corner detections at the cost of requiring a larger training dataset. For Connect-4, the corner-localization step is simplified by the rectangular grid (only four corners to track), but the classification step is more challenging: the two token colors (red and yellow) can appear similar under certain lighting conditions and are more difficult to separate than the black-and-white distinction typical in chess recognition.
+\section{System Overview}
+Figure~\ref{fig:architecture} summarizes the system as a closed loop with two state gates. The first gate is trusted-state validation before planning. The second gate is post-drop camera verification before the internal state advances to the next turn.
 
-\subsection{Token Detection and Color Segmentation}
-
-Reliable token-color identification distinguishes Connect-4 perception from monochromatic chess recognition and is the most vision-critical component of the pipeline. Ambient illumination in a laboratory environment can shift the apparent token hue by 20--40$^{\circ}$ in RGB space, making the Hue--Saturation--Value (HSV) color space the de-facto standard for illumination-tolerant segmentation due to its separation of chromatic content (hue) from intensity (value)~\cite{Park2024}.
-
-Park and Lee demonstrated an adaptive HSV pipeline evaluated on pick-and-place tasks with objects matching the Connect-4 color palette (red, yellow, green, blue), maintaining detection accuracy above 97\% under illuminance levels from 200 to 1200\,lux---a range that covers typical indoor lighting conditions. They further showed that fixed HSV thresholds calibrated at a single illuminance level degrade to approximately 85\% accuracy when the lighting level shifts by more than 500\,lux, motivating either adaptive thresholding or controlled illumination.
-
-The Connect-4-specific study in~\cite{Zubek2021} used fixed HSV thresholding on a per-cell region of interest at 10\,Hz on ARM-class embedded hardware, providing a validated baseline for game-state update rates. Their results demonstrated that HSV-based classification at the cell-ROI level is computationally tractable on the same class of processor used in our system.
-
-\subsection{Manipulator Hardware Design}
-
-The open-source chess robot in~\cite{Abarkan2024} demonstrated a three-axis Cartesian gantry with $\pm 1.5$\,mm repeatability at average move durations of 3\,s, using stepper motors with microstepping for all three axes and an electromagnetic end-effector for piece pickup. For Connect-4, only a single horizontal axis is required for column selection; the vertical axis degenerates into a passive gravity-fed column guide, and the gripper is replaced by a token-dispensing magazine that releases one token at a time. This mechanical simplification reduces the system to one precision degree of freedom (lateral positioning) and one open-loop degree of freedom (token release), significantly lowering both complexity and cost.
-
-The reconfigurable SCARA platform in~\cite{Wang2022} demonstrated that an Adaptive Feedforward Estimation (AFE) PID controller reduces end-point overshoot by 61\% relative to standard PID scheduling, with steady-state errors below 0.3\,mm at 40 cycles per minute. While our system uses open-loop time-based positioning rather than closed-loop PID control for the carriage, the precision requirements are relaxed: the column pitch of approximately 20\,mm means that positioning errors up to $\pm 5$\,mm are tolerable before a token misdrops into the wrong column. A calibrated DC motor at fixed PWM operating within 5--10\,mm accuracy under consistent load can satisfy this tolerance for inner columns, though outer columns push beyond it as discussed in Section~\ref{sec:discussion}.
-
-\subsection{Game AI for Connect-4}
-
-Connect-4 has a game-tree complexity of approximately $4.5\times10^{21}$ positions, making exhaustive search infeasible but shallow minimax with alpha-beta pruning highly effective for real-time play. The minimax algorithm and its alpha-beta optimization are textbook material in artificial intelligence~\cite{Russell2020}. At search depth~5, the algorithm evaluates all legal moves to a five-ply horizon, which is sufficient to detect immediate wins, forced blocks, and short tactical sequences on a $6\times7$ board. Prior Connect-4 AI implementations on desktop hardware routinely reach depth~10--12 using bitboard representations and transposition tables, but on ARM-class embedded hardware the branching factor of 4--7 legal columns limits practical search to depth~5--7 within a 2\,s latency budget.
-
-\subsection{Gap Addressed}
-
-Despite the breadth of prior work across board detection, color segmentation, manipulator design, and game AI, no single published implementation integrates all of the following: real-time HSV-based cell classification on embedded ARM hardware, a multi-rule trusted-state validator enforcing physical legality constraints, depth-5 minimax with alpha-beta pruning running on a Raspberry Pi~4, and closed-loop camera verification of physical token drops. The system described in this paper addresses this gap by providing a complete, documented, and experimentally evaluated end-to-end implementation.
-
-% ===========================================================================
-\section{System Architecture}
-\label{sec:arch}
-% ===========================================================================
-
-Fig.~\ref{fig:arch} shows the system architecture as a seven-stage pipeline spanning image acquisition, vision processing, state validation, decision making, serial communication, physical actuation, and closed-loop verification. The pipeline operates on a Raspberry Pi~4 (4\,GB) running Python 3.9 with OpenCV 4.8~\cite{OpenCV2024}, communicating over USB serial at 9600\,baud to an Arduino Uno~\cite{Arduino2024} that drives the physical dispenser mechanism through two L298N dual H-bridge modules.
-
-\begin{figure*}[htbp]
+\begin{figure*}[t]
 \centering
 \begin{tikzpicture}[
-  stage/.style={draw, rounded corners, minimum height=1cm,
-    text width=1.6cm, align=center, font=\small},
-  arr/.style={-Stealth, thick}
+  stage/.style={draw, rounded corners, minimum height=1.05cm, text width=1.8cm, align=center, font=\small},
+  line/.style={-Stealth, thick}
 ]
-\node[stage] (cam) {Pi Camera\\V2};
-\node[stage, right=0.6cm of cam] (vis) {Vision\\Pipeline};
-\node[stage, right=0.6cm of vis] (val) {State\\Validation};
-\node[stage, right=0.6cm of val] (mm) {Minimax\\Search};
-\node[stage, right=0.6cm of mm] (ser) {Serial\\Link};
-\node[stage, right=0.6cm of ser] (act) {Actuation};
-\node[stage, right=0.6cm of act] (ver) {Verification};
+\node[stage] (cam) {Camera\\capture};
+\node[stage, right=0.45cm of cam] (vision) {Vision\\pipeline};
+\node[stage, right=0.45cm of vision] (trust) {Trusted-state\\validator};
+\node[stage, right=0.45cm of trust] (plan) {Minimax\\planner};
+\node[stage, right=0.45cm of plan] (serial) {Serial\\link};
+\node[stage, right=0.45cm of serial] (act) {Carriage +\\magazine};
+\node[stage, right=0.45cm of act] (verify) {Post-drop\\verification};
 
-\draw[arr] (cam) -- (vis);
-\draw[arr] (vis) -- (val);
-\draw[arr] (val) -- (mm);
-\draw[arr] (mm) -- (ser);
-\draw[arr] (ser) -- (act);
-\draw[arr] (act) -- (ver);
-\draw[arr] (ver.south) to[bend left=50]
-  node[below, font=\footnotesize] {closed-loop feedback}
-  (val.south);
+\draw[line] (cam) -- (vision);
+\draw[line] (vision) -- (trust);
+\draw[line] (trust) -- (plan);
+\draw[line] (plan) -- (serial);
+\draw[line] (serial) -- (act);
+\draw[line] (act) -- (verify);
+\draw[line] (verify.south) to[bend left=45] node[below, font=\footnotesize] {advance state only after camera confirmation} (trust.south);
 \end{tikzpicture}
-
-\caption{System architecture: seven-stage pipeline from image acquisition through actuation to closed-loop verification. The Pi Camera~V2 acquires overhead frames; the vision pipeline normalizes and classifies the board; a trusted-state validator enforces six legality rules; minimax with alpha-beta pruning selects the robot's move; the column index is sent over serial to the Arduino; the actuation stage dispenses a token; and the verification stage re-reads the board, feeding back to the validator.}
-
-\label{fig:arch}
+\caption{Integrated closed-loop architecture. The camera is used twice: first to infer a candidate board and later to confirm that the physical robot move actually happened. This is the core difference between a working pipeline demo and a trustworthy integrated robot.}
+\label{fig:architecture}
 \end{figure*}
 
-The seven stages operate sequentially for each turn, with the verification stage looping back to the validator to confirm correct execution before the next turn begins.
+The final setup used a Raspberry Pi~4~\cite{RaspberryPi2024} for perception and planning, an Arduino Uno~\cite{Arduino2024} for motor control, an overhead Raspberry Pi camera module, a time-based lateral carriage, and an encoder-coupled magazine release. The final as-built hardware cost reported in the course materials was 6100~EGP. The operator dashboard ran on the Pi and exposed the raw feed, the warped feed, board-state views, classifier mode selection, and robot status.
 
-Stage~1 (Camera): the Pi Camera~V2 acquires overhead RGB frames at 640$\times$480 resolution, captured at approximately 1\,FPS for full board analysis and streamed at 5\,FPS for the preview dashboard.
-
-Stage~2 (Vision): the Python/OpenCV pipeline performs geometric rotation ($\theta = 15^\circ$, bilinear interpolation) to correct camera angle, perspective warping to an $800\times800$\,px orthographic view via homography, brightness ($c = +30$) and contrast ($\alpha = 1.4$) adjustment, $5\times5$ Gaussian smoothing, and HSV-based cell classification to extract a $6\times7$ game-state matrix.
-
-Stage~3 (Validation): a trusted-state manager compares the candidate board against the last verified state and enforces six physical legality rules (Section~\ref{sec:validation}), rejecting frames with obvious vision errors.
-
-Stage~4 (Minimax): a depth-5 minimax search with alpha-beta pruning evaluates the legal board state and selects the optimal column for the robot's move, using immediate-win and must-block shortcuts to short-circuit the full search in tactical positions.
-
-Stage~5 (Serial): the selected column index (ASCII character ``1''--``7'') is transmitted at 9600\,baud over USB serial to the Arduino Uno.
-
-Stage~6 (Actuation): the Arduino drives a TT carriage motor to position the dispensing carriage over the target column using calibrated open-loop timing, then activates an encoder-coupled magazine motor to release exactly one token from the spring-loaded magazine.
-
-Stage~7 (Verification): the camera re-reads the board at 0.4\,s intervals and confirms that the expected robot token appeared in the commanded column at the correct gravity-determined row within a 10\,s timeout. If verification succeeds, the trusted state is updated and the turn passes to the human opponent. If verification times out or the board is rejected by the validator, the system enters an error state and halts.
-
-% ===========================================================================
-\section{Image Processing Pipeline}
-\label{sec:pipeline}
-% ===========================================================================
-
-The processing pipeline is implemented in Python using OpenCV 4.8~\cite{OpenCV2024}. All operations execute on the Raspberry Pi~4 (4\,GB)~\cite{RaspberryPi2024} with per-operation timing reported in Section~\ref{sec:results}. Output images are saved as PNG files for direct inspection and debugging during development.
-
-\subsection{Input Image}
-
-The pipeline input is a single overhead RGB photograph of a Connect-4 board with red and yellow tokens in a partially played game state (Fig.~\ref{fig:input}). The input image has dimensions $1332\times1529$\,px, captured against a white background under even artificial lighting at approximately 800\,lux from overhead fluorescent fixtures. The board is a standard plastic Connect-4 grid with a blue frame, occupying most of the frame with 7 columns and 6 rows. The column pitch is approximately 20\,mm center-to-center, and each token is 18\,mm in diameter with approximately 1\,mm radial clearance within its cell. The image is captured in JPEG format at 95\% quality to balance file size against classification detail.
-
-\begin{figure}[htbp]
-
-  \centerline{\includegraphics[width=0.85\columnwidth]{figures/m2_input_board.png}}
-
-  \caption{Input image: Connect-4 board in a partially played state (7 columns, 6 rows). Red and yellow tokens occupy the lower rows in a mid-game configuration. The blue board frame provides a stable hue reference for corner detection.}
-
-  \label{fig:input}
-
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{figures/final_hardware_overview.jpg}
+\caption{Final assembled evaluation setup. The physical board, overhead dispenser, camera mount, Raspberry Pi, and operator dashboard are visible in one frame, showing the exact integrated system used in the final demonstrations.}
+\label{fig:hardware}
 \end{figure}
 
-\subsection{Geometric Transformations}
-
-\subsubsection{Rotation}
-
-Camera angular offset is corrected by affine rotation. For an image domain $\Omega$ with center $(c_x, c_y)$, rotation by angle $\theta$ is defined by the rotation matrix:
+\section{Vision and State Estimation}
+The perception stack starts from a single overhead board image and converts it into a board state that the robot can trust enough to plan from. The board is first localized from the blue frame, then rectified to a canonical top-down view using the homography in \eqref{eq:homography}
 
 \begin{equation}
-  \begin{bmatrix} x' \\ y' \end{bmatrix}
-  =
-  \begin{bmatrix} \cos\theta & -\sin\theta \\
-                  \sin\theta &  \cos\theta \end{bmatrix}
-  \begin{bmatrix} x - c_x \\ y - c_y \end{bmatrix}
-  +
-  \begin{bmatrix} c_x \\ c_y \end{bmatrix}.
-  \label{eq:rotation}
+\lambda
+\begin{bmatrix}
+u \\
+v \\
+1
+\end{bmatrix}
+=
+\mathbf{H}
+\begin{bmatrix}
+x \\
+y \\
+1
+\end{bmatrix}.
+\label{eq:homography}
 \end{equation}
 
-Equation~\eqref{eq:rotation} is applied at $\theta = 15^{\circ}$ counter-clockwise using bilinear interpolation. Bilinear interpolation averages the four nearest pixel intensities to produce smooth boundaries around the circular cells. This is critical because nearest-neighbor interpolation produces jagged cell edges that fragment the downstream HSV mask response, degrading classification accuracy by introducing artificial high-frequency boundaries at cell edges.
+After warping, the deployed runtime applies a brightness shift of $c=+30$, a contrast gain of $\alpha=1.4$, and a $5\times5$ Gaussian blur before partitioning the board into a $6\times7$ lattice. These parameters match the final reported operating point and are reflected in the archived runtime included with the repository.
 
-\subsubsection{Perspective Warp}
+Figure~\ref{fig:vision} gives the curated pipeline story for one representative board. Each panel answers a different question: whether the raw scene is readable, whether geometry has been normalized, whether token positions are interpreted correctly, and whether the result is usable as a state matrix.
 
-Because the camera is mounted at a slight angle above the board (approximately $15^\circ$ from vertical), orthographic flattening is required before cell-level analysis. A homography $\mathbf{H} \in \mathbb{R}^{3\times3}$ maps the four detected board corners to an $800\times800$\,px square:
+\begin{figure*}[t]
+\centering
+\includegraphics[width=0.92\textwidth]{figures/final_vision_pipeline.png}
+\caption{Representative vision pipeline output from a single board position. The raw board image shows the starting scene, the warped board shows the geometry-normalized view used for cell analysis, the audited token overlay shows the interpreted token locations on that same warped image, and the recovered board state shows the discrete $6\times7$ representation used by the game logic.}
+\label{fig:vision}
+\end{figure*}
 
-\begin{equation}
-  \lambda \begin{bmatrix} u \\ v \\ 1 \end{bmatrix}
-  =
-  \mathbf{H}
-  \begin{bmatrix} x \\ y \\ 1 \end{bmatrix}.
-  \label{eq:homography}
-\end{equation}
-
-The four board corners are detected by thresholding the blue frame in HSV space (H~85--140) to isolate the board perimeter, extracting the largest contour, and computing its convex hull. The four extreme points of the hull---top-left, top-right, bottom-right, bottom-left---serve as the source points for the homography. The destination is the $800\times800$\,px square, chosen because it provides approximately 24\,px per cell column and 28\,px per cell row after the $7\times6$ partition, sufficient resolution for HSV pixel counting. The homography in~\eqref{eq:homography} produces a top-down orthographic view (Fig.~\ref{fig:warp}) that eliminates perspective foreshortening and enables reliable grid-index mapping of cell positions.
-
-\begin{figure}[htbp]
-
-  \centerline{\includegraphics[width=\columnwidth]{figures/m2_perspective_warp.png}}
-
-  \caption{Perspective warp for board isolation: (left) original with detected corner points overlaid on the blue frame; (center) warped using nearest-neighbor interpolation showing jagged cell boundaries; (right) warped using bilinear interpolation with visibly smoother boundaries.}
-
-  \label{fig:warp}
-
-\end{figure}
-
-\subsection{Intensity Transformations}
-
-\subsubsection{Brightness Adjustment}
-
-The brightness transformation is the saturating additive shift:
-
-\begin{equation}
-  I_b(x,y) = \mathrm{clip}\bigl(I(x,y) + c\bigr),
-  \label{eq:brightness}
-\end{equation}
-
-applied with $c = +30$. Equation~\eqref{eq:brightness} shifts the entire pixel intensity distribution rightward by 30 levels on the 0--255 scale, improving the visibility of darker tokens whose shadow side or undersides may register near 40--60 in the raw image. The \texttt{clip} operation ensures that output values remain within $[0, 255]$ to avoid wrap-around artifacts.
-
-\subsubsection{Contrast Enhancement}
-
-The linear contrast stretch:
-
-\begin{equation}
-  I_c(x,y) = \mathrm{clip}\bigl(\alpha\, I(x,y) + \beta\bigr),
-  \label{eq:contrast}
-\end{equation}
-
-applied with $\alpha = 1.4$ and $\beta = 0$, expands the intensity distribution by 40\%. This improves the separation between dark empty slots (which map to approximately 40--90 on the processed scale) and lighter token surfaces (which map to approximately 140--220). Without contrast enhancement, the intensity histograms of tokens and empty slots overlap in the 90--130 range, making it difficult for any downstream classifier to distinguish a dim token from a brightly lit empty cell. Equation~\eqref{eq:contrast} stretches this overlap region apart. The combined brightness and contrast result is shown in Fig.~\ref{fig:intensity}.
-
-\begin{figure}[htbp]
-
-  \centerline{\includegraphics[width=\columnwidth]{figures/m2_brightness_adjustment.png}}
-
-  \caption{Brightness adjustment ($c = +30$) followed by contrast scaling ($\alpha = 1.4$) applied to the warped board. The pixel intensity distribution is shifted rightward and stretched, improving the separation between dark empty slots and lighter token surfaces.}
-
-  \label{fig:intensity}
-
-\end{figure}
-
-\subsection{Smoothing}
-
-Camera sensor noise and JPEG compression artifacts are suppressed by Gaussian filtering, modeled as a weighted local average over a $(2k+1)\times(2k+1)$ kernel:
-
-\begin{equation}
-  I_G(x,y) = \sum_{i=-k}^{k} \sum_{j=-k}^{k}
-    G_\sigma(i,j)\, I(x-i,\,y-j),
-  \label{eq:gaussian}
-\end{equation}
-
-where $G_\sigma$ is the Gaussian kernel normalized to unit sum with standard deviation $\sigma$ computed as $\sigma = 0.3 \times ((2k+1) - 1) \times 0.5$ following OpenCV's default mapping for \texttt{GaussianBlur}. We evaluated~\eqref{eq:gaussian} at kernel sizes $3\times3$ ($\sigma \approx 0.85$), $5\times5$ ($\sigma \approx 1.25$), and $7\times7$ ($\sigma \approx 1.65$), and compared against a uniform box filter of size $3\times3$ (Fig.~\ref{fig:smoothing}).
-
-As kernel size increases, high-frequency noise is progressively suppressed but fine edge detail at token boundaries is attenuated. We selected a $5\times5$ Gaussian kernel as the operating point because it provides adequate JPEG artifact suppression---removing the $8\times8$ block boundaries introduced by JPEG compression---while preserving the circular token boundaries (approximately 24\,px in diameter at the working resolution) needed for accurate HSV mask generation. The $7\times7$ kernel over-smooths these small token regions, causing the red and yellow masks to bleed across cell boundaries and merge adjacent tokens into single blobs.
-
-\begin{figure}[htbp]
-
-  \centerline{\includegraphics[width=\columnwidth]{figures/m2_smoothing_comparison.png}}
-
-  \caption{Smoothing comparison: original (warped, grayscale), Gaussian $3\times3$, $5\times5$, $7\times7$, and box filter $3\times3$. The $5\times5$ Gaussian (middle-right) offers the best trade-off between noise attenuation and boundary preservation.}
-
-  \label{fig:smoothing}
-
-\end{figure}
-
-\subsection{HSV Segmentation and Cell Classification}
-
-After geometric normalization and denoising, token-color classification is performed on the warped board image using HSV thresholding. Binary masks for the red and yellow token classes are refined using morphological opening (erosion followed by dilation, $3\times3$ elliptical kernel) to remove isolated glare pixels (typically 1--3\,px wide), followed by morphological closing (dilation followed by erosion, $3\times3$ kernel) to fill small gaps at token boundaries caused by specular highlights. This two-step cleanup is essential because a single saturated pixel from a glare reflection on a token surface can shift its hue into the blue range, causing a false negative for that token if left unfiltered.
-
-The HSV thresholds (in OpenCV ranges: $H \in [0,179]$, $S \in [0,255]$, $V \in [0,255]$) are empirically calibrated to the specific plastic materials of the Connect-4 board and tokens. RED uses two ranges $[0,80,50] \rightarrow [10,255,255]$ and $[160,80,50] \rightarrow [179,255,255]$ to cover both ends of the hue circle simultaneously (red hue wraps around $0^\circ$ in the cylindrical HSV model). YELLOW uses $[18,100,80] \rightarrow [42,255,255]$. The saturation and value lower bounds are set to 80 and 50 respectively for red, and 100 and 80 for yellow, rejecting white, gray, and dark pixels that fall within the red or yellow hue bands but are actually empty cell reflections.
-
-The warped board is partitioned into the canonical 7-column, 6-row lattice, and each cell is classified based on the dominant mask response:
-
-\begin{equation}
-  S_{r,c} =
-  \begin{cases}
-    1, & \text{if } M_R(r,c) > \tau_R,\\
-    2, & \text{if } M_Y(r,c) > \tau_Y,\\
-    0, & \text{otherwise,}
-  \end{cases}
-  \label{eq:state}
-\end{equation}
-
-where $M_R$ and $M_Y$ are the cell-level pixel counts of the red and yellow HSV masks after morphological cleanup, $\tau_R$ and $\tau_Y$ are empirical occupancy thresholds (minimum 30 pixels, corresponding to approximately 10\% of a cell's area of roughly 300\,px), and $S_{r,c} \in \{0, 1, 2\}$ denotes empty, robot (red), and opponent (yellow) respectively. The thresholds $\tau_R = \tau_Y = 30$ were chosen by manual inspection of 50 cells with known ground truth: values below 30 correspond to noise (glare spots, board reflections), while values above 30 reliably indicate a physical token.
-
-\subsection{Classifier Modes}
-
-The system supports three cell-classification modes that enable comparative evaluation:
+The system exposes three classifier modes.
 
 \begin{itemize}
-
-\item \textbf{HSV} (rule-based): uses the HSV thresholds in~\eqref{eq:state} directly without any learning. This is the default operating mode. It processes each frame independently with no training requirement and no model file, making it the simplest to deploy and the most predictable in behavior.
-
-\item \textbf{ML}: uses a pre-trained \texttt{RandomForestClassifier} from scikit-learn with 200 decision trees and \texttt{max\_depth}=10, operating on an 18-dimensional feature vector extracted per cell. The features include: BGR channel means (3), BGR channel standard deviations (3), HSV channel means (3), HSV channel standard deviations (3), red mask pixel count (1), yellow mask pixel count (1), ratio of red to total mask pixels (1), ratio of yellow to total mask pixels (1), cell bounding-box width (1), and cell bounding-box height (1). The model was trained on approximately 200 manually labeled cell ROIs extracted from a single lighting condition, with 70\% used for training and 30\% for validation.
-
-\item \textbf{Auto} (hybrid): prefers the ML prediction when the maximum predicted class probability across all three classes exceeds a confidence threshold of 0.65; otherwise falls back to HSV thresholding. This mode attempts to combine the generalization potential of ML (which might handle subtle shade variations) with the deterministic robustness of HSV (which never confuses tokens with empty cells when the lighting matches calibration conditions).
-
+\item \textbf{HSV}: rule-based token classification using calibrated red and yellow HSV ranges.
+\item \textbf{ML}: a RandomForest classifier trained on compact color-statistics features extracted from cell regions.
+\item \textbf{Auto}: a hybrid mode that prefers the ML prediction when its confidence exceeds 0.65 and otherwise falls back to HSV.
 \end{itemize}
 
-\subsection{Calibration Methodology}
+Table~\ref{tab:accuracy} reports the final per-cell comparison across approximately 200 labeled cell ROIs captured under the deployment lighting. The table is useful not just because it ranks the modes, but because it shows where the weaker modes fail: the ML path drops most sharply on yellow cells, and the hybrid mode inherits some of that penalty even though it has access to the HSV fallback.
 
-The pipeline parameters were calibrated through an iterative grid-search procedure. The rotation angle $\theta$ was swept from $-20^\circ$ to $+20^\circ$ in $1^\circ$ increments on 10 test images, and the angle that minimized the mean squared error between detected and expected grid-aligned cell positions was selected ($\theta = 15^\circ$). The HSV thresholds were calibrated by manually labeling 50 cells with ground-truth occupancy and selecting the threshold values that maximized the $F_1$ score across all three classes on a held-out validation set of 50 additional cells. The brightness offset $c$ and contrast gain $\alpha$ were chosen to maximize the inter-class intensity separation between tokens and empty cells as measured by the Fisher discriminant ratio on the validation set.
-
-% ===========================================================================
-\section{Game-State Validation and Decision Making}
-\label{sec:validation}
-% ===========================================================================
-
-Each processed frame is converted into a $6\times7$ game-state matrix and validated before being used to determine the robot's next physical move. The closed-loop control path spans visual state estimation, move selection, and dispenser actuation, with validation gates at both the input (vision $\to$ decision) and output (actuation $\to$ verification) boundaries.
-
-\subsection{Trusted-State Validation}
-
-A trusted-state manager maintains the last verified board state in memory and rejects candidate states that violate physical game rules. When a new candidate board is extracted from the camera, the validator compares it against the trusted state and enforces six legality rules:
-
-\begin{enumerate}
-
-\item \textbf{Board changed}: the candidate must differ from the trusted state by at least one cell. An identical board means the user has not yet moved and is rejected as ``no move detected,'' preventing the robot from acting on stale data.
-
-\item \textbf{No chip disappeared}: every cell that was occupied in the trusted state must remain occupied in the candidate. A chip vanishing between frames indicates a vision error (e.g., a glare highlight occluding a token) rather than a legal move, since tokens cannot be removed from the board during play.
-
-\item \textbf{Exactly one new chip}: the candidate must contain exactly one cell that transitioned from empty to occupied. Zero transitions implies no move was made; two or more transitions is physically impossible in a single turn since only one token can be dropped at a time.
-
-\item \textbf{Gravity}: the new chip must appear in the lowest empty row of its column. A floating chip---an occupied cell above an empty cell in the same column---violates gravity because tokens fall to the lowest available position. This check catches misclassifications where a token boundary bleeds into an adjacent row.
-
-\item \textbf{Column not full}: the target column must not have been already full (six tokens present) in the trusted state. A new chip appearing in a full column is physically impossible.
-
-\item \textbf{Correct player color}: the color of the new chip must match the player whose turn it is. A red chip appearing during the robot's (yellow) turn indicates a detection error, as does a yellow chip during the human's (red) turn.
-
-\end{enumerate}
-
-If all six rules pass, the candidate is promoted to the new trusted state. If any rule fails, the candidate is rejected with a human-readable reason string (e.g., ``Rule~4 violation: floating chip at col~4, row~3''), and the trusted state remains unchanged. The validator polls the camera at 0.4\,s intervals until a valid state is received or a 10\,s timeout expires. This polling loop prevents transient vision artifacts---a single frame with a glare reflection that triggers Rule~2---from blocking gameplay; subsequent frames typically produce valid detections.
-
-\subsection{Move Selection with Minimax}
-
-Once a valid board state is accepted and it becomes the robot's turn, the decision layer applies minimax with alpha-beta pruning~\cite{Russell2020} to select the next legal column. For a board state $S$, the search evaluates candidate moves according to:
-
-\begin{equation}
-  V(S) = \max_{a \in \mathcal{A}(S)}\;
-         \min_{b \in \mathcal{A}(T(S,a))}\;
-         V\bigl(T(T(S,a),b)\bigr),
-  \label{eq:minimax}
-\end{equation}
-
-where $\mathcal{A}(S)$ is the set of legal (non-full) columns and $T(S,a)$ is the state transition generated by dropping a token of the current player's color into column $a$ and letting it fall to the lowest empty row under gravity. Equation~\eqref{eq:minimax} represents one full maximizer--minimizer pair at the root level; it is applied recursively to a depth of 5 plies (three robot moves and two opponent responses, or vice versa depending on which player initiates).
-
-At the leaf nodes (depth~5), the evaluation function scores all 4-cell windows on the board---horizontal (7 columns $\times$ 3 rows $= 21$ windows), vertical (4 columns $\times$ 6 rows $= 24$ windows), upward diagonal (4 columns $\times$ 3 rows $= 12$ windows), and downward diagonal (4 columns $\times$ 3 rows $= 12$ windows)---for a total of 69 windows evaluated per leaf. The scoring weights are: $+100$ for four robot tokens in a window (win), $-100$ for four opponent tokens (loss), $+5$ for three robot tokens with one empty slot, $+2$ for two robot tokens with two empty slots, and $-4$ for three opponent tokens with one empty slot (forced block incentive). Additionally, each robot token in the center column (column~4) receives a $+3$ positional bonus to bias play toward the center, which is the dominant strategic heuristic for Connect-4 because the center column participates in the maximum number of winning lines.
-
-Two execution shortcuts trigger before the full search to reduce average latency: (1) if any legal column yields an immediate robot win (four-in-a-row after the drop), it is selected without search; (2) if any legal column would allow the opponent to win on their next move, that column is forced as a block. These shortcuts reduce average turn latency from approximately 0.95\,s to 0.5\,s in tactical positions where immediate threats exist.
-
-\subsection{Closed-Loop Verification}
-
-After the minimax-selected column is transmitted to the Arduino and the physical dispenser actuates, the camera re-reads the board to verify correct execution. The system computes the expected post-move board state by applying the robot's move to the trusted state: the new state should show exactly one new robot token in the commanded column at the lowest empty row. It then polls the camera at 0.4\,s intervals for up to 10\,s. The move is considered verified only if the candidate board exactly matches the expected state.
-
-If the candidate matches, the trusted state is updated and the turn passes to the human opponent. If verification times out or the candidate is rejected by the validator, the system enters an error state, stops automatic dispatch, and reports the failure through the web dashboard, requiring operator intervention. This verification step ensures that mechanical execution errors---token jams in the magazine, misaligned drops, motor stalls, or carriage over-travel---are detected immediately rather than silently corrupting the game state for subsequent moves.
-
-% ===========================================================================
-\section{Embedded Platform and Actuation}
-\label{sec:embedded}
-% ===========================================================================
-
-The system uses a two-processor architecture to separate computationally intensive vision from real-time motor control. A Raspberry Pi~4 (4\,GB) handles all vision processing, game logic, and user interface duties. An Arduino Uno handles low-level motor control with deterministic timing. Communication between the two processors is over USB serial at 9600\,baud. Table~\ref{tab:hardware} lists the main hardware components and their roles.
-
-\begin{table}[htbp]
-
-\caption{Hardware Components}
-\label{tab:hardware}
-
-\begin{center}
-\begin{tabular}{llc}
-\toprule
-\textbf{Component} & \textbf{Role} & \textbf{Qty} \\
-\midrule
-Raspberry Pi 4 (4\,GB) & Vision, decision-making, web UI & 1 \\
-Arduino Uno & Motor control (L298N signals) & 1 \\
-Pi Camera V2 & Image acquisition (CSI, 8\,MP) & 1 \\
-L298N H-bridge & Dual-channel motor driver & 2 \\
-TT gear motor & Carriage lateral positioning & 1 \\
-DC encoder motor (400\,CPR) & Token magazine release & 1 \\
-12\,V 5\,A power supply & System power & 1 \\
-Connect-4 board & Game surface (plastic, blue frame) & 1 \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\end{table}
-
-\subsection{Raspberry Pi~4}
-
-The Raspberry Pi~4~\cite{RaspberryPi2024} runs a Python 3.9 application built on Flask (web dashboard) and OpenCV 4.8 (image processing). The Pi Camera~V2 module is connected via the CSI ribbon cable and accessed through OpenCV's \texttt{VideoCapture} interface at 640$\times$480 resolution for analysis frames and 320$\times$240 for the preview stream. The application runs two threads: a camera thread that captures frames at 1\,FPS for full board analysis and streams a preview at 5\,FPS using JPEG compression at 70\% quality; and a robot controller thread that manages serial communication, verification polling, and the game-state machine.
-
-The web dashboard serves live MJPEG streams of the raw camera feed, the processed (warped) board with overlaid grid lines, and a debug overlay showing per-cell classification results as color-coded dots (green for empty, red for robot, yellow for opponent). The dashboard also displays the current game state matrix in text form, the minimax evaluation score and selected column, the verification status and polling count, and the serial status messages from the Arduino. All dashboard pages are served from a single Flask instance running on port~5000.
-
-\subsection{Serial Protocol}
-
-The serial protocol is minimal by design to reduce latency, eliminate protocol parsing errors, and simplify debugging. The Pi transmits a single ASCII character in the range ``1''--``7'' representing the target column (1-indexed, left to right). The Arduino reads the byte with \texttt{Serial.read()}, validates that it falls within the valid range, and dispatches the corresponding subroutine. No acknowledgment packet is required before actuation---the Pi does not wait for a handshake; instead it relies entirely on camera-based verification (Section~\ref{sec:validation}) to confirm successful execution.
-
-The Arduino reports human-readable status messages over serial for diagnostics: ``READY'' (idle, waiting for command), ``BUSY'' (motor running), ``MAG'' (magazine motor active), ``MOVE'' (carriage motor active), and ``DONE'' (move completed). These messages are displayed on the web dashboard for operator feedback but are not required for the core control loop.
-
-\subsection{Arduino Actuation Hardware}
-
-Fig.~\ref{fig:circuit} shows the electrical architecture as implemented in Proteus simulation prior to physical assembly. The Arduino Uno drives two DC motors through two L298N dual H-bridge modules, with a common 12\,V supply rail.
-
-\begin{figure}[htbp]
-
-  \centerline{\includegraphics[width=\columnwidth]{figures/m1_proteus_circuit.png}}
-
-  \caption{Proteus circuit simulation of the electrical architecture. Raspberry Pi~4 (U1, top-left) communicates with Arduino UNO (UNO1) via serial; two L298N H-bridge modules (U2, U3) drive the column-positioning and token-magazine motors; 12\,V battery (B1) provides main power.}
-
-  \label{fig:circuit}
-
-\end{figure}
-
-\subsubsection{Carriage Motor (TT Motor)}
-
-The carriage-positioning motor is a TT (Toy-Tech) gear motor rated at 3--6\,V DC with an integrated gearbox providing approximately 200\,RPM at no load. It is connected to the L298N's first channel (ENA = pin~9 PWM, IN1 = pin~7, IN2 = pin~8). The PWM speed control uses analogWrite at value 100 out of 255 (approximately 40\% duty cycle). The motor moves the dispensing carriage laterally along a single horizontal axis via a timing belt and pulley system.
-
-Positioning is time-based: each column has a calibrated travel duration measured from the home position (column~1, 0\,ms). The durations are [0, 330, 600, 900, 1200, 1500, 1800]\,ms for columns 1--7 respectively. After reaching the target column, the motor is hard-braked (both IN1 and IN2 HIGH for 100\,ms) to arrest momentum, the token is released, and the carriage returns to home by reversing direction for the same duration. The time-based approach was chosen for its simplicity and zero sensor cost, but its limitations are discussed in Section~\ref{sec:discussion}.
-
-\subsubsection{Magazine Motor (Encoder Motor)}
-
-The token-release motor is a DC motor with an integrated 400-counts-per-revolution (CPR) magnetic rotary encoder, connected to the L298N's second channel (ENB = pin~10 PWM, IN3 = pin~11, IN4 = pin~12) with the encoder channel A on interrupt pin~2. The motor rotates a disk-shaped end-effector that sweeps through the bottom of a spring-loaded token magazine, pushing exactly one token out of the stack and through a curved slide channel onto the board's entry slot.
-
-Release is encoder-controlled in two phases: the motor runs at fast speed (PWM~50, approximately 20\% duty cycle) until the encoder pulse count reaches 390 (target 430 minus a 40-pulse slow-down window), then switches to slow speed (PWM~30, approximately 12\% duty cycle) for the remaining 40 pulses. This two-speed profile reduces the momentum of the rotating disk as it approaches the release position, preventing token overshoot where the disk pushes a second token partially out of the magazine. The hard brake sequence stops the motor, and the final pulse count is reported over serial for diagnostics.
-
-\subsection{Mechanical Assembly}
-
-The mechanical assembly is built on a laser-cut acrylic base plate measuring 400$\times$300\,mm, providing a rigid platform for all components. The Connect-4 board is secured in a fixed pocket at one end of the base. The token magazine is 3D-printed from PLA filament, holding a vertical stack of up to 24 red tokens (the robot's color) that feed by gravity into a dispensing channel at the bottom. The magazine motor and rotating disk are mounted directly below the magazine outlet.
-
-The carriage assembly rides on a linear guide rail (200\,mm travel, 8\,mm diameter steel shaft with bronze bushings) and is driven by a timing belt (GT2 profile, 6\,mm width) looped around pulleys at both ends. The TT motor drives the belt via a direct shaft coupling. A 3D-printed funnel on the carriage guides the token from the slide channel into the correct column entry slot. The fixed geometric relationship between the camera mounting point (a 3D-printed bracket at a calibrated height above the board), the board pocket, and the guide rail ensures that the overhead camera perspective and the carriage travel axis are repeatably aligned across assembly and disassembly cycles.
-
-% ===========================================================================
-\section{Experimental Results}
-\label{sec:results}
-% ===========================================================================
-
-\subsection{Per-Operation Execution Time}
-
-We benchmarked each pipeline operation over 100 iterations on the Raspberry Pi~4 (4\,GB, ARM Cortex-A72 @ 1.5\,GHz) running Raspberry Pi OS (64-bit). The total per-frame processing time on the Pi~4 was 16.81\,ms, corresponding to an effective analysis rate of approximately 59\,FPS for the vision pipeline alone. The breakdown is:
-
-\begin{itemize}
-\item Rotation (bilinear, $15^\circ$): 8.47\,ms
-\item Perspective warp ($800\times800$\,px bilinear): 3.60\,ms
-\item Brightness ($c=+30$): 0.73\,ms
-\item Contrast ($\alpha=1.4$): 1.11\,ms
-\item Gaussian blur ($5\times5$): 0.76\,ms
-\item HSV segmentation and classification: 2.14\,ms
-\end{itemize}
-
-On a laptop (Intel i7-1165G7 @ 2.8\,GHz), the same pipeline completed in 6.85\,ms per frame. Output images are bit-for-bit identical across platforms, confirming that the Pi~4's limitation is temporal throughput rather than numerical accuracy.
-
-\subsection{Per-Cell Classification Accuracy}
-
-Table~\ref{tab:accuracy} reports per-cell classification accuracy for the three classifier modes described in Section~\ref{sec:pipeline}. Accuracy was measured over 10 complete board images totaling 420 cells with manually verified ground truth. The HSV classifier achieved the highest overall accuracy at 98\%, with near-perfect empty-cell detection (99\%) and strong performance on both token colors (98\% each). The ML classifier (RandomForest, 200 trees, \texttt{max\_depth}=10) achieved 91\% overall, with the lowest per-class accuracy on yellow tokens (88\%) due to overlapping feature distributions between the yellow plastic token surface and the brightly illuminated board background. The Auto hybrid mode achieved 96\% overall, selectively falling back to HSV when ML confidence was below the 0.65 threshold. Fig.~\ref{fig:acc_chart} visualizes these results across all four classification categories.
-
-\begin{table}[htbp]
-
-\caption{Per-Cell Classification Accuracy by Classifier Mode (\%)}
+\begin{table}[t]
+\caption{Per-cell classification accuracy by operating mode}
 \label{tab:accuracy}
-
-\begin{center}
+\centering
+\small
 \begin{tabular}{lcccc}
 \toprule
-\textbf{Classifier} & \textbf{Empty} & \textbf{Red} & \textbf{Yellow} & \textbf{Overall} \\
+\textbf{Mode} & \textbf{Empty} & \textbf{Red} & \textbf{Yellow} & \textbf{Overall} \\
 \midrule
-HSV (rule-based) & 99 & 98 & 98 & 98 \\
-Auto (hybrid)     & 97 & 95 & 96 & 96 \\
-ML (RandomForest) & 94 & 92 & 88 & 91 \\
+HSV & 99\% & 98\% & 98\% & 98\% \\
+Auto & 97\% & 95\% & 96\% & 96\% \\
+ML & 94\% & 92\% & 88\% & 91\% \\
 \bottomrule
 \end{tabular}
-\end{center}
-
 \end{table}
 
-\begin{figure}[htbp]
+\section{Closed-Loop Decision and Actuation}
+The board extracted from vision is not accepted blindly. Instead, it is compared against the last trusted board and must satisfy six rules before planning begins: the board must have changed, no chip may disappear, exactly one new chip may appear, the new chip must respect gravity, the target column must not already be full, and the new chip color must match the current turn. These checks are what keep imperfect frame-by-frame perception from becoming a corrupted game state.
 
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-    ybar,
-    symbolic x coords={Empty,Red,Yellow,Overall},
-    xtick=data,
-    ymin=85, ymax=100,
-    ylabel={Accuracy (\%)},
-    legend style={at={(0.5,-0.2)}, anchor=north, legend columns=-1},
-    bar width=0.2,
-    enlarge x limits=0.3,
-    nodes near coords,
-    every node near coord/.append style={font=\tiny},
-]
-\addplot[fill=blue!50] coordinates {(Empty,99) (Red,98) (Yellow,98) (Overall,98)};
-\addplot[fill=green!50] coordinates {(Empty,97) (Red,95) (Yellow,96) (Overall,96)};
-\addplot[fill=orange!50] coordinates {(Empty,94) (Red,92) (Yellow,88) (Overall,91)};
-\legend{HSV, Auto, ML}
-\end{axis}
-\end{tikzpicture}
+Once a candidate board passes validation, the robot chooses a move using the depth-5 minimax recursion in \eqref{eq:minimax} with alpha-beta pruning,
 
-\caption{Per-cell classification accuracy by classifier mode and token class. Bars show the percentage of correctly classified cells for each token state (Empty, Red, Yellow) and the Overall average. The HSV classifier (blue bars) achieves the highest accuracy across all categories.}
+\begin{equation}
+V(S)=\max_{a \in \mathcal{A}(S)} \min_{b \in \mathcal{A}(T(S,a))} V\bigl(T(T(S,a),b)\bigr),
+\label{eq:minimax}
+\end{equation}
 
-\label{fig:acc_chart}
+where $\mathcal{A}(S)$ is the set of legal columns and $T(S,a)$ is the gravity-respecting state transition induced by dropping a token in column $a$. The archived runtime also includes immediate-win and immediate-block shortcuts before the full search, which matters because the robot only needs a good move quickly, not a mathematically exhaustive search of every future board.
 
-\end{figure}
+The chosen column is transmitted at 9600 baud to the Arduino. The carriage then moves laterally using calibrated durations $[0, 330, 600, 900, 1200, 1500, 1800]$~ms for columns 1 through 7, pauses over the target, and the magazine motor rotates 430 encoder pulses with a fast/slow two-stage profile to release one token. After the motion completes, the camera polls the board every 0.4~s for up to 10~s. The internal state advances only if the expected new token is observed in the commanded column.
 
-\subsection{Drop Success Rate}
+\section{Experimental Results}
+\subsection{Why HSV Is the Practical Default}
+Table~\ref{tab:accuracy} shows that HSV reached 98\% overall per-cell accuracy, ahead of Auto at 96\% and ML at 91\%. The number matters because it establishes the deployed operating point: under the tested indoor setup, the simplest classifier was also the best one. The reason is visible in the project conditions and code structure. The board frame and tokens occupy distinct hue ranges, while the ML path was trained on a much smaller labeled set and had to generalize from compact color-statistics features. In practice, that left the learned model more exposed to lighting and appearance variation, especially for yellow cells.
 
-Table~\ref{tab:drop} reports the per-column token drop success rate over 20 trials per column (140 total). A drop is counted as successful if the robot token appears in the commanded column at the correct gravity-determined row on the post-move verification image. The success rate is monotonic with respect to column distance from the home position: columns 1--3 (0--600\,ms travel) achieved 100\% success; column~4 (900\,ms) achieved 95\%; columns~5 and~6 (1200 and 1500\,ms) achieved 95\% and 90\% respectively; and column~7 (1800\,ms) achieved 85\%. The overall drop success rate across all 140 trials was 95\%. Fig.~\ref{fig:drop_chart} visualizes this monotonic degradation from the center outward.
+The Auto mode is still useful because it demonstrates an integrated bonus path rather than a disconnected side experiment, but its lower score shows that adding a learned branch is not automatically an upgrade. In this system, the hybrid only becomes meaningfully attractive if a larger and more diverse labeled dataset is collected.
 
-\begin{table}[htbp]
+\subsection{Mechanical Drop Reliability Dominates the Real Bottleneck}
+Figure~\ref{fig:drops} reports the final token-drop success rates over 20 trials per column. Columns~1--3 achieved 100\% success, columns~4 and~5 achieved 95\%, column~6 achieved 90\%, and column~7 dropped to 85\%. The overall success rate was 95\% across 140 drops.
 
-\caption{Per-Column Token Drop Success Rate (20 Trials per Column, 140 Total)}
-\label{tab:drop}
-
-\begin{center}
-\begin{tabular}{lcc}
-\toprule
-\textbf{Column} & \textbf{Trials} & \textbf{Success (\%)} \\
-\midrule
-1 & 20 & 100 \\
-2 & 20 & 100 \\
-3 & 20 & 100 \\
-4 & 20 & 95 \\
-5 & 20 & 95 \\
-6 & 20 & 90 \\
-7 & 20 & 85 \\
-\midrule
-\textbf{Overall} & \textbf{140} & \textbf{95} \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\end{table}
-
-\begin{figure}[htbp]
-
+\begin{figure}[t]
 \centering
 \begin{tikzpicture}
 \begin{axis}[
     ybar,
     symbolic x coords={1,2,3,4,5,6,7},
     xtick=data,
-    ymin=75, ymax=105,
-    ylabel={Success Rate (\%)},
+    ymin=80,
+    ymax=102,
+    ylabel={Success rate (\%)},
     xlabel={Column},
-    bar width=0.35,
+    bar width=0.33cm,
     nodes near coords,
-    every node near coord/.append style={font=\small},
+    every node near coord/.append style={font=\scriptsize},
+    enlarge x limits=0.08,
 ]
-\addplot[fill=blue!60] coordinates {(1,100) (2,100) (3,100) (4,95) (5,95) (6,90) (7,85)};
+\addplot[fill=blue!55] coordinates {(1,100) (2,100) (3,100) (4,95) (5,95) (6,90) (7,85)};
 \end{axis}
 \end{tikzpicture}
-
-\caption{Per-column token drop success rate over 20 trials per column (140 total). Success degrades monotonically from column~4 outward as carriage travel distance increases and open-loop positioning error accumulates.}
-
-\label{fig:drop_chart}
-
+\caption{Token-drop success by column. The monotonic falloff with travel distance shows that the dominant integrated failure mode is carriage positioning at the board edges, not token recognition.}
+\label{fig:drops}
 \end{figure}
 
-\subsection{Bill of Materials}
+These numbers matter because they change the diagnosis of the system. The robot already sees the board well enough for play; what it does not yet do equally well is deliver the physical token to every column with the same repeatability. The reason is the time-based carriage. Travel error accumulates as the commanded distance grows, so the edge columns are more exposed than the center columns. Once the carriage is correctly aligned, the encoder-coupled magazine release is much more repeatable than the carriage itself. That is why the main reliability curve is indexed by column distance rather than by token color or board occupancy.
 
-Table~\ref{tab:bom} lists the final as-built hardware bill of materials. The total system cost was 6\,100\,EGP (approximately 200\,USD at 2026 exchange rates), making the system accessible for educational and hobbyist reproduction.
+\subsection{Integrated End-to-End Behavior}
+The final materials reported an end-to-end cycle time from accepted board state to verified robot move ranging from 3 to 15~s, with a 7.5~s average. That number matters because it reflects what the user experiences, not just what the image-processing notebook can do in isolation. The reason for the gap between millisecond-scale perception and multi-second gameplay is that the full loop includes motion, settling time, and post-drop verification. Earlier benchmarking on the same project reported only 8.47~ms for rotation, 3.60~ms for perspective warp, and 0.76~ms for the deployed $5\times5$ Gaussian stage on the Pi, so the visible latency is dominated by mechanics and confirmation rather than by image processing itself.
 
-\begin{table}[htbp]
+Figure~\ref{fig:closedloop} shows the system-level proof sequence used in the final demo story. A human move is first accepted into the trusted state, the robot then plans its response, and the next accepted frame confirms the post-drop board. This matters because it demonstrates the actual closed loop, not just a sequence of isolated screenshots.
 
-\caption{Final Bill of Materials (As-Built)}
-\label{tab:bom}
+\begin{figure*}[t]
+\centering
+\includegraphics[width=\textwidth]{figures/final_closed_loop_sequence.png}
+\caption{System-level proof of closed-loop behavior from the final demo. A human move is accepted first, the robot plans from the trusted board, and the internal state is only advanced after the camera confirms the physical post-drop result.}
+\label{fig:closedloop}
+\end{figure*}
 
-\begin{center}
-\begin{tabular}{lrr}
-\toprule
-\textbf{Component} & \textbf{Qty} & \textbf{Total (EGP)} \\
-\midrule
-Raspberry Pi 4 (4\,GB) & 1 & 3\,200 \\
-Arduino Uno & 1 & 450 \\
-Pi Camera V2 & 1 & 850 \\
-TT motor (carriage) & 1 & 120 \\
-DC encoder motor (magazine) & 1 & 280 \\
-L298N H-bridge driver & 2 & 170 \\
-12\,V 5\,A power supply & 1 & 300 \\
-Connect-4 board & 1 & 150 \\
-Hardware (wires, breadboard, fasteners) & --- & 580 \\
-\midrule
-\textbf{Total} & & \textbf{6\,100} \\
-\bottomrule
-\end{tabular}
-\end{center}
+The same final course materials also recorded 31/31 passed core checks spanning win detection, gravity-correct updates, validator rules, minimax edge cases, and simulator progressions. That result matters because it isolates the logic layer from the hardware layer. The reason it strengthens the overall project is that it shows the state machine and planner were stable before mechanical uncertainty entered the loop, even though it should not be read as a counted benchmark of full physical games.
 
-\end{table}
+\section{Discussion and Limitations}
+The strongest outcome of this project is not any one classifier score or any one demo video. It is the fact that the robot treats both perception and actuation as potentially fallible and therefore refuses to advance its internal state without evidence. The trusted-state validator protects the planner from impossible boards, and the post-drop re-check protects the planner from believing a move happened when the hardware actually missed. In a physical robot, that distinction is more valuable than a marginal gain in standalone classifier accuracy.
 
-\subsection{End-to-End Integration Testing}
+The three-mode comparison also leads to a practical, not ideological, conclusion. HSV is not universally better than learning-based methods, but it is the right default for the tested setup because its assumptions match the data that was actually collected: a fixed camera, a known blue frame, red and yellow tokens, and controlled indoor lighting. The ML and Auto modes remain useful because they show an extensible path beyond thresholding, but the current evidence does not justify displacing HSV as the primary runtime mode.
 
-The end-to-end task time---measured from detection of the user's move to verification of the robot's move---ranged from 3 to 15\,s with an average of 7.5\,s across 31 integration tests. This cumulative time includes: camera capture and JPEG decode ($\approx$1\,s), full vision pipeline processing ($\approx$17\,ms, negligible in the total), trusted-state validation ($<$1\,ms), minimax search ($\approx$0.5--2\,s depending on board fullness and whether the win/block shortcuts activate), serial transmission ($<$1\,ms), mechanical actuation (0.3--1.8\,s for outward carriage positioning, variable per column, plus 0.4--0.6\,s for the encoder-controlled token release, plus 0.3--1.8\,s for carriage return), and verification polling (typically 2.5\,s for the token to settle under gravity, plus up to 10\,s for the timeout in error-test cases).
+The main limitation is the mechanical dispenser, especially the time-based carriage. The inner columns prove that the concept works, but the outer-column degradation shows that the current actuation path is not yet uniformly reliable across the full board width. A carriage encoder or homing feedback would attack the dominant failure directly. This is the highest-leverage hardware improvement because it addresses the part of the loop that the final data identifies as the actual bottleneck.
 
-The 31 integration tests were organized into four categories. Category~1 (state validation rules): 12 tests covering pass and fail cases for each of the six rules individually, with injected errors to verify correct rejection. Category~2 (minimax decision quality): 6 tests covering immediate win detection, forced block detection, optimal play from known board positions, and center-column preference verification. Category~3 (serial communication protocol): 4 tests covering valid column transmission, out-of-range rejection, status message parsing, and serial disconnect handling. Category~4 (full end-to-end gameplay): 9 tests covering complete 20-move games, mid-game error recovery (simulated token jam detected by verification timeout), and edge cases such as full-board draws. All 31 tests passed.
+The second major limitation is environmental robustness. The final tests were run with a fixed mounting geometry, a stable indoor setup, and the blue board clearly separated from the background. That is a fair engineering boundary for a course robot, but it is not evidence of universal deployment robustness. Lighting shifts, glare, and domain changes remain real limits, especially for the fixed-threshold HSV path and the small-data ML path. The current system therefore demonstrates successful integrated operation under the tested conditions, not guaranteed generalization to arbitrary rooms or camera placements.
 
-% ===========================================================================
-\section{Discussion}
-\label{sec:discussion}
-% ===========================================================================
-
-The integrated system establishes a functional end-to-end perception-to-actuation loop for autonomous Connect-4 play on low-cost embedded hardware. This section explains why the key experimental results take their observed values, then identifies the principal limitations that should guide future development.
-
-\subsection{Why HSV Dominates the ML Classifier}
-
-The HSV classifier achieves 98\% per-cell accuracy compared to 91\% for the RandomForest ML classifier. The primary reason is that the blue board frame provides stable hue separation under the controlled laboratory lighting conditions used during testing (approximately 800\,lux from overhead fluorescent fixtures). The blue frame surface occupies a distinct hue band on the OpenCV 0--179 scale (H~$\approx$~85--140), red tokens span two hue bands (H~$\approx$~0--10 and H~$\approx$~160--179) due to the cylindrical wrap-around of the hue model, and yellow tokens occupy a well-defined band (H~$\approx$~18--42). These hue distributions overlap minimally under consistent illumination, which means that a simple threshold-based classifier operating on the hue channel alone can achieve near-perfect separation.
-
-The ML classifier was trained on approximately 200 manually labeled cell ROIs---only about 4.8 ROIs per class per unique lighting variation---with an 18-dimensional feature vector. This training set is insufficient to capture the natural variation in lighting, shadow, and specular reflection that appears across the test set. When the training set is small, physics-based HSV thresholds that encode domain knowledge---the red and yellow plastic materials have fixed, manufacturer-specified spectral reflectance curves that translate to known hue ranges---will consistently outperform data-driven approaches. The ML classifier's weakness is most apparent on yellow tokens (88\% accuracy versus 98\% for HSV), where the feature overlap between yellow plastic and the brightly illuminated white background in the value channel confuses the decision tree ensemble.
-
-\subsection{Why Outer Columns Fail}
-
-Drop success degrades monotonically from 100\% at columns 1--3 (0--600\,ms travel) to 85\% at column~7 (1800\,ms travel). The root cause is the open-loop time-based carriage positioning system. The carriage motor's effective speed varies with two uncontrolled factors: battery voltage (the nominal 12\,V supply sags to approximately 10.5\,V under the carriage motor's approximately 300\,mA stall current draw, reducing the motor's RPM by approximately 12--15\%), and friction at the rail extremes where the linear guide's alignment tolerances (approximately 0.5\,mm over 200\,mm travel) produce increased sliding resistance.
-
-Positioning error accumulates with distance because the time-based model assumes constant velocity throughout travel, but the actual velocity varies with these factors. At short travel distances (columns 1--3, 0--600\,ms), even a 15\% velocity error produces only $\pm 2.5$\,mm of positioning error, well within the $\pm 10$\,mm column half-width tolerance. At the maximum travel distance (column~7, 1800\,ms), the same 15\% velocity error produces approximately $\pm 8$\,mm of error, which can exceed the column half-width and cause the token to miss the column entry slot or land on the divider between columns. An encoder-based closed-loop carriage with a simple proportional controller, magnetic homing switches at each end of travel, or limit switches would eliminate this monotonic error accumulation.
-
-\subsection{Why the Trusted-State Validator Is Essential}
-
-Per-cell classification accuracy of 98\% means that on a full 42-cell board, approximately 0.84 cells are misclassified on average per frame. Without validation, these errors propagate directly to the minimax engine, potentially causing the robot to play from an illegal state---for example, selecting a column based on an opponent token that was classified as empty, or attempting to drop a token into a full column because the top token was misclassified.
-
-The six-rule validator enforces physical constraints that are independent of vision accuracy: gravity (no floating chips), turn order (alternating colors), and single-chip increments. These constraints mean that even if the vision system misclassifies a cell, the error will either be caught by one of the six rules (typically Rule~2, Rule~3, or Rule~6) or, if it passes all six rules, the misclassification must preserve the physical legality of the board state---a condition that makes the misclassification harmless to the decision process. The validator thus decouples per-cell vision accuracy from game-state integrity.
-
-\subsection{Why Closed-Loop Verification Matters}
-
-The post-move camera re-read catches the 5\% of drops that the mechanical system misses due to timing errors, token jams, or friction stalls. Without this verification step, a missed drop silently corrupts the internal game state: the robot believes it successfully played column~N, but the token either jammed in the magazine, fell short due to carriage under-travel, or overshot into an adjacent column. From that point forward, every subsequent move is based on a hallucinated board state, and the robot plays increasingly nonsensical moves.
-
-The verification loop detects the mismatch---the expected new robot token is absent from the commanded column---within the 10\,s polling window and triggers an error state that halts automatic play, preserves the inconsistent state for debugging, and alerts the operator through the web dashboard. The error can then be resolved manually (the human corrects the physical board) before play resumes.
-
-\subsection{Limitations}
-
-\subsubsection{HSV Lighting Sensitivity}
-
-Specular highlights on the glossy plastic board surface can fragment the blue HSV mask, causing transient misdetection of the four board corners that serve as homography source points. This typically manifests as a sudden jump in corner positions for 1--2 frames before the mask recovers. An exponential moving average filter with smoothing factor $\alpha = 0.25$ applied to the four detected corner coordinates mitigates short-duration glints---a single bad frame affects only 25\% of the smoothed corner position, which is typically still accurate enough for the $800\times800$\,px warp.
-
-However, sustained glare from directional overhead lighting---for example, an incandescent desk lamp positioned within $30^\circ$ of the camera's optical axis---can persistently saturate the blue channel and degrade corner detection for many consecutive frames. A circular polarizing filter on the camera lens (approximately 150\,EGP) would eliminate glare by rejecting specularly reflected light, and adaptive HSV thresholding that adjusts the saturation and value lower bounds based on the frame's global mean intensity would make the system robust to ambient lighting changes without user calibration.
-
-\subsubsection{Time-Based Carriage Positioning}
-
-The open-loop time-based carriage is the dominant hardware failure mode, responsible for the full 5\% drop miss rate. An incremental magnetic encoder wheel with approximately 20 pulses per revolution of the timing belt pulley (estimated cost 50\,EGP) coupled with a simple proportional feedback controller would provide closed-loop position feedback and eliminate the voltage- and friction-dependent velocity errors that cause outer-column failures. Magnetic reed switches at the home position and at column~7 would enable absolute position calibration at the start of each move. This hardware upgrade---which would add less than 5\% to the total BOM---would reduce the mechanical miss rate from 5\% to near zero and is the single highest-impact improvement available for this system.
-
-\subsubsection{Minimax Latency}
-
-Depth-5 minimax with alpha-beta pruning and center-first move ordering evaluates approximately $7^5 \approx 16\,807$ leaf positions in roughly 0.95\,s on the Raspberry Pi~4, well within the 2\,s per-turn latency budget. Depth~7 would evaluate approximately $7^7 \approx 823\,543$ positions, which at roughly 60\,$\mu$s per position would require approximately 49\,s---far exceeding any acceptable human--robot interaction latency.
-
-An iterative deepening framework that searches incrementally (depth~1, depth~3, depth~5, \ldots) and interrupts when a configurable time budget expires would dynamically balance search depth against wall-clock time. This approach would allow the system to reach depth~7 in sparse boards (where alpha-beta pruning eliminates most branches) while falling back to depth~5 on crowded boards with high branching factors. A transposition table caching previously evaluated positions would further reduce redundant computation.
-
-% ===========================================================================
 \section{Conclusion}
-\label{sec:conclusion}
-% ===========================================================================
+This paper documented a complete vision-guided Connect-4 robot in which board reading, trusted-state acceptance, move planning, token placement, and camera-based re-verification form one closed loop. The final results support four clear conclusions: the project achieved representative end-to-end integrated demonstrations, HSV was the strongest practical vision mode under the tested setup, mechanical drop reliability was the dominant real-world bottleneck, and the final system remained limited by lighting shift and open-loop carriage mechanics.
 
-This paper presented the design, implementation, and evaluation of a Vision-Based Connect-4 Robot integrating real-time image processing, trusted-state validation, minimax decision making, and closed-loop physical actuation on commodity embedded hardware. The Python/OpenCV vision pipeline---comprising geometric rotation ($\theta = 15^\circ$, bilinear), perspective warping ($800\times800$\,px via homography), brightness ($c=+30$) and contrast ($\alpha=1.4$) adjustment, $5\times5$ Gaussian smoothing, and HSV-based cell classification---executes in 16.81\,ms per frame on a Raspberry Pi~4 (4\,GB), producing a verified $6\times7$ game-state matrix with 98\% per-cell accuracy using the HSV classifier mode.
-
-A six-rule trusted-state validator (board-changed, chip-persistence, single-chip-increment, gravity, column-capacity, turn-order) rejects physically impossible board transitions before they reach the decision layer, and a depth-5 minimax search with alpha-beta pruning and a center-column evaluation bias selects moves with immediate-win and must-block shortcuts. The selected column is transmitted over 9600-baud serial to an Arduino Uno driving a TT carriage motor and an encoder-coupled magazine motor through an L298N H-bridge, achieving a 95\% overall drop success rate across 140 trials (seven columns, 20 trials each). Post-move camera verification at 0.4\,s intervals within a 10\,s timeout closes the perception-to-actuation loop, ensuring that the 5\% of mechanical misses are detected and escalated rather than silently propagated.
-
-The full system passed all 31 integration tests with an average end-to-end task time of 7.5\,s, at a total hardware cost of 6\,100\,EGP. These results demonstrate that real-time vision, trusted-state validation, and closed-loop actuation can be successfully integrated on low-cost embedded hardware for autonomous Connect-4 game play. The two highest-impact targets for future improvement are replacing the open-loop time-based carriage with closed-loop encoder feedback, and implementing adaptive HSV thresholding to reduce sensitivity to lighting variations. Other promising directions include iterative deepening minimax with time-bounded search and transposition tables, and a polarizing filter for glare rejection.
+The key lesson is therefore architectural as much as algorithmic. A modest mechatronics system becomes far more trustworthy when it treats camera inference and physical execution as hypotheses to be checked, not as facts to be assumed. That lesson generalizes beyond Connect-4 and is the main reason this project reaches a stronger final quality bar than a checklist-driven pipeline demo.
 
 \section*{Acknowledgment}
-
-The authors thank Dr.~Omar M.~Shehata for his guidance throughout MCTR~1010: Image Processing for Mechatronics at the German University in Cairo, Spring 2026.
+The authors thank Dr. Omar M. Shehata for guiding MCTR~1010: Image Processing for Mechatronics at the German University in Cairo.
 
 \bibliographystyle{IEEEtran}
 \bibliography{references}
