@@ -90,12 +90,12 @@ a { color: inherit; text-underline-offset: 0.2em; }
 /* the game */
 .game { display: grid; gap: 0.9rem; justify-items: center; }
 .board-wrap { position: relative; }
-.dispenser { display: grid; gap: 0.35rem; justify-items: center; }
+.dispenser { display: grid; gap: 0.35rem; justify-items: center; padding-top: calc(var(--cell) * 0.85); }
 .rail-label { margin: 0; font-size: 0.82rem; color: var(--on-blue-soft); text-align: center; }
 .rail {
   width: calc(var(--cell) * 7 + var(--gap) * 8); height: calc(var(--cell) * 0.55);
-  border-radius: 999px; background: linear-gradient(#e6ecfa, #b6c3e6);
-  position: relative; box-shadow: inset 0 -3px 0 rgba(11,31,92,0.25);
+  border-radius: 999px; background: linear-gradient(#3a6ae6, #1d4ab8);
+  position: relative; box-shadow: inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -3px 0 rgba(0,0,0,0.25);
 }
 .carriage {
   position: absolute; bottom: 30%; left: 0;
@@ -176,7 +176,17 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--yellow); }
 
 /* reading sections on the table */
-section:not(.hero) { padding: clamp(3rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto; }
+section:not(.hero) {
+  padding: clamp(3rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: clamp(0.75rem, 2vw, 1.5rem);
+}
+section:not(.hero) > * { grid-column: 1 / -1; }
+/* The board's hole row is the rule above every reading heading. */
+section:not(.hero) > h2::before {
+  content: ""; display: block; width: min(15rem, 60%); aspect-ratio: 7 / 1; margin-bottom: 1rem;
+  background: radial-gradient(circle, var(--rule-hole, #c9d3ee) 36%, transparent 39%) 0 0 / calc(100% / 7) 100% repeat-x;
+}
+.band section > h2::before { --rule-hole: rgba(255, 255, 255, 0.3); }
 h2 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 4.2vw, 3.2rem); line-height: 1.05; letter-spacing: -0.015em; margin: 0 0 1.25rem; color: var(--blue-ink); text-wrap: balance; }
 h3 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; line-height: 1.15; margin: 0 0 0.5rem; color: var(--blue-ink); }
 p { max-width: 68ch; }
@@ -185,14 +195,18 @@ p { max-width: 68ch; }
 .band { background: var(--blue-ink); color: var(--on-blue); }
 .band h2, .band h3 { color: var(--on-blue); }
 .band figcaption, .band p { color: var(--on-blue-soft); }
-.how-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(1.25rem, 3vw, 3rem); margin-bottom: 2.5rem; }
+.how-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.25rem; margin-bottom: 2.5rem; }
+.how-step { grid-column: span 3; }
+.how-step + .how-step { grid-column: 5 / span 3; }
 .how-step h3::before { content: ""; display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.45em; border-radius: 50%; background: var(--yellow); vertical-align: -0.05em; }
 .how-step + .how-step h3::before { background: var(--red); }
 .frames { margin: 0; }
 .frames img { border-radius: 14px; }
 figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 
-.results-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: clamp(1.5rem, 4vw, 4rem); align-items: start; }
+.results-grid { display: grid; grid-template-columns: subgrid; row-gap: 2rem; align-items: start; }
+.results-grid > .drops { grid-column: 1 / span 4; }
+.results-grid > .reading { grid-column: 5 / span 3; }
 .drops { margin: 0; background: var(--blue); border-radius: 22px; padding: clamp(1rem, 2.5vw, 1.75rem); }
 .drops figcaption { color: var(--on-blue-soft); }
 .drops figcaption strong { color: var(--on-blue); }
@@ -210,7 +224,9 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .bars div:first-child dd span { background: var(--yellow); box-shadow: inset 0 -2px 0 var(--yellow-deep); }
 .time { border-top: 2px solid #d5dcef; padding-top: 1rem; }
 
-.build { display: grid; grid-template-columns: 1.3fr 1fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: center; }
+.build { align-items: center; }
+.build > .photo { grid-column: 1 / span 4; }
+.build > .build-copy { grid-column: 5 / span 3; }
 .photo { margin: 0; }
 .photo img { border-radius: 18px; }
 .facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; }
@@ -225,7 +241,10 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .vision-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 .vision-controls .btn:disabled { opacity: 0.6; cursor: progress; }
 .vision-status { font-weight: 600; margin: 1rem 0; }
-.vision-out { display: grid; grid-template-columns: 1.1fr 1fr 0.8fr; gap: clamp(0.75rem, 2vw, 1.5rem); align-items: start; }
+.vision-out { display: grid; grid-template-columns: subgrid; row-gap: 1rem; align-items: start; }
+.vision-out > figure:nth-child(1) { grid-column: span 3; }
+.vision-out > figure:nth-child(2) { grid-column: span 2; }
+.vision-out > figure:nth-child(3) { grid-column: span 2; }
 .vision-out[hidden] { display: none; }
 .vision-out figure { margin: 0; }
 .vision-out img { border-radius: 12px; width: 100%; max-height: 26rem; object-fit: contain; object-position: left top; }
@@ -236,7 +255,9 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .mini .wrong { box-shadow: 0 0 0 3px var(--on-blue), 0 0 0 5px var(--red-deep); }
 .note { color: var(--ink-soft); font-size: 0.95rem; margin-top: 1.5rem; }
 
-.ai-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: start; }
+.ai-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
+.ai-grid > .ask { grid-column: 1 / span 4; }
+.ai-grid > .clip { grid-column: 5 / span 3; }
 .ask, .clip { background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }
 .ask-note { color: var(--ink-soft); }
 .ask-form label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
@@ -256,11 +277,9 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .clip-boards figure { margin: 0; }
 
 @media (max-width: 880px) {
-  .ai-grid { grid-template-columns: 1fr; }
-  .vision-out { grid-template-columns: 1fr 1fr; }
   .hero { grid-template-columns: 1fr; }
   .top nav a:not(:last-child) { display: none; }
-  .how-grid, .results-grid, .build { grid-template-columns: 1fr; }
+  .how-grid > *, .results-grid > *, .ai-grid > *, .build > *, .vision-out > figure:nth-child(n) { grid-column: 1 / -1 !important; }
   :root { --cell: min(11.2vw, 3.6rem); }
 }
 @media (max-width: 420px) {

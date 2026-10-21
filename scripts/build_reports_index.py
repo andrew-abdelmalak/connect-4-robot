@@ -47,8 +47,17 @@ def page_text(pdf: Path, page: int) -> str:
         check=True,
     ).stdout
     text = re.sub(r"-\n(\w)", r"\1", text)  # join words hyphenated across lines
-    text = re.sub(r"\b([A-Z]) ([A-Z]{2,})\b", r"\1\2", text)  # small caps: "P ER" -> "PER"
+    # Small caps come out split ("P ER -C OLUMN"); rejoin a capital and the capitals after it.
+    text = re.sub(r"\b([A-Z]) (?=[A-Z]{2,}\b)", r"\1", text)
+    text = re.sub(r"([A-Z])- ?([A-Z])", r"\1-\2", text)
     return " ".join(text.split())
+
+
+def is_table_run(sentence: str) -> bool:
+    """Table cells and figure debris: mostly bare numbers and percentages."""
+    tokens = sentence.split()
+    numeric = sum(bool(re.fullmatch(r"[\d.,%×x+-]+", t)) for t in tokens)
+    return len(tokens) >= 6 and numeric / len(tokens) > 0.4
 
 
 def sentences(text: str) -> list[str]:
@@ -56,24 +65,37 @@ def sentences(text: str) -> list[str]:
 
 
 def passages() -> list[dict]:
-    """Every page of every document, cut at sentence ends into passages of about PASSAGE_WORDS words."""
+    """Each document read as one text, cut at sentence ends into passages of about
+    PASSAGE_WORDS words; a passage carries the page it starts on."""
     items = []
     for file, title in DOCS:
         pdf = ROOT / "docs" / file
+        tagged = []  # (page, sentence) in reading order; a sentence crossing a page break stays whole
+        carry, carry_page = None, None
         for page in range(1, page_count(pdf) + 1):
-            chunks, current = [], []
-            for sentence in sentences(page_text(pdf, page)):
-                current += sentence.split()
-                if len(current) >= PASSAGE_WORDS:
-                    chunks.append(current)
-                    current = []
-            if current and chunks and len(current) < MIN_TAIL_WORDS:
-                chunks[-1] += current
-            elif current:
-                chunks.append(current)
-            for chunk in chunks:
-                if len(chunk) >= MIN_TAIL_WORDS // 2:
-                    items.append({"doc": file, "title": title, "page": page, "text": " ".join(chunk)})
+            parts = sentences(page_text(pdf, page))
+            if not parts:
+                continue
+            first_page = page
+            if carry:
+                parts[0] = f"{carry} {parts[0]}"
+                first_page = carry_page
+            pages = [first_page] + [page] * (len(parts) - 1)
+            tagged += list(zip(pages[:-1], parts[:-1], strict=True))
+            carry, carry_page = parts[-1], pages[-1]
+        if carry:
+            tagged.append((carry_page, carry))
+        current, start = [], None
+        for page, sentence in tagged:
+            if is_table_run(sentence):
+                continue
+            start = start or page
+            current += sentence.split()
+            if len(current) >= PASSAGE_WORDS:
+                items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
+                current, start = [], None
+        if current and len(current) >= MIN_TAIL_WORDS:
+            items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
     if not items:
         raise SystemExit("no text extracted from docs/*.pdf")
     return items
