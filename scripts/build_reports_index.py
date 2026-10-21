@@ -11,6 +11,7 @@ Needs poppler's pdftotext.
 """
 
 import base64
+import functools
 import json
 import re
 import subprocess
@@ -39,6 +40,18 @@ def page_count(pdf: Path) -> int:
     return int(re.search(r"^Pages:\s+(\d+)", info, re.MULTILINE).group(1))
 
 
+@functools.cache
+def compounds() -> frozenset[str]:
+    """Hyphenated words that appear unbroken somewhere in the documents."""
+    found = set()
+    for file, _ in DOCS:
+        text = subprocess.run(
+            ["pdftotext", "-enc", "UTF-8", str(ROOT / "docs" / file), "-"], capture_output=True, text=True, check=True
+        ).stdout
+        found |= {w.lower() for w in re.findall(r"\b([A-Za-z]+-[A-Za-z]+)\b", text)}
+    return frozenset(found)
+
+
 def page_text(pdf: Path, page: int) -> str:
     text = subprocess.run(
         ["pdftotext", "-f", str(page), "-l", str(page), "-enc", "UTF-8", str(pdf), "-"],
@@ -46,7 +59,18 @@ def page_text(pdf: Path, page: int) -> str:
         text=True,
         check=True,
     ).stdout
-    text = re.sub(r"-\n(\w)", r"\1", text)  # join words hyphenated across lines
+    # A hyphen at a line end is either line-breaking ("valida-tion") or part of a
+    # compound ("trusted-state"); keep it when the compound also appears unbroken.
+    intact = compounds()
+    text = re.sub(
+        r"\b(\w+)-\n(\w+)",
+        lambda m: f"{m[1]}-{m[2]}" if f"{m[1]}-{m[2]}".lower() in intact else m[1] + m[2],
+        text,
+    )
+    # The PDFs drop some line-break hyphens from compounds ("closedloop"); restore
+    # the hyphen wherever the same compound appears hyphenated in the documents.
+    for c in intact:
+        text = re.sub(rf"\b{c.replace('-', '')}\b", c, text)
     # Small caps come out split ("P ER -C OLUMN"); rejoin a capital and the capitals after it.
     text = re.sub(r"\b([A-Z]) (?=[A-Z]{2,}\b)", r"\1", text)
     text = re.sub(r"([A-Z])- ?([A-Z])", r"\1-\2", text)
@@ -57,11 +81,15 @@ def is_table_run(sentence: str) -> bool:
     """Table cells and figure debris: mostly bare numbers and percentages."""
     tokens = sentence.split()
     numeric = sum(bool(re.fullmatch(r"[\d.,%×x+-]+", t)) for t in tokens)
-    return len(tokens) >= 6 and numeric / len(tokens) > 0.4
+    return sentence.startswith(("TABLE ", "Fig. ")) or (len(tokens) >= 6 and numeric / len(tokens) > 0.4)
+
+
+HEADING = r"(?:[IVX]+\.|[A-H]\.|TABLE [IVX]+) [A-Z][A-Za-z]"  # "VII. EXPERIMENTAL", "G. Game-Logic", "TABLE VI"
 
 
 def sentences(text: str) -> list[str]:
-    return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z(\[])", text) if s]
+    """Split at sentence ends and before section headings."""
+    return [s for s in re.split(rf"(?<=[.!?])\s+(?=[A-Z(\[])|\s+(?={HEADING})", text) if s]
 
 
 def passages() -> list[dict]:
@@ -89,6 +117,9 @@ def passages() -> list[dict]:
         for page, sentence in tagged:
             if is_table_run(sentence):
                 continue
+            if re.match(HEADING, sentence) and len(current) >= MIN_TAIL_WORDS:
+                items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
+                current, start = [], None
             start = start or page
             current += sentence.split()
             if len(current) >= PASSAGE_WORDS:
