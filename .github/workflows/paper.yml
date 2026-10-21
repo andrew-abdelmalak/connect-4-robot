@@ -1,0 +1,40 @@
+name: Paper
+
+on:
+  push:
+    branches: ["main"]
+    paths: ["paper/**", ".github/workflows/paper.yml"]
+  pull_request:
+    branches: ["main"]
+    paths: ["paper/**", ".github/workflows/paper.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build paper PDF (pdfLaTeX, TeX Live 2025)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      # pdfLaTeX on TeX Live 2025, the engine the Overleaf project uses.
+      image: texlive/texlive:TL2025-historic@sha256:7056390eac37715fd3e01875037ceb4016cb17d44c611f7bbbfa7a012007979f
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build with latexmk
+        working-directory: paper
+        run: latexmk -pdf -no-shell-escape -interaction=nonstopmode -halt-on-error main.tex
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: paper-pdf
+          path: paper/main.pdf
+          if-no-files-found: error
