@@ -1,0 +1,29 @@
+[project]
+name = "connect4-robot"
+version = "1.1.0"
+description = "Vision-guided Connect-4 robot: board reading, trusted-state validation, minimax, and camera-verified token placement."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "flask",
+    "numpy",
+    "opencv-python-headless>=4.8,<5",  # deployed on OpenCV 4.x (MS4/5 report)
+    "pyserial",
+    "scikit-learn",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+notebook = [
+    "ipykernel",
+    "matplotlib",
+    "nbconvert",
+]
+
+[tool.uv]
+package = false
+exclude-newer = "14 days"
