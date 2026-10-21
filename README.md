@@ -10,6 +10,8 @@ A Raspberry Pi robot that plays Connect-4 against a person. It reads the board w
 
 Course project for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026), built by a team of six. Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
 
+**[Play against the robot's real Python in your browser](https://andrew-abdelmalak.github.io/connect-4-robot/)**: the project page runs the same validator, planner, and vision code with Pyodide.
+
 ## What makes it work
 
 A camera can misread a frame, and a dispenser can miss a column. This robot assumes both will happen and checks them at two gates:
