@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vision-Based Connect-4 Robot</title>
+<meta name="description" content="A Raspberry Pi robot that plays Connect-4, rejects impossible boards, and checks with its camera that every token it drops really landed. Play against its real Python brain in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Baloo+2:wght@600;800&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#play">Skip to the game</a>
+
+<header class="top">
+  <span class="mark" aria-hidden="true"><i></i><i></i></span>
+  <span class="top-name">Connect-4 Robot</span>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#results">Results</a>
+    <a href="#limits">Limits</a>
+    <a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <h1 id="hero-title">A robot that checks its own moves.</h1>
+    <p class="lede">Our camera-guided robot plays Connect-4 against a person. It refuses boards that cannot happen, picks its move with minimax, drops a real token, and only believes the move once its camera sees it.</p>
+    <div class="actions">
+      <a class="btn btn-yellow" href="#play" id="play-cta">Play a move</a>
+      <a class="btn btn-ghost" href="#how">How it works</a>
+    </div>
+    <p class="fineprint">The board on this page runs the robot's real Python, the same validator and planner, in your browser. The dispenser is an animation.</p>
+  </div>
+
+  <div class="game" id="play" aria-label="Play Connect-4 against the robot">
+    <div class="rail" aria-hidden="true">
+      <div class="carriage" id="carriage"><span class="carriage-token"></span></div>
+    </div>
+    <div class="board-wrap">
+      <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your red token"></div>
+      <div class="board" id="board" aria-hidden="true"></div>
+    </div>
+    <div class="gates">
+      <div class="gate" id="gate1" data-state="idle">
+        <span class="lamp" aria-hidden="true"></span>
+        <div><strong>Gate 1: legal move?</strong><span class="gate-msg">Waiting for a move</span></div>
+      </div>
+      <div class="gate" id="gate2" data-state="idle">
+        <span class="lamp" aria-hidden="true"></span>
+        <div><strong>Gate 2: camera check</strong><span class="gate-msg">Waiting for the robot</span></div>
+      </div>
+    </div>
+    <p class="status" id="status" role="status" aria-live="polite">Waking the robot's brain (Python in your browser, about 10 MB the first time)</p>
+    <div class="controls">
+      <details class="cheat" id="cheat">
+        <summary>Try to cheat</summary>
+        <div class="cheat-menu">
+          <button type="button" data-cheat="two">Drop two at once</button>
+          <button type="button" data-cheat="vanish">Make a chip vanish</button>
+          <button type="button" data-cheat="float">Float a chip</button>
+          <button type="button" data-cheat="robot">Play the robot's colour</button>
+        </div>
+      </details>
+      <label class="toggle"><input type="checkbox" id="misdrops" checked> Misdrops at the measured rates</label>
+      <button type="button" class="btn-small" id="fix" hidden>Fix it by hand, like the operator</button>
+      <button type="button" class="btn-small" id="reset">New game</button>
+    </div>
+  </div>
+</section>
+
+<section class="how" id="how" aria-labelledby="how-title">
+  <h2 id="how-title">Two checks keep the game honest</h2>
+  <div class="how-grid">
+    <div class="how-step">
+      <h3>Before it thinks</h3>
+      <p>A new board from the camera only counts if it is exactly one legal move away from the last board the robot trusted. A chip that vanished, two new chips at once, or a chip floating above an empty cell is rejected, and the robot keeps the last good board.</p>
+    </div>
+    <div class="how-step">
+      <h3>After it moves</h3>
+      <p>When the robot drops a token, it already knows what the board should look like. It accepts its own move only when the camera shows that exact board within 10 seconds. A token that slid into the wrong column stops the robot with an error, instead of silently corrupting the game.</p>
+    </div>
+  </div>
+  <figure class="frames">
+    <img src="img/closed-loop-frames.webp" width="1442" height="354" alt="Three frames from the final demo: a human move is accepted, the robot plans its reply on the dashboard, and the camera confirms the token the robot dropped">
+    <figcaption>From the final demo: human move accepted, robot move planned, robot move confirmed by the camera.</figcaption>
+  </figure>
+</section>
+
+<section class="results" id="results" aria-labelledby="results-title">
+  <h2 id="results-title">How well it worked</h2>
+  <p class="section-lede">Measured on the real robot under indoor light with a fixed camera mount, as reported in the final course report.</p>
+  <div class="results-grid">
+    <figure class="drops" aria-labelledby="drops-cap">
+      <div class="stacks" id="stacks"></div>
+      <figcaption id="drops-cap"><strong>Tokens that landed where the robot aimed:</strong> 20 drops per column, 133 of 140 overall (95%). Misses grow with carriage travel, because the carriage is positioned by timing, not by a sensor.</figcaption>
+    </figure>
+    <div class="reading">
+      <h3>Reading the board</h3>
+      <dl class="bars">
+        <div><dt>HSV colour thresholds</dt><dd><span style="--v:98"></span>98%</dd></div>
+        <div><dt>Hybrid HSV + learned model</dt><dd><span style="--v:96"></span>96%</dd></div>
+        <div><dt>Learned model only</dt><dd><span style="--v:91"></span>91%</dd></div>
+      </dl>
+      <p>Cells read correctly, out of about 200 labelled cell images. The simple thresholds won: the board is blue and the tokens are red and yellow under steady light, while the model had little data to learn from.</p>
+      <p class="time"><strong>3 to 15 s</strong> from command to a verified move, 7.5 s on average. The time is the mechanism and the camera check, not the image processing.</p>
+    </div>
+  </div>
+</section>
+
+<section class="build" aria-labelledby="build-title">
+  <h2 id="build-title">The robot</h2>
+  <figure class="photo">
+    <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard" loading="lazy">
+  </figure>
+  <ul class="facts">
+    <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>
+    <li><strong>Arduino Uno</strong> releases one token with an encoder-counted magazine and moves the carriage to the column.</li>
+    <li><strong>6,100 EGP</strong> in parts, about 115 USD at the April 2026 rate.</li>
+  </ul>
+</section>
+
+<section class="limits" id="limits" aria-labelledby="limits-title">
+  <h2 id="limits-title">What it could not do</h2>
+  <ul>
+    <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
+    <li>The carriage has no position sensor, so the far columns miss more often.</li>
+    <li>Board detection assumes the camera sees only the grid. With the board's blue legs in view, the grid lines up wrong.</li>
+    <li>The labelled images and drop logs behind the numbers above were not archived, so they cannot be re-run.</li>
+    <li>The dashboard has no login: anyone on the same network can send moves.</li>
+  </ul>
+</section>
+
+<section class="team" aria-labelledby="team-title">
+  <h2 id="team-title">Who built it</h2>
+  <p>Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama, for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
+  <div class="links">
+    <a class="btn btn-blue" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
+    <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <p>MIT licensed. Photos are frames from the team's demo videos.</p>
+</footer>
+
+<script src="game.js" type="module"></script>
+</body>
+</html>
