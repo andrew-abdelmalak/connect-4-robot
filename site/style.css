@@ -217,7 +217,22 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .foot { background: var(--blue-ink); color: var(--on-blue-soft); text-align: center; padding: 1.5rem 1rem; font-size: 0.9rem; }
 .foot p { margin: 0 auto; }
 
+.vision-controls { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.vision-controls .btn:disabled { opacity: 0.6; cursor: progress; }
+.vision-status { font-weight: 600; margin: 1rem 0; }
+.vision-out { display: grid; grid-template-columns: 1.1fr 1fr 0.8fr; gap: clamp(0.75rem, 2vw, 1.5rem); align-items: start; }
+.vision-out[hidden] { display: none; }
+.vision-out figure { margin: 0; }
+.vision-out img { border-radius: 12px; width: 100%; max-height: 26rem; object-fit: contain; object-position: left top; }
+.mini { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 8px; background: var(--blue); border-radius: 12px; }
+.mini span { aspect-ratio: 1; border-radius: 50%; background: var(--hole); }
+.mini .m1 { background: var(--red); }
+.mini .m2 { background: var(--yellow); }
+.mini .wrong { box-shadow: 0 0 0 3px var(--on-blue), 0 0 0 5px var(--red-deep); }
+.note { color: var(--ink-soft); font-size: 0.95rem; margin-top: 1.5rem; }
+
 @media (max-width: 880px) {
+  .vision-out { grid-template-columns: 1fr 1fr; }
   .hero { grid-template-columns: 1fr; }
   .top nav a:not(:last-child) { display: none; }
   .how-grid, .results-grid, .build { grid-template-columns: 1fr; }

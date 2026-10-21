@@ -18,6 +18,7 @@
   <span class="top-name">Connect-4 Robot</span>
   <nav aria-label="Sections">
     <a href="#how">How it works</a>
+    <a href="#vision">Vision</a>
     <a href="#results">Results</a>
     <a href="#limits">Limits</a>
     <a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a>
@@ -88,6 +89,22 @@
     <img src="img/closed-loop-frames.webp" width="1442" height="354" alt="Three frames from the final demo: a human move is accepted, the robot plans its reply on the dashboard, and the camera confirms the token the robot dropped">
     <figcaption>From the final demo: human move accepted, robot move planned, robot move confirmed by the camera.</figcaption>
   </figure>
+</section>
+
+<section class="vision" id="vision" aria-labelledby="vision-title">
+  <h2 id="vision-title">How it reads the board</h2>
+  <p class="section-lede">The robot finds the blue frame, warps it to a square, brightens it, and reads the middle of each of the 42 holes as empty, red, or yellow. Run that exact code on a board photo, right here.</p>
+  <div class="vision-controls">
+    <button type="button" class="btn btn-blue" data-vision="auto">Read it like the robot</button>
+    <button type="button" class="btn btn-ghost-dark" data-vision="grid">Read it with the grid's corners</button>
+  </div>
+  <p class="vision-status" id="vision-status" role="status" aria-live="polite">The vision code needs OpenCV in your browser, about 14 MB the first time.</p>
+  <div class="vision-out" id="vision-out" hidden>
+    <figure><img id="vision-overlay" alt=""><figcaption>Camera view with the corners it found.</figcaption></figure>
+    <figure><img id="vision-grid" alt=""><figcaption>Warped to 800 x 800, one dot per hole.</figcaption></figure>
+    <figure><div class="mini" id="vision-board" role="img"></div><figcaption id="vision-score"></figcaption></figure>
+  </div>
+  <p class="note">This photo shows the board standing on its blue legs, which the robot never saw: its camera looked down at the grid alone. The legs join the blue frame, so automatic detection stretches the grid, and the reading slips. With the grid's own corners, the same classifier reads every hole.</p>
 </section>
 
 <section class="results" id="results" aria-labelledby="results-title">
