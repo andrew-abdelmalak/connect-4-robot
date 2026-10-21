@@ -6,11 +6,15 @@ __pycache__/
 venv/
 env/
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
 dist/
 build/
 
 # ── Jupyter ──────────────────────────────────────────────────────────
 .ipynb_checkpoints/
+notebooks/output/
+notebooks/acquired_board_*.jpg
 
 # ── LaTeX build artefacts ────────────────────────────────────────────
 paper/*.aux

@@ -3,7 +3,10 @@
 import json
 
 from conftest import REPO
-from connect4_brain import P1, P2, _bc, apply_move, empty_board, get_best_move
+
+from connect4_robot.board import P1, P2, apply_move, empty_board
+from connect4_robot.board import board_from_rows as _bc
+from connect4_robot.minimax import get_best_move
 
 
 def test_takes_immediate_win():
@@ -45,7 +48,5 @@ def test_matches_recorded_answers():
         for col in case["moves"]:
             board = apply_move(board, col, player)
             player = 3 - player
-        col, score, _ = get_best_move(
-            board, case["player"], 3 - case["player"], depth=4
-        )
+        col, score, _ = get_best_move(board, case["player"], 3 - case["player"], depth=4)
         assert (col, int(score)) == (case["col"], case["score"]), case
