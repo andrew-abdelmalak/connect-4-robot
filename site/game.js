@@ -331,6 +331,30 @@ document.querySelectorAll("[data-vision]").forEach((btn) =>
   }),
 );
 
+// ── CLIP experiment: results computed by scripts/eval_clip_cells.py ───────
+fetch("clip-cells.json")
+  .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
+  .then((d) => {
+    const boards = $("#clip-boards");
+    for (const [key, label, right] of [["hsv", "Colour thresholds", d.hsv_correct], ["clip", "CLIP, no training", d.clip_correct]]) {
+      const fig = document.createElement("figure");
+      const mini = document.createElement("div");
+      mini.className = "mini";
+      mini.setAttribute("role", "img");
+      mini.setAttribute("aria-label", `${label}: ${right} of ${d.cells} holes read right`);
+      mini.append(...d[key].map((v, i) => {
+        const s = document.createElement("span");
+        s.className = "m" + v + (v === d.truth[i] ? "" : " wrong");
+        return s;
+      }));
+      const cap = document.createElement("figcaption");
+      cap.textContent = `${label}: ${right} of ${d.cells} right`;
+      fig.append(mini, cap);
+      boards.append(fig);
+    }
+  })
+  .catch(() => { $("#clip-score").textContent = "The experiment results did not load."; });
+
 // ── boot ──────────────────────────────────────────────────────────────────
 draw(Array.from({ length: ROWS }, () => Array(COLS).fill(0)));
 lock(true);

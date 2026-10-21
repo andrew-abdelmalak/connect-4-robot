@@ -231,7 +231,27 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .mini .wrong { box-shadow: 0 0 0 3px var(--on-blue), 0 0 0 5px var(--red-deep); }
 .note { color: var(--ink-soft); font-size: 0.95rem; margin-top: 1.5rem; }
 
+.ai-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: clamp(1.5rem, 4vw, 3.5rem); align-items: start; }
+.ask, .clip { background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(11, 31, 92, 0.08); }
+.ask-note { color: var(--ink-soft); }
+.ask-form label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
+.ask-row { display: flex; gap: 0.5rem; }
+.ask-row input { flex: 1; min-width: 0; min-height: 3rem; padding: 0 1rem; font: inherit; border: 2px solid #c7d1ec; border-radius: 999px; background: var(--table); color: var(--ink); }
+.ask-row input:focus-visible { border-color: var(--blue); outline-offset: 1px; }
+.ask-try { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.9rem 0; }
+.ask-try button { font: inherit; font-size: 0.9rem; min-height: 2.4rem; padding: 0 0.9rem; border-radius: 999px; border: 2px solid #c7d1ec; background: transparent; color: var(--blue-ink); cursor: pointer; }
+.ask-try button:hover { border-color: var(--blue); }
+.ask-status { font-weight: 600; min-height: 1.6em; }
+.ask-results { margin: 0; padding-left: 1.25rem; display: grid; gap: 1rem; }
+.ask-where { font-weight: 700; margin: 0; color: var(--blue-ink); }
+.ask-text { margin: 0.25rem 0; color: var(--ink-soft); font-size: 0.95rem; }
+.ask-results a { font-weight: 700; color: var(--blue); }
+.ask-quality { font-size: 0.9rem; color: var(--ink-soft); border-top: 2px solid #e1e6f4; padding-top: 0.75rem; margin-top: 1rem; }
+.clip-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.clip-boards figure { margin: 0; }
+
 @media (max-width: 880px) {
+  .ai-grid { grid-template-columns: 1fr; }
   .vision-out { grid-template-columns: 1fr 1fr; }
   .hero { grid-template-columns: 1fr; }
   .top nav a:not(:last-child) { display: none; }
