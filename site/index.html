@@ -100,8 +100,8 @@
   </div>
   <p class="vision-status" id="vision-status" role="status" aria-live="polite">The vision code needs OpenCV in your browser, about 14 MB the first time.</p>
   <div class="vision-out" id="vision-out" hidden>
-    <figure><img id="vision-overlay" alt=""><figcaption>Camera view with the corners it found.</figcaption></figure>
-    <figure><img id="vision-grid" alt=""><figcaption>Warped to 800 x 800, one dot per hole.</figcaption></figure>
+    <figure><div id="vision-overlay"></div><figcaption>Camera view with the corners it found.</figcaption></figure>
+    <figure><div id="vision-grid"></div><figcaption>Warped to 800 x 800, one dot per hole.</figcaption></figure>
     <figure><div class="mini" id="vision-board" role="img"></div><figcaption id="vision-score"></figcaption></figure>
   </div>
   <p class="note">This photo shows the board standing on its blue legs, which the robot never saw: its camera looked down at the grid alone. The legs join the blue frame, so automatic detection stretches the grid, and the reading slips. With the grid's own corners, the same classifier reads every hole.</p>
@@ -163,7 +163,7 @@
 <section class="build" aria-labelledby="build-title">
   <h2 id="build-title">The robot</h2>
   <figure class="photo">
-    <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard" loading="lazy">
+    <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard">
   </figure>
   <ul class="facts">
     <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>

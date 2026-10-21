@@ -310,10 +310,14 @@ document.querySelectorAll("[data-vision]").forEach((btn) =>
     try {
       const { value, ms } = await call("vision", mode);
       const right = value.board.flat().filter((v, i) => v === PHOTO_TRUTH.flat()[i]).length;
-      $("#vision-overlay").src = "data:image/jpeg;base64," + value.overlay;
-      $("#vision-overlay").alt = mode === "auto" ? "Board photo with the corners found by automatic detection, including the legs" : "Board photo with the grid's own corners marked";
-      $("#vision-grid").src = "data:image/jpeg;base64," + value.grid;
-      $("#vision-grid").alt = "The warped board with a coloured dot on each hole showing how it was read";
+      const picture = (slot, b64, alt) => {
+        const img = new Image();
+        img.src = "data:image/jpeg;base64," + b64;
+        img.alt = alt;
+        $(slot).replaceChildren(img);
+      };
+      picture("#vision-overlay", value.overlay, mode === "auto" ? "Board photo with the corners found by automatic detection, including the legs" : "Board photo with the grid's own corners marked");
+      picture("#vision-grid", value.grid, "The warped board with a coloured dot on each hole showing how it was read");
       const mini = $("#vision-board");
       mini.replaceChildren(...value.board.flat().map((v, i) => {
         const d = document.createElement("span");

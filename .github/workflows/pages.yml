@@ -1,0 +1,59 @@
+name: Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "site/**"
+      - "src/connect4_robot/**"
+      - "notebooks/board_sample.png"
+      - "docs/*.pdf"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The page runs the robot's own Python, so it ships the repository's
+      # modules unchanged, plus the board photo the vision demo reads and the
+      # PDFs that search results open at a page.
+      - name: Assemble site
+        run: |
+          mkdir -p _site/py _site/docs _site/img
+          cp -r site/. _site/
+          cp src/connect4_robot/{__init__,board,minimax,game_state,vision}.py _site/py/
+          cp notebooks/board_sample.png _site/img/board-sample.png
+          cp docs/*.pdf _site/docs/
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
