@@ -1,6 +1,8 @@
 """Trusted-state validator: the six rules, colour assignment, turns, game over."""
 
-from connect4_brain import P1, P2, GameState, _bc, empty_board
+from connect4_robot.board import P1, P2, empty_board
+from connect4_robot.board import board_from_rows as _bc
+from connect4_robot.game_state import GameState
 
 
 def accepted(gs, *rows):

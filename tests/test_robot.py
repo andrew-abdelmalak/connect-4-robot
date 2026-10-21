@@ -1,8 +1,11 @@
 """Robot controller: serial dispatch and camera verification, with fakes."""
 
-import connect4_brain as cb
 import pytest
-from connect4_brain import P1, P2, _bc
+
+from connect4_robot import dashboard as cb
+from connect4_robot import hardware
+from connect4_robot.board import P1, P2
+from connect4_robot.board import board_from_rows as _bc
 
 
 class FakeSerial:
@@ -29,16 +32,16 @@ class FakeSerial:
 
 @pytest.fixture
 def rig(monkeypatch):
-    cb.APP_MODE = "camera"
+    cb.set_app_mode("camera")
     cb.gs.reset()
     cb.robot.reset()
     cb.robot.ser = FakeSerial()
     cb.robot.set_mode("auto")
-    monkeypatch.setattr(cb, "ROBOT_SETTLE_SEC", 0.0)
+    monkeypatch.setattr(hardware, "ROBOT_SETTLE_SEC", 0.0)
     yield cb.robot
     cb.robot.ser = None
     cb.robot.set_mode("manual")
-    cb.APP_MODE = "simulation"
+    cb.set_app_mode("simulation")
 
 
 def show_camera(board, detected=True):

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Connect 4 Brain Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#0e0e14;color:#d0d0e0;font-family:'Segoe UI',system-ui,sans-serif;font-size:13px}
+header{background:#12121c;padding:12px 18px;border-bottom:1px solid #252535;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header h1{font-size:1.1rem;color:#fff;letter-spacing:1px}
+#mode-badge{padding:3px 10px;border-radius:4px;font-size:.72rem;font-weight:bold;letter-spacing:1px}
+.mode-sim{background:#0d2a0d;color:#50b850;border:1px solid #256025}
+.mode-cam{background:#0d1e30;color:#5090d0;border:1px solid #205080}
+#sysinfo{font-size:.72rem;color:#555;margin-left:auto}
+#status-bar{padding:6px 18px;background:#0a0a12;border-bottom:1px solid #1e1e2e;font-size:.75rem;color:#888}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;padding:10px}
+@media(max-width:860px){.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:540px){.grid{grid-template-columns:1fr}}
+.card{background:#12121c;border:1px solid #222234;border-radius:5px;padding:10px}
+.card h2{font-size:.68rem;text-transform:uppercase;letter-spacing:1.5px;color:#555;margin-bottom:8px;border-bottom:1px solid #1c1c2c;padding-bottom:5px}
+.info-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #18182a;font-size:.8rem}
+.info-row:last-child{border-bottom:none}
+.lbl{color:#777}
+.val{color:#d0d0f0;font-weight:bold;text-align:right}
+.val-red{color:#f06060;font-weight:bold}
+.val-yel{color:#e0d040;font-weight:bold}
+.val-ok{color:#50c050}
+.val-err{color:#f06060}
+.val-mm{color:#00e0b0;font-weight:bold}
+#status-msg{padding:7px 10px;border-radius:4px;margin-bottom:8px;font-size:.82rem;font-weight:bold;word-break:break-word;line-height:1.4}
+.ok{background:#072007;color:#70e870;border-left:3px solid #30a030}
+.err{background:#200707;color:#f08080;border-left:3px solid #a03030}
+.inf{background:#07121e;color:#70b0e0;border-left:3px solid #306090}
+#reject-box{display:none;padding:6px 9px;background:#1e0505;border-radius:4px;margin-bottom:8px;font-size:.77rem;color:#f08080;word-break:break-word;border-left:3px solid #800}
+table.board{border-collapse:collapse;margin-bottom:4px}
+table.board td{width:40px;height:40px;background:#133080;padding:3px;border:1px solid #092050}
+.chip{width:34px;height:34px;border-radius:50%;border:1px solid rgba(0,0,0,.5)}
+.ce{background:#080810}
+.c1{background:radial-gradient(circle at 35% 35%,#f06060,#b80000)}
+.c2{background:radial-gradient(circle at 35% 35%,#f0e040,#c09000)}
+.col-hdr{display:flex;margin-bottom:2px}
+.col-hdr div{width:40px;text-align:center;font-size:.68rem;color:#555}
+.col-hdr div.leg{color:#50b850}
+.col-hdr div.mm-c{color:#00e0b0;font-size:.85rem}
+.stream-box img{width:100%;border-radius:4px;border:1px solid #202030;background:#08080e;display:block;margin-bottom:6px}
+.btn{padding:7px 16px;border-radius:4px;border:none;cursor:pointer;font-size:.8rem;font-weight:bold;letter-spacing:.5px;margin:3px 3px 3px 0}
+.b-step{background:#123012;color:#70f070;border:1px solid #207020}
+.b-step:hover{background:#1e4a1e}
+.b-acc{background:#102030;color:#70b0f0;border:1px solid #205090}
+.b-acc:hover{background:#1a3a60}
+.b-mode{background:#1a1a2a;color:#d0d0f0;border:1px solid #404070}
+.b-mode:hover{background:#262640}
+.b-go{background:#103018;color:#80f0a0;border:1px solid #207040}
+.b-go:hover{background:#1a4824}
+.b-rst{background:#301010;color:#f07070;border:1px solid #802020}
+.b-rst:hover{background:#501818}
+.sim-desc{padding:5px 8px;background:#08180a;border:1px solid #164016;border-radius:4px;font-size:.75rem;color:#80c880;margin-bottom:6px;line-height:1.4}
+.sec-lbl{font-size:.65rem;text-transform:uppercase;color:#444;letter-spacing:1px;margin:8px 0 3px}
+.mm-box{margin-top:6px;padding:6px 8px;background:#021410;border-radius:4px;font-size:.77rem;color:#30c09a;min-height:36px;line-height:1.5;word-break:break-word}
+</style>
+</head>
+<body>
+<header>
+  <h1>Connect 4 Brain Dashboard</h1>
+  <span id="mode-badge">?</span>
+  <span id="turn-badge" style="font-size:.82rem;padding:3px 9px;background:#18182a;border-radius:4px;border:1px solid #282840"></span>
+  <span id="sysinfo"></span>
+</header>
+<div id="status-bar">Connecting...</div>
+
+<div class="grid">
+
+  <!-- COL 1: streams -->
+  <div>
+    <div class="card">
+      <h2>Camera / Board Images</h2>
+      <div class="stream-box">
+        <div class="sec-lbl">Raw feed</div>
+        <img src="/raw" alt="raw">
+        <div class="sec-lbl">Processed / warped board</div>
+        <img src="/processed" alt="processed">
+        <div class="sec-lbl">Cell grid detection</div>
+        <img src="/debug_grid" alt="grid">
+      </div>
+    </div>
+  </div>
+
+  <!-- COL 2: boards -->
+  <div>
+    <div class="card">
+      <h2>Board States</h2>
+      <div class="sec-lbl">Trusted board (accepted moves)</div>
+      <div id="trusted-board"></div>
+      <div class="sec-lbl">Previous accepted board</div>
+      <div id="prev-board"></div>
+      <div class="sec-lbl">Candidate (latest detected)</div>
+      <div id="cand-board"></div>
+    </div>
+  </div>
+
+  <!-- COL 3: brain + controls -->
+  <div>
+    <div class="card" style="margin-bottom:10px">
+      <h2>Game Status</h2>
+      <div id="status-msg" class="inf">Loading...</div>
+      <div id="reject-box"></div>
+      <div class="info-row"><span class="lbl">User color</span><span id="usr-clr" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Robot color</span><span id="bot-clr" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Whose turn</span><span id="w-turn" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Move count</span><span id="mv-cnt" class="val">0</span></div>
+      <div class="info-row"><span class="lbl">User chips</span><span id="usr-chp" class="val">0</span></div>
+      <div class="info-row"><span class="lbl">Robot chips</span><span id="bot-chp" class="val">0</span></div>
+      <div class="info-row"><span class="lbl">Winner</span><span id="winner" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Draw</span><span id="is-draw" class="val">No</span></div>
+      <div class="info-row"><span class="lbl">Last move col</span><span id="last-col" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Legal columns</span><span id="legal" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Operator mode</span><span id="op-mode" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Robot state</span><span id="rb-state" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Last serial cmd</span><span id="rb-cmd" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Serial</span><span id="ser-ok" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Classifier</span><span id="clf-mode" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">ML model</span><span id="clf-ok" class="val">—</span></div>
+    </div>
+
+    <div class="card" style="margin-bottom:10px">
+      <h2>Minimax Decision</h2>
+      <div class="info-row"><span class="lbl">Best column</span><span id="mm-col" class="val-mm">—</span></div>
+      <div class="info-row"><span class="lbl">Score</span><span id="mm-score" class="val">—</span></div>
+      <div class="info-row"><span class="lbl">Compute time</span><span id="mm-time" class="val">—</span></div>
+      <div class="mm-box" id="mm-reason">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Controls</h2>
+      <div style="margin-bottom:8px">
+        <button class="btn b-mode" onclick="setMode('manual')">Manual</button>
+        <button class="btn b-mode" onclick="setMode('semi_auto')">Semi-auto</button>
+        <button class="btn b-mode" onclick="setMode('auto')">Auto</button>
+      </div>
+      <div style="margin-bottom:8px">
+        <button class="btn b-mode" onclick="setClassifier('hsv')">HSV</button>
+        <button class="btn b-mode" onclick="setClassifier('auto')">ML Auto</button>
+        <button class="btn b-mode" onclick="setClassifier('ml')">ML Only</button>
+      </div>
+      <div id="sim-ctrl" style="display:none">
+        <div class="sim-desc" id="sim-desc">—</div>
+        <div style="font-size:.72rem;color:#444;margin-bottom:5px" id="sim-prog">Step 0/0</div>
+        <button class="btn b-step" onclick="stepSim()">&#9654; Next Sim Step</button>
+      </div>
+      <div id="cam-ctrl" style="display:none">
+        <button class="btn b-acc" onclick="acceptCam()">&#10003; Accept Camera Board</button>
+        <button class="btn b-go" onclick="runRobot()">Send Robot Move</button>
+      </div>
+      <button class="btn b-rst" onclick="resetGame()">&#8635; Reset Game</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function makeBoard(board, legalCols, mmCol) {
+  if (!board) return '<span style="color:#444">No data</span>';
+  let h = '<div class="col-hdr">';
+  for (let c=0;c<7;c++){
+    let cls='', txt=String(c);
+    if (mmCol!==null && mmCol===c){cls='mm-c'; txt='&#9660;';}
+    else if (legalCols && legalCols.includes(c)) cls='leg';
+    h+=`<div class="${cls}">${txt}</div>`;
+  }
+  h+='</div><table class="board">';
+  for (let r=0;r<6;r++){
+    h+='<tr>';
+    for(let c=0;c<7;c++){
+      const v=board[r][c];
+      h+=`<td><div class="chip ${v===1?'c1':v===2?'c2':'ce'}"></div></td>`;
+    }
+    h+='</tr>';
+  }
+  return h+'</table>';
+}
+function clrSpan(n){
+  if(n==='RED')    return '<span class="val-red">RED</span>';
+  if(n==='YELLOW') return '<span class="val-yel">YELLOW</span>';
+  return '<span style="color:#555">None</span>';
+}
+function update(d){
+  const badge=document.getElementById('mode-badge');
+  badge.textContent=(d.mode||'?').toUpperCase();
+  badge.className=d.mode==='camera'?'mode-cam':'mode-sim';
+  document.getElementById('sim-ctrl').style.display=d.mode==='simulation'?'block':'none';
+  document.getElementById('cam-ctrl').style.display=d.mode==='camera'?'block':'none';
+  if(d.sim_desc) document.getElementById('sim-desc').textContent=d.sim_desc;
+  if(d.sim_total!==undefined)
+    document.getElementById('sim-prog').textContent=`Step ${d.sim_idx}/${d.sim_total-1}`;
+  const msg=document.getElementById('status-msg');
+  msg.textContent=d.status_msg||'—';
+  msg.className=d.winner||d.is_draw?'ok':d.reject_reason?'err':'inf';
+  const rb=document.getElementById('reject-box');
+  if(d.reject_reason){rb.style.display='block';rb.textContent='\u2717 '+d.reject_reason;}
+  else rb.style.display='none';
+  const mmC=d.mm_ran?d.mm_col:null;
+  const legal=d.legal_cols||[];
+  document.getElementById('trusted-board').innerHTML=makeBoard(d.trusted,legal,mmC);
+  document.getElementById('prev-board').innerHTML=makeBoard(d.previous,null,null);
+  document.getElementById('cand-board').innerHTML=makeBoard(d.candidate,null,null);
+  document.getElementById('usr-clr').innerHTML=clrSpan(d.user_color);
+  document.getElementById('bot-clr').innerHTML=clrSpan(d.robot_color);
+  document.getElementById('w-turn').textContent=d.whose_turn||'Game over';
+  document.getElementById('mv-cnt').textContent=d.move_count;
+  document.getElementById('usr-chp').textContent=d.user_chips;
+  document.getElementById('bot-chp').textContent=d.robot_chips;
+  document.getElementById('winner').textContent=d.winner||'None';
+  document.getElementById('is-draw').textContent=d.is_draw?'YES':'No';
+  document.getElementById('last-col').textContent=d.last_col!==null?d.last_col:'—';
+  document.getElementById('legal').textContent=legal.join(', ')||'—';
+  document.getElementById('op-mode').textContent=d.operator_mode||'—';
+  document.getElementById('rb-state').textContent=d.robot_state_msg||d.robot_state||'—';
+  document.getElementById('rb-cmd').textContent=d.robot_last_command||'—';
+  document.getElementById('ser-ok').textContent=d.serial_connected?'CONNECTED':'DISCONNECTED';
+  document.getElementById('clf-mode').textContent=d.classifier_mode||'—';
+  document.getElementById('clf-ok').textContent=d.classifier_loaded?'LOADED':'NOT LOADED';
+  const tb=document.getElementById('turn-badge');
+  if(d.winner){tb.textContent='[WIN] '+d.winner+' wins!';tb.style.color='#50e050';}
+  else if(d.is_draw){tb.textContent='[DRAW]';tb.style.color='#e0a040';}
+  else{tb.textContent='Turn: '+(d.whose_turn||'—');tb.style.color='#9090b0';}
+  document.getElementById('mm-col').textContent=d.mm_ran?'Column '+d.mm_col:'—';
+  document.getElementById('mm-score').textContent=d.mm_ran?d.mm_score:'—';
+  document.getElementById('mm-time').textContent=d.mm_ran?d.mm_time+'s':'—';
+  document.getElementById('mm-reason').textContent=d.mm_reason||'—';
+  const si=[];
+  if(d.temp) si.push('Temp: '+d.temp);
+  if(d.mem_mb) si.push('Mem: '+d.mem_mb+' MB');
+  si.push('Mode: '+(d.mode||'?'));
+  si.push('Robot: '+(d.robot_state||'idle'));
+  document.getElementById('sysinfo').textContent=si.join('  |  ');
+  document.getElementById('status-bar').textContent=
+    'Last update: '+new Date().toLocaleTimeString()+
+    '  |  Moves: '+d.move_count+
+    '  |  Cam: '+(d.cam_connected?'YES':'NO')+
+    '  |  Board: '+(d.board_detected?'AUTO':'FALLBACK age='+(d.detection_age||0))+
+    '  |  Sim step: '+(d.sim_idx!==undefined?d.sim_idx+'/'+d.sim_total:'—');
+}
+function poll(){fetch('/status').then(r=>r.json()).then(update).catch(e=>{
+  document.getElementById('status-bar').textContent='Error: '+e;
+});}
+function stepSim(){fetch('/step_sim',{method:'POST'}).then(r=>r.json()).then(d=>{
+  if(d.status) update(d.status);
+  const msg=document.getElementById('status-msg');
+  msg.textContent=(d.accepted?'\u2713 ':'\u2717 ')+d.reason;
+  msg.className=d.accepted?'ok':'err';
+});}
+function acceptCam(){fetch('/accept_camera',{method:'POST'}).then(r=>r.json()).then(d=>{
+  if(d.error) alert(d.error); else if(d.status) update(d.status);
+});}
+function runRobot(){fetch('/robot_move',{method:'POST'}).then(r=>r.json()).then(d=>{
+  if(d.error) alert(d.error); else if(d.status) update(d.status);
+});}
+function setMode(mode){
+  fetch('/set_mode',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode})
+  }).then(r=>r.json()).then(d=>{
+    if(d.error) alert(d.error);
+    poll();
+  });
+}
+function setClassifier(mode){
+  fetch('/set_classifier',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mode})
+  }).then(r=>r.json()).then(d=>{
+    if(d.error) alert(d.error);
+    poll();
+  });
+}
+function resetGame(){if(!confirm('Reset game?'))return;
+  fetch('/reset',{method:'POST'}).then(()=>poll());}
+poll();
+setInterval(poll,2000);
+</script>
+</body>
+</html>

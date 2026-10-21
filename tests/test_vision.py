@@ -1,12 +1,13 @@
 """Vision pipeline on the repository's real board photo."""
 
 import cv2
-import numpy as np
 import pytest
 from conftest import REPO
-from connect4_brain import WARP_SIZE, VisionPipeline, _bc, extract_cell_features
 
-PHOTO = REPO / "src" / "image_pipeline" / "Image.png"
+from connect4_robot.board import board_from_rows as _bc
+from connect4_robot.vision import CellClassifier, VisionPipeline, extract_cell_features, warp_and_condition
+
+PHOTO = REPO / "notebooks" / "board_sample.png"
 # Ground truth read by eye from the photo (bottom row first).
 TRUTH = _bc(".YRRYY.", "..YRY..", "..RYY..", "...R...")
 
@@ -18,23 +19,19 @@ def photo():
     return img
 
 
-def test_hsv_reads_every_cell_with_grid_corners(photo):
+@pytest.fixture
+def vp():
+    return VisionPipeline(CellClassifier())
+
+
+def test_hsv_reads_every_cell_with_grid_corners(photo, vp):
     """With corners on the 6x7 grid (the notebook's corners), all 42 cells are right."""
-    vp = VisionPipeline()
     vp._src = vp._load_corners(photo.shape)
-    dst = np.float32([[0, 0], [WARP_SIZE, 0], [WARP_SIZE, WARP_SIZE], [0, WARP_SIZE]])
-    warped = cv2.warpPerspective(
-        photo, cv2.getPerspectiveTransform(vp._src, dst), (WARP_SIZE, WARP_SIZE)
-    )
-    warped = cv2.convertScaleAbs(warped, alpha=1.0, beta=20)
-    warped = cv2.convertScaleAbs(warped, alpha=1.3, beta=0)
-    warped = cv2.GaussianBlur(warped, (5, 5), 0)
-    board, _ = vp.detect_board(warped)
+    board, _ = vp.detect_board(warp_and_condition(photo, vp._src))
     assert board == TRUTH
 
 
-def test_auto_detection_finds_the_blue_board(photo):
-    vp = VisionPipeline()
+def test_auto_detection_finds_the_blue_board(photo, vp):
     vp.preprocess(photo)
     assert vp.board_detected
     assert vp._src.shape == (4, 2)

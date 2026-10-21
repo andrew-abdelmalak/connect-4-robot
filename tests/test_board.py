@@ -1,13 +1,13 @@
 """Board rules: gravity, legal columns, wins in every direction, draws."""
 
 import pytest
-from connect4_brain import (
+
+from connect4_robot.board import (
     COLS,
     EMPTY,
     P1,
     P2,
     ROWS,
-    _bc,
     apply_move,
     check_draw,
     check_win,
@@ -16,6 +16,9 @@ from connect4_brain import (
     find_new_chip,
     get_legal_cols,
     lowest_empty_row,
+)
+from connect4_robot.board import (
+    board_from_rows as _bc,
 )
 
 

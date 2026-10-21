@@ -1,7 +1,9 @@
 """The scripted simulator path: every step does what its label says."""
 
 import pytest
-from connect4_brain import SIM_STATES, GameState
+
+from connect4_robot.game_state import GameState
+from connect4_robot.simulator import SIM_STATES
 
 # (label start, accepted?, text the validator reason must contain)
 EXPECTED = [

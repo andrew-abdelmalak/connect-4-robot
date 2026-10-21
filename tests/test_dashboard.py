@@ -1,12 +1,14 @@
 """Flask dashboard routes in simulation mode."""
 
-import connect4_brain as cb
 import pytest
+
+from connect4_robot import dashboard as cb
+from connect4_robot.simulator import SIM_STATES
 
 
 @pytest.fixture
 def client():
-    cb.APP_MODE = "simulation"
+    cb.set_app_mode("simulation")
     cb.gs.reset()
     cb.sim.reset()
     cb.robot.reset()
@@ -23,7 +25,7 @@ def test_index_serves_dashboard(client):
 def test_status_reports_simulation(client):
     data = client.get("/status").get_json()
     assert data["mode"] == "simulation"
-    assert data["sim_total"] == len(cb.SIM_STATES)
+    assert data["sim_total"] == len(SIM_STATES)
     assert data["whose_turn"] == "user"
 
 

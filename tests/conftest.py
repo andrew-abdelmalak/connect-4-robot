@@ -1,7 +1,6 @@
-"""Shared test setup: hermetic HOME and the runtime import path."""
+"""Shared test setup: hermetic HOME and the repository root."""
 
 import os
-import sys
 import tempfile
 from pathlib import Path
 
@@ -10,4 +9,3 @@ from pathlib import Path
 os.environ["HOME"] = tempfile.mkdtemp(prefix="c4home-")
 
 REPO = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO / "src" / "runtime"))
