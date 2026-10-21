@@ -117,14 +117,12 @@ function newChip(before, after) {
     for (let c = 0; c < COLS; c++) if (!before[r][c] && after[r][c]) return [r, c];
   return null;
 }
-function lowest(board, c) {
-  for (let r = ROWS - 1; r >= 0; r--) if (!board[r][c]) return r;
-  return -1;
-}
+const drop = (col, player, board) => call("drop", col, player, board ? JSON.stringify(board) : null).then((r) => r.value);
 function lock(on) {
   busy = on;
   const over = state && (state.winner || state.is_draw);
-  colButtons.forEach((b, c) => { b.disabled = on || over || lowest(state.trusted, c) < 0; });
+  const legal = state ? state.legal_cols : [];
+  colButtons.forEach((b, c) => { b.disabled = on || over || !legal.includes(c); });
   cheat.querySelectorAll("button").forEach((b) => { b.disabled = on || over; });
 }
 
@@ -139,7 +137,7 @@ async function userDrop(col) {
   if (busy || !state || state.whose_turn !== "user") return;
   lock(true);
   cheat.open = false;
-  const { value: candidate } = await call("drop", col, USER);
+  const candidate = await drop(col, USER);
   if (!candidate) { say("That column is full."); lock(false); return; }
   draw(candidate, { dropAt: newChip(state.trusted, candidate) });
   await wait(450);
@@ -156,11 +154,11 @@ async function robotTurn() {
   const col = state.mm_col;
   say(`The robot looked ahead 5 moves and chose column ${col + 1}. ${state.mm_reason}.`);
   await moveCarriage(col);
-  const expected = await call("drop", col, ROBOT).then((r) => r.value);
+  const expected = await drop(col, ROBOT);
   let landed = col;
   if (misdrops.checked && Math.random() > DROP_SUCCESS[col]) landed = col === COLS - 1 ? col - 1 : col + (Math.random() < 0.5 ? -1 : 1);
-  if (lowest(state.trusted, landed) < 0) landed = col; // neighbour full: the token falls in the aimed column
-  const actual = landed === col ? expected : dropLocal(state.trusted, landed, ROBOT);
+  if (!state.legal_cols.includes(landed)) landed = col; // neighbour full: the token falls in the aimed column
+  const actual = landed === col ? expected : await drop(landed, ROBOT);
   carriage.dataset.loaded = "false";
   draw(actual, { dropAt: newChip(state.trusted, actual) });
   await wait(550);
@@ -181,14 +179,6 @@ async function robotTurn() {
   if (finished()) return;
   say("Your turn. Drop a red token, or try to cheat.");
   lock(false);
-}
-
-function dropLocal(board, c, player) {
-  const r = lowest(board, c);
-  if (r < 0) return board;
-  const nb = board.map((row) => row.slice());
-  nb[r][c] = player;
-  return nb;
 }
 
 async function moveCarriage(col) {
@@ -228,12 +218,12 @@ cheat.addEventListener("click", async (e) => {
   cheat.open = false;
   lock(true);
   const t = state.trusted;
-  const legal = [...Array(COLS).keys()].filter((c) => lowest(t, c) >= 0);
+  const legal = state.legal_cols;
   let candidate = null;
   let ghost = null;
   if (kind === "two") {
     const [a, b] = legal.slice().sort(() => Math.random() - 0.5);
-    candidate = dropLocal(dropLocal(t, a, USER), b ?? a, USER);
+    candidate = await drop(b ?? a, USER, await drop(a, USER));
   } else if (kind === "vanish") {
     const chips = [];
     t.forEach((row, r) => row.forEach((v, c) => v && chips.push([r, c])));
@@ -242,14 +232,18 @@ cheat.addEventListener("click", async (e) => {
     candidate = t.map((row) => row.slice());
     candidate[r][c] = 0;
   } else if (kind === "float") {
-    const cols = legal.filter((c) => lowest(t, c) >= 1);
-    const c = cols[Math.floor(Math.random() * cols.length)];
+    // Deliberately impossible: a chip one cell above the lowest empty cell.
+    const rows = await Promise.all(legal.map((c) => call("lowest", c).then((r) => r.value)));
+    const options = legal.filter((_, i) => rows[i] >= 1);
+    const k = Math.floor(Math.random() * options.length);
+    const c = options[k];
+    const r = rows[legal.indexOf(c)] - 1;
     candidate = t.map((row) => row.slice());
-    candidate[lowest(t, c) - 1][c] = USER;
-    ghost = [lowest(t, c) - 1, c];
+    candidate[r][c] = USER;
+    ghost = [r, c];
   } else if (kind === "robot") {
     if (!state.robot_color || state.robot_color === "None") { say("Play one move first, so the robot knows its colour."); lock(false); return; }
-    candidate = dropLocal(t, legal[Math.floor(Math.random() * legal.length)], ROBOT);
+    candidate = await drop(legal[Math.floor(Math.random() * legal.length)], ROBOT);
   }
   draw(candidate, { ghost });
   setGate(gate1, "busy", "Checking the new board");
@@ -296,6 +290,46 @@ DROP_COUNTS.forEach((hit, c) => {
   s.append(lbl);
   stacks.append(s);
 });
+
+// ── vision demo: the real VisionPipeline on a real photo ──────────────────
+// What the photo shows, read by eye (top row first): 1 red, 2 yellow.
+const PHOTO_TRUTH = [
+  [0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 0, 0, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0],
+  [0, 0, 1, 2, 2, 0, 0],
+  [0, 0, 2, 1, 2, 0, 0],
+  [0, 2, 1, 1, 2, 2, 0],
+];
+const visionStatus = $("#vision-status");
+document.querySelectorAll("[data-vision]").forEach((btn) =>
+  btn.addEventListener("click", async () => {
+    const mode = btn.dataset.vision;
+    document.querySelectorAll("[data-vision]").forEach((b) => { b.disabled = true; });
+    visionStatus.textContent = "Loading OpenCV and running the robot's vision code";
+    try {
+      const { value, ms } = await call("vision", mode);
+      const right = value.board.flat().filter((v, i) => v === PHOTO_TRUTH.flat()[i]).length;
+      $("#vision-overlay").src = "data:image/jpeg;base64," + value.overlay;
+      $("#vision-overlay").alt = mode === "auto" ? "Board photo with the corners found by automatic detection, including the legs" : "Board photo with the grid's own corners marked";
+      $("#vision-grid").src = "data:image/jpeg;base64," + value.grid;
+      $("#vision-grid").alt = "The warped board with a coloured dot on each hole showing how it was read";
+      const mini = $("#vision-board");
+      mini.replaceChildren(...value.board.flat().map((v, i) => {
+        const d = document.createElement("span");
+        d.className = "m" + v + (v === PHOTO_TRUTH.flat()[i] ? "" : " wrong");
+        return d;
+      }));
+      mini.setAttribute("aria-label", `Board as read: ${right} of 42 holes match the photo`);
+      $("#vision-score").textContent = `${right} of 42 holes read right${right < 42 ? " (wrong ones circled)" : ""}.`;
+      $("#vision-out").hidden = false;
+      visionStatus.textContent = `${mode === "auto" ? "Automatic detection" : "Grid corners"}: done in ${Math.round(ms)} ms in your browser.`;
+    } catch (err) {
+      visionStatus.textContent = `The vision code could not run (${err.message}).`;
+    }
+    document.querySelectorAll("[data-vision]").forEach((b) => { b.disabled = false; });
+  }),
+);
 
 // ── boot ──────────────────────────────────────────────────────────────────
 draw(Array.from({ length: ROWS }, () => Array(COLS).fill(0)));
