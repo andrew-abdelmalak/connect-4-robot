@@ -25,11 +25,6 @@ def board_copy(b: Board) -> Board:
     return [row[:] for row in b]
 
 
-def boards_equal(a: Board, b: Board) -> bool:
-    """Return True if two boards hold the same chip in every cell."""
-    return all(a[r][c] == b[r][c] for r in range(ROWS) for c in range(COLS))
-
-
 def get_legal_cols(board: Board) -> list[int]:
     """Return the columns whose top cell is still empty."""
     return [c for c in range(COLS) if board[0][c] == EMPTY]
@@ -85,6 +80,11 @@ def count_chips(board: Board, player: int) -> int:
     return sum(board[r][c] == player for r in range(ROWS) for c in range(COLS))
 
 
+def opponent(player: int) -> int:
+    """Return the other player."""
+    return P2 if player == P1 else P1
+
+
 def color_name(p: int | None) -> str:
     """Return "RED", "YELLOW", or "None" for a player value."""
     if p == P1:
@@ -92,15 +92,6 @@ def color_name(p: int | None) -> str:
     if p == P2:
         return "YELLOW"
     return "None"
-
-
-def find_new_chip(prev: Board, new_b: Board) -> tuple[int, int, int] | None:
-    """Return (row, col, player) of the single new chip, or None if not exactly one."""
-    new_chips = [(r, c) for r in range(ROWS) for c in range(COLS) if prev[r][c] == EMPTY and new_b[r][c] != EMPTY]
-    if len(new_chips) != 1:
-        return None
-    r, c = new_chips[0]
-    return (r, c, new_b[r][c])
 
 
 def board_from_rows(*rows_bottom_up: str) -> Board:

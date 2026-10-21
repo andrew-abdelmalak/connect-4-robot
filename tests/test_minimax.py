@@ -50,3 +50,10 @@ def test_matches_recorded_answers():
             player = 3 - player
         col, score, _ = get_best_move(board, case["player"], 3 - case["player"], depth=4)
         assert (col, int(score)) == (case["col"], case["score"]), case
+
+
+def test_depth_below_one_is_refused():
+    import pytest
+
+    with pytest.raises(ValueError):
+        get_best_move(_bc("R......"), robot=P2, user=P1, depth=0)

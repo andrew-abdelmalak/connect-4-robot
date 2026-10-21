@@ -184,11 +184,13 @@ function clrSpan(n){
   return '<span style="color:#555">None</span>';
 }
 function update(d){
-  const badge=document.getElementById('mode-badge');
-  badge.textContent=(d.mode||'?').toUpperCase();
-  badge.className=d.mode==='camera'?'mode-cam':'mode-sim';
-  document.getElementById('sim-ctrl').style.display=d.mode==='simulation'?'block':'none';
-  document.getElementById('cam-ctrl').style.display=d.mode==='camera'?'block':'none';
+  if(d.mode!==undefined){  // button replies carry game state only, not the app mode
+    const badge=document.getElementById('mode-badge');
+    badge.textContent=d.mode.toUpperCase();
+    badge.className=d.mode==='camera'?'mode-cam':'mode-sim';
+    document.getElementById('sim-ctrl').style.display=d.mode==='simulation'?'block':'none';
+    document.getElementById('cam-ctrl').style.display=d.mode==='camera'?'block':'none';
+  }
   if(d.sim_desc) document.getElementById('sim-desc').textContent=d.sim_desc;
   if(d.sim_total!==undefined)
     document.getElementById('sim-prog').textContent=`Step ${d.sim_idx}/${d.sim_total-1}`;

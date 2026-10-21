@@ -106,3 +106,25 @@ def test_done_line_is_recorded(rig):
     rig._read_serial()
     assert rig.last_ack == "DONE 4"
     assert rig.last_done_at is not None
+
+
+def test_loop_survives_an_exception_and_reports_it(rig, monkeypatch):
+    def boom():
+        raise RuntimeError("camera glitch")
+
+    monkeypatch.setattr(rig, "_maybe_verify", boom)
+    rig.run_once()  # must not raise
+    assert rig.state == "error"
+    assert "camera glitch" in rig.state_msg
+
+
+def test_camera_frame_error_does_not_kill_the_thread(monkeypatch):
+    from connect4_robot.vision import VisionPipeline
+
+    cam = hardware.Camera(cb.cell_classifier)
+    vp = VisionPipeline(cb.cell_classifier)
+    monkeypatch.setattr(vp, "preprocess", lambda frame: (_ for _ in ()).throw(ValueError("bad quad")))
+    import numpy as np
+
+    cam.process_frame(vp, np.zeros((480, 640, 3), dtype=np.uint8), now=100.0)  # must not raise
+    assert cam.last_error and "bad quad" in cam.last_error

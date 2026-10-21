@@ -13,7 +13,6 @@ from connect4_robot.board import (
     check_win,
     count_chips,
     empty_board,
-    find_new_chip,
     get_legal_cols,
     lowest_empty_row,
 )
@@ -82,10 +81,3 @@ def test_count_chips():
     board = _bc(".RRR..Y", "...Y...")
     assert count_chips(board, P1) == 3
     assert count_chips(board, P2) == 2
-
-
-def test_find_new_chip():
-    prev = _bc("...R...")
-    new = _bc("...R...", "...Y...")
-    assert find_new_chip(prev, new) == (ROWS - 2, 3, P2)
-    assert find_new_chip(prev, prev) is None

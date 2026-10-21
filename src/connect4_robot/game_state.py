@@ -13,12 +13,9 @@ import time
 from .board import (
     COLS,
     EMPTY,
-    P1,
-    P2,
     ROWS,
     Board,
     board_copy,
-    boards_equal,
     check_draw,
     check_win,
     color_name,
@@ -26,6 +23,7 @@ from .board import (
     empty_board,
     get_legal_cols,
     lowest_empty_row,
+    opponent,
 )
 from .minimax import MINIMAX_DEPTH, get_best_move
 
@@ -61,7 +59,7 @@ class GameState:
     def _validate(self, prev: Board, new_b: Board) -> tuple[bool, int, int, str]:
         """Check prev→new_b is a legal single-chip update.
         Returns (valid, col, player, reason)."""
-        if boards_equal(prev, new_b):
+        if prev == new_b:
             return False, -1, -1, "Board unchanged — no move detected"
         diffs = [(r, c) for r in range(ROWS) for c in range(COLS) if prev[r][c] != new_b[r][c]]
         for r, c in diffs:
@@ -106,7 +104,7 @@ class GameState:
         self.reject_reason = None
         if self.user_color is None:
             self.user_color = player
-            self.robot_color = P2 if player == P1 else P1
+            self.robot_color = opponent(player)
         self.previous = board_copy(self.trusted)
         self.trusted = board_copy(candidate)
         self.last_col = col

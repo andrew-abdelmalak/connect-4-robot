@@ -7,7 +7,7 @@ so pruning cuts more of the tree.
 
 import time
 
-from .board import COLS, EMPTY, ROWS, Board, apply_move, check_win, get_legal_cols
+from .board import COLS, EMPTY, ROWS, Board, apply_move, check_win, get_legal_cols, opponent
 
 MINIMAX_DEPTH = 5
 
@@ -24,7 +24,7 @@ INF = 1e18
 
 
 def _score_window(window: list[int], player: int) -> int:
-    opp = 3 - player
+    opp = opponent(player)
     pc = window.count(player)
     ec = window.count(EMPTY)
     oc = window.count(opp)
@@ -101,7 +101,13 @@ def _minimax(
 
 
 def get_best_move(board: Board, robot: int, user: int, depth: int = MINIMAX_DEPTH) -> tuple[int | None, float, str]:
-    """Returns (col, score, reason_str). Quick wins/blocks before full search."""
+    """Returns (col, score, reason_str). Quick wins/blocks before full search.
+
+    Raises:
+        ValueError: if depth is below 1 (depth 0 would return column -1).
+    """
+    if depth < 1:
+        raise ValueError(f"minimax depth must be at least 1, got {depth}")
     legal = get_legal_cols(board)
     if not legal:
         return None, 0, "No legal columns"

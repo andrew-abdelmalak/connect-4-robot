@@ -23,7 +23,7 @@ from .game_state import GameState
 from .hardware import SERIAL_BAUD, SERIAL_PORT, Camera, RobotController
 from .minimax import MINIMAX_DEPTH
 from .simulator import Simulator
-from .vision import CellClassifier
+from .vision import CellClassifier, encode_jpeg
 
 try:
     import resource  # POSIX only (the Pi); absent on Windows laptops
@@ -105,15 +105,19 @@ def _render_board_jpg(board: Board | None, highlight_col: int | None = None) -> 
             (200, 200, 200),
             1,
         )
-    _, buf = cv2.imencode(".jpg", img)
-    return buf.tobytes()
+    return encode_jpeg(img)
+
+
+def _part(jpg: bytes) -> bytes:
+    """One part of a multipart/x-mixed-replace MJPEG stream."""
+    return b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n"
 
 
 def _mjpeg(getter: Callable[[], bytes | None]) -> Iterator[bytes]:
     while True:
         jpg = getter()
         if jpg:
-            yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + jpg + b"\r\n"
+            yield _part(jpg)
         time.sleep(STREAM_PERIOD)
 
 
@@ -140,9 +144,14 @@ def _mock_stream(label: str) -> Iterator[bytes]:
             (60, 180, 60),
             1,
         )
-        _, buf = cv2.imencode(".jpg", img)
-        yield b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + buf.tobytes() + b"\r\n"
+        yield _part(encode_jpeg(img))
         time.sleep(MOCK_STREAM_PERIOD)
+
+
+def _json_object() -> dict:
+    """Request body as a dict; anything else (missing, list, string) counts as empty."""
+    payload = request.get_json(silent=True)
+    return payload if isinstance(payload, dict) else {}
 
 
 # ── routes ────────────────────────────────────────────────────────────────────
@@ -176,6 +185,8 @@ def step_sim() -> Response | tuple[Response, int]:
         return jsonify({"error": "Not in simulation mode"}), 400
     desc, board = sim.advance()
     with STATE_LOCK:
+        if sim.index == 0:
+            gs.reset()  # wrapped past the last step: start a fresh scripted game
         accepted, reason = gs.accept(board)
     return jsonify(
         {
@@ -206,7 +217,7 @@ def accept_camera() -> Response | tuple[Response, int]:
 
 @app.route("/set_mode", methods=["POST"])
 def set_mode() -> Response | tuple[Response, int]:
-    payload = request.get_json(silent=True) or {}
+    payload = _json_object()
     mode = payload.get("mode")
     ok, msg = robot.set_mode(mode)
     if not ok:
@@ -219,7 +230,7 @@ def set_mode() -> Response | tuple[Response, int]:
 
 @app.route("/set_classifier", methods=["POST"])
 def set_classifier() -> Response | tuple[Response, int]:
-    payload = request.get_json(silent=True) or {}
+    payload = _json_object()
     mode = payload.get("mode")
     if payload.get("reload"):
         cell_classifier.reload()
@@ -293,10 +304,11 @@ def main() -> None:
     """Parse arguments and start the dashboard."""
     parser = argparse.ArgumentParser(description="Connect 4 Brain Dashboard")
     parser.add_argument("--sim", action="store_true", help="Simulation mode (no camera)")
-    parser.add_argument("--debug", action="store_true")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--depth", type=int, default=MINIMAX_DEPTH)
     args = parser.parse_args()
+    if args.depth < 1:
+        parser.error("--depth must be at least 1")
 
     gs.depth = args.depth
     set_app_mode("simulation" if args.sim else "camera")
