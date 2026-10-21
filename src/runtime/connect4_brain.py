@@ -647,24 +647,16 @@ def _build_sim_states():
     b2 = _bc("...R...", "...Y...")             # Robot: YELLOW col 3 (on top)
     b3 = _bc(".R.R...", "...Y...")             # User: RED col 1
     b4 = _bc(".R.R..Y", "...Y...")             # Robot: YELLOW col 6
-    b5 = _bc(".RRR..Y", "...Y...")             # User: RED col 2  → threat: cols 1,2,3
-    b6 = _bc(".RRRYRY", "...Y...")             # Robot: YELLOW col 5 (blocks wrong side; minimax should prefer col 4)
-    # After b5: user has R at row5 cols 1,2,3. Needs col 0 or col 4 to win.
-    # Correct robot move: col 4 (blocks 1-2-3-4) or col 0 (blocks 0-1-2-3)
-    # For the sim, robot plays col 5 (not ideal—test minimax reasoning)
-    b6 = _bc(".RRR.YY", "...Y...")             # Robot: YELLOW col 4 — good block
-    b7 = _bc("RRRR.YY", "...Y...")             # User: RED col 0 → WINS (0,1,2,3)
+    b5 = _bc(".RRR..Y", "...Y...")             # User: RED col 2  → threat: cols 0 and 4
+    b6 = _bc(".RRRY.Y", "...Y...")             # Robot: YELLOW col 4 — blocks 1-2-3-4, col 0 still open
+    b7 = _bc("RRRRY.Y", "...Y...")             # User: RED col 0 → WINS (0,1,2,3)
 
     # ── illegal test states ──────────────────────────────────────────────────
-    # After b1 is accepted, trusted=b1. These compare against b1:
-    b_float   = _bc("...R...", "R......")      # Floating: col0 row4 chip, but row5 empty
-    b_disap   = _bc(".......", "...Y...")      # Chip disappeared: b1's RED gone; new YELLOW
-    b_two     = _bc(".RRR...", "...Y...")      # Two chips: after b2, user placed col1 AND col2
-
-    # ── near-win Minimax test: robot (YELLOW) can win ──────────────────────
-    # Stand-alone: present after a reset or after b7 (game over)
-    mm_block  = _bc("...RRR.", "...YYY.")     # It's robot's turn; robot YYY needs col 3 or col 6 to win
-    mm_win    = _bc(".RYYYR.", "...YYY.")     # Robot has 3-in-row at row5 cols 1,2,3 — win at col 0 or 4
+    # Each is compared against the trusted board at that point in the path.
+    b_float   = _bc("...R...", "R......")      # vs b1: col0 row4 chip, but row5 empty
+    b_disap   = _bc(".RR...Y", "...Y...")      # vs b5: RED in col 3 vanished
+    b_two     = _bc(".RRRYYY", "...Y...")      # vs b5: YELLOW in cols 4 and 5 at once
+    b_after   = _bc("RRRRYYY", "...Y...")      # vs b7: any move after the win
 
     return [
         ("START — board is empty (press Step to begin)",             empty_board()),
@@ -675,10 +667,10 @@ def _build_sim_states():
         ("VALID #4: Robot plays YELLOW → col 6",                     b4),
         ("VALID #5: User RED → col 2 (3-in-a-row threat: 1,2,3)",   b5),
         ("ILLEGAL: Chip disappeared (col 3 RED vanished)",           b_disap),
-        ("ILLEGAL: Two chips at once (cols 1 and 2 both new RED)",   b_two),
-        ("VALID #6: Robot YELLOW → col 4 (blocks user cols 1-4)",    b6),
+        ("ILLEGAL: Two chips at once (cols 4 and 5 both new YELLOW)", b_two),
+        ("VALID #6: Robot YELLOW → col 4 (blocks 1-4; col 0 still open)", b6),
         ("VALID #7: User RED → col 0  *** USER WINS: 0,1,2,3 ***",  b7),
-        ("MINIMAX TEST (reset state): Robot YELLOW can win at col 0 or 4", mm_block),
+        ("GAME OVER: moves after a win are rejected until Reset",    b_after),
     ]
 
 SIM_STATES = _build_sim_states()
@@ -1193,8 +1185,8 @@ def debug_grid():
     if APP_MODE == "camera":
         return Response(_mjpeg(lambda: camera.debug_jpg),
                         mimetype="multipart/x-mixed-replace; boundary=frame")
-    cand = gs.candidate if gs.candidate is not None else gs.trusted
-    return Response(_mjpeg(lambda: _render_board_jpg(cand, None)),
+    return Response(
+        _mjpeg(lambda: _render_board_jpg(gs.candidate if gs.candidate is not None else gs.trusted, None)),
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
 # ═══════════════════════════════════════════════════════════════════════════════
