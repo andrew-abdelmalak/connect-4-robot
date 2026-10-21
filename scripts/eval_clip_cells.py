@@ -1,7 +1,8 @@
 """Experiment: can a general vision-language model (CLIP) read the board with no training?
 
 Cuts the sample board photo into its 42 holes with the project's own vision code
-(grid corners, the same crops the HSV classifier sees), asks CLIP ViT-B/32 which
+(grid corners, the same cell crops the HSV classifier sees, without its brightness
+and contrast boost), asks CLIP ViT-B/32 which
 of three text prompts fits each crop, and writes the result next to the HSV
 reading to site/clip-cells.json for the "Two AI experiments" section.
 
@@ -11,7 +12,12 @@ This was not part of the course project; it is a later experiment on one photo
 """
 
 import json
+import os
+import tempfile
 from pathlib import Path
+
+# The vision module reads calibration files from HOME; use none, as the tests do.
+os.environ["HOME"] = tempfile.mkdtemp(prefix="c4home-")
 
 import cv2
 import numpy as np
@@ -106,14 +112,22 @@ def clip_read(crops: list[np.ndarray]) -> tuple[list[int], list[float]]:
     return [labels[i] for i in best], [round(float(probs[n, i]), 3) for n, i in enumerate(best)]
 
 
+def plain_warp(photo: np.ndarray, corners: np.ndarray) -> np.ndarray:
+    """The same warp without the brightness, contrast, and blur tuned for HSV."""
+    dst = np.float32([[0, 0], [WARP_SIZE, 0], [WARP_SIZE, WARP_SIZE], [0, WARP_SIZE]])
+    return cv2.warpPerspective(photo, cv2.getPerspectiveTransform(corners, dst), (WARP_SIZE, WARP_SIZE))
+
+
 def main() -> None:
     photo = cv2.imread(str(PHOTO))
-    warped = warp_and_condition(photo, load_corners(photo.shape))
+    corners = load_corners(photo.shape)
+    warped = warp_and_condition(photo, corners)
     vp = VisionPipeline(CellClassifier())
     hsv_board, _ = vp.detect_board(warped)
     truth = [v for row in TRUTH for v in row]
     hsv = [v for row in hsv_board for v in row]
-    clip, confidence = clip_read(cell_crops(warped))
+    clip, confidence = clip_read(cell_crops(plain_warp(photo, corners)))
+    clip_conditioned, _ = clip_read(cell_crops(warped))
     result = {
         "model": MODEL,
         "revision": REVISION,
@@ -125,10 +139,14 @@ def main() -> None:
         "clip_confidence": confidence,
         "hsv_correct": sum(a == b for a, b in zip(hsv, truth, strict=True)),
         "clip_correct": sum(a == b for a, b in zip(clip, truth, strict=True)),
+        "clip_on_hsv_crops_correct": sum(a == b for a, b in zip(clip_conditioned, truth, strict=True)),
         "cells": len(truth),
     }
     OUT.write_text(json.dumps(result, separators=(",", ":")) + "\n", encoding="utf-8")
-    print(f"HSV {result['hsv_correct']}/42, CLIP {result['clip_correct']}/42 -> {OUT.relative_to(ROOT)}")
+    print(
+        f"HSV {result['hsv_correct']}/42, CLIP {result['clip_correct']}/42 on the plain photo, "
+        f"{result['clip_on_hsv_crops_correct']}/42 on HSV-conditioned crops -> {OUT.relative_to(ROOT)}"
+    )
 
 
 if __name__ == "__main__":

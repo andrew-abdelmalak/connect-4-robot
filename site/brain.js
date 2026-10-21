@@ -91,8 +91,12 @@ self.onmessage = async (event) => {
     const fn = py.globals.get(op + "_json");
     if (!fn) throw new Error("unknown op " + op);
     const t0 = performance.now();
-    const out = fn(...(args || []));
-    fn.destroy();
+    let out;
+    try {
+      out = fn(...(args || []));
+    } finally {
+      fn.destroy();
+    }
     self.postMessage({ id, ok: true, value: JSON.parse(out), ms: performance.now() - t0 });
   } catch (err) {
     if (op === "vision") visionReady = null;
