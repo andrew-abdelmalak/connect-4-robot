@@ -176,7 +176,7 @@ async function ask(question) {
     query = await (await model)(question);
   } catch (err) {
     console.error(err);
-    if (embed === model) embed = null; // The next question tries again.
+    if (embed === model && !modelReady) embed = null; // A failed load is retried; a loaded model is kept.
     if (id !== latest) return;
     setStatus(
       quick.length
@@ -187,7 +187,7 @@ async function ask(question) {
   }
   if (id !== latest) return;
   show(rank(question, query));
-  setStatus("The three passages closest in meaning to your question.");
+  setStatus(`The three passages closest in meaning to "${question}".`);
 }
 
 form.addEventListener("submit", (e) => {

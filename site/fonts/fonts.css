@@ -1,0 +1,4 @@
+/* Latin subsets of three variable fonts from Google Fonts, all under the SIL Open Font License 1.1 (OFL.txt). */
+@font-face { font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 200 800; font-display: swap; src: url("atkinson-hyperlegible-next.woff2") format("woff2"); }
+@font-face { font-family: "Baloo 2"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("baloo-2.woff2") format("woff2"); }
+@font-face { font-family: "Martian Mono"; font-style: normal; font-weight: 100 800; font-display: swap; src: url("martian-mono.woff2") format("woff2"); }

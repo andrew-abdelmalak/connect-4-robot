@@ -23,7 +23,7 @@ OUT = ROOT / "site" / "reports-index.json"
 MODEL = "Xenova/all-MiniLM-L6-v2"
 REVISION = "751bff37182d3f1213fa05d7196b954e230abad9"
 ONNX_FILE = "onnx/model_quantized.onnx"  # transformers.js dtype "q8"
-PASSAGE_WORDS = 90
+PASSAGE_WORDS = 90  # a passage ends at the first sentence end past this
 MIN_TAIL_WORDS = 30  # a shorter last piece joins the passage before it
 DOCS = [
     ("Vision-Based-Connect-4-Robot.pdf", "Paper"),
@@ -39,7 +39,7 @@ def page_count(pdf: Path) -> int:
     return int(re.search(r"^Pages:\s+(\d+)", info, re.MULTILINE).group(1))
 
 
-def page_words(pdf: Path, page: int) -> list[str]:
+def page_text(pdf: Path, page: int) -> str:
     text = subprocess.run(
         ["pdftotext", "-f", str(page), "-l", str(page), "-enc", "UTF-8", str(pdf), "-"],
         capture_output=True,
@@ -47,20 +47,30 @@ def page_words(pdf: Path, page: int) -> list[str]:
         check=True,
     ).stdout
     text = re.sub(r"-\n(\w)", r"\1", text)  # join words hyphenated across lines
-    return text.split()
+    text = re.sub(r"\b([A-Z]) ([A-Z]{2,})\b", r"\1\2", text)  # small caps: "P ER" -> "PER"
+    return " ".join(text.split())
+
+
+def sentences(text: str) -> list[str]:
+    return [s for s in re.split(r"(?<=[.!?])\s+(?=[A-Z(\[])", text) if s]
 
 
 def passages() -> list[dict]:
-    """Every page of every document, cut into passages of about PASSAGE_WORDS words."""
+    """Every page of every document, cut at sentence ends into passages of about PASSAGE_WORDS words."""
     items = []
     for file, title in DOCS:
         pdf = ROOT / "docs" / file
         for page in range(1, page_count(pdf) + 1):
-            ws = page_words(pdf, page)
-            chunks = [ws[i : i + PASSAGE_WORDS] for i in range(0, len(ws), PASSAGE_WORDS)]
-            if len(chunks) > 1 and len(chunks[-1]) < MIN_TAIL_WORDS:
-                tail = chunks.pop()
-                chunks[-1] += tail
+            chunks, current = [], []
+            for sentence in sentences(page_text(pdf, page)):
+                current += sentence.split()
+                if len(current) >= PASSAGE_WORDS:
+                    chunks.append(current)
+                    current = []
+            if current and chunks and len(current) < MIN_TAIL_WORDS:
+                chunks[-1] += current
+            elif current:
+                chunks.append(current)
             for chunk in chunks:
                 if len(chunk) >= MIN_TAIL_WORDS // 2:
                     items.append({"doc": file, "title": title, "page": page, "text": " ".join(chunk)})
@@ -86,6 +96,11 @@ class Embedder:
         self.session = onnxruntime.InferenceSession(fetch(ONNX_FILE))
 
     def __call__(self, texts: list[str]) -> np.ndarray:
+        # One text at a time, as the browser embeds a question: the quantized
+        # model's activation scales depend on the whole padded batch.
+        return np.vstack([self._embed([t]) for t in texts])
+
+    def _embed(self, texts: list[str]) -> np.ndarray:
         enc = self.tokenizer.encode_batch(texts)
         ids = np.array([e.ids for e in enc], dtype=np.int64)
         mask = np.array([e.attention_mask for e in enc], dtype=np.int64)

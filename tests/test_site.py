@@ -14,8 +14,8 @@ def test_worker_loads_real_modules():
     for name in names:
         assert (REPO / "src" / "connect4_robot" / name).exists(), name
     pages = (REPO / ".github" / "workflows" / "pages.yml").read_text()
-    for name in names:
-        assert name.removesuffix(".py") in pages, f"pages.yml does not ship {name}"
+    shipped = re.search(r"cp src/connect4_robot/\{([^}]+)\}\.py", pages).group(1).split(",")
+    assert set(names) == {f"{n}.py" for n in shipped}, (names, shipped)
 
 
 def test_local_assets_exist():
@@ -24,3 +24,12 @@ def test_local_assets_exist():
         assert (SITE / ref).exists(), ref
     for ref in re.findall(r'"img/([^"]+\.webp)"', html):
         assert (SITE / "img" / ref).exists(), ref
+
+
+def test_clip_results_are_consistent():
+    import json
+
+    d = json.loads((SITE / "clip-cells.json").read_text())
+    assert d["cells"] == len(d["truth"]) == len(d["hsv"]) == len(d["clip"]) == 42
+    assert d["hsv_correct"] == sum(a == b for a, b in zip(d["hsv"], d["truth"], strict=True)) == 42
+    assert d["clip_correct"] == sum(a == b for a, b in zip(d["clip"], d["truth"], strict=True))

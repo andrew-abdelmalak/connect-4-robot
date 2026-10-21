@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vision-Based Connect-4 Robot</title>
 <meta name="description" content="A Raspberry Pi robot that plays Connect-4, rejects impossible boards, and checks with its camera that every token it drops really landed. Play against its real Python brain in your browser.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Baloo+2:wght@600;800&family=Martian+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/baloo-2.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -37,9 +36,12 @@
     <p class="fineprint">The board on this page runs the robot's real Python, the same validator and planner, in your browser. The dispenser is an animation.</p>
   </div>
 
-  <div class="game" id="play" aria-label="Play Connect-4 against the robot">
-    <div class="rail" aria-hidden="true">
-      <div class="carriage" id="carriage"><span class="carriage-token"></span></div>
+  <div class="game" id="play" role="group" aria-label="Play Connect-4 against the robot">
+    <div class="dispenser">
+      <div class="rail" aria-hidden="true">
+        <div class="carriage" id="carriage"><span class="funnel"></span><span class="carriage-token"></span></div>
+      </div>
+      <p class="rail-label">Dispenser, animated: on the robot a timed carriage carries each token to its column</p>
     </div>
     <div class="board-wrap">
       <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your red token"></div>
@@ -73,7 +75,7 @@
   </div>
 </section>
 
-<section class="how" id="how" aria-labelledby="how-title">
+<div class="band"><section class="how" id="how" aria-labelledby="how-title">
   <h2 id="how-title">Two checks keep the game honest</h2>
   <div class="how-grid">
     <div class="how-step">
@@ -89,7 +91,7 @@
     <img src="img/closed-loop-frames.webp" width="1442" height="354" alt="Three frames from the final demo: a human move is accepted, the robot plans its reply on the dashboard, and the camera confirms the token the robot dropped">
     <figcaption>From the final demo: human move accepted, robot move planned, robot move confirmed by the camera.</figcaption>
   </figure>
-</section>
+</section></div>
 
 <section class="vision" id="vision" aria-labelledby="vision-title">
   <h2 id="vision-title">How it reads the board</h2>
@@ -161,15 +163,17 @@
 </section>
 
 <section class="build" aria-labelledby="build-title">
-  <h2 id="build-title">The robot</h2>
   <figure class="photo">
     <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard">
   </figure>
+  <div class="build-copy">
+  <h2 id="build-title">The robot</h2>
   <ul class="facts">
     <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>
     <li><strong>Arduino Uno</strong> releases one token with an encoder-counted magazine and moves the carriage to the column.</li>
     <li><strong>6,100 EGP</strong> in parts, about 115 USD at the April 2026 rate.</li>
   </ul>
+  </div>
 </section>
 
 <section class="limits" id="limits" aria-labelledby="limits-title">
