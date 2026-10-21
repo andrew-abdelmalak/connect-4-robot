@@ -788,6 +788,7 @@ fixBtn.addEventListener("click", () => {
       say(`Gate 1 rejected the fixed board: ${human(res.reason)}. Try the fix again.`);
       return;
     }
+    setStage("gate2", "pass", "The operator fixed the missed drop by hand; gate 1 accepted the board");
     if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
   });
 });
