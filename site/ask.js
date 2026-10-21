@@ -122,6 +122,23 @@ function setStatus(text) {
   status.textContent = text;
 }
 
+// Open the passage in the PDF.js viewer at its page, with its opening words
+// highlighted. The phrase stops before a word with digits or symbols, where
+// the cleaned index text can differ from the PDF's own text.
+function viewerPhrase(text) {
+  const words = text.split(" ");
+  const clean = (w) => /^[A-Za-z][A-Za-z'-]*[,.;:]?$/.test(w);
+  let start = words.findIndex(clean);
+  if (start < 0) start = 0;
+  let end = start;
+  while (end < words.length && end - start < 14 && clean(words[end])) end++;
+  return words.slice(start, Math.max(end, start + 1)).join(" ").replace(/[,.;:]$/, "");
+}
+function viewerLink(p) {
+  const search = encodeURIComponent(viewerPhrase(p.text));
+  return `pdfjs/web/viewer.html?file=../../docs/${encodeURIComponent(p.doc)}#page=${p.page}&search=${search}&phrase=true`;
+}
+
 let shownKey = "";
 
 function show(passages) {
@@ -141,7 +158,7 @@ function show(passages) {
       text.className = "ask-text";
       text.textContent = p.text;
       const link = document.createElement("a");
-      link.href = `docs/${p.doc}#page=${p.page}`;
+      link.href = viewerLink(p);
       link.textContent = `Open ${page} of the PDF`;
       li.append(where, text, link);
       return li;
