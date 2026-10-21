@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: "3.11" # Raspberry Pi OS Bookworm ships Python 3.11
+
+      - name: Install
+        run: uv sync --locked --all-groups
+
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Run the MS2 notebook
+        working-directory: notebooks
+        env:
+          MPLBACKEND: Agg
+        run: uv run jupyter nbconvert --to notebook --execute --output /tmp/ms2_executed.ipynb ms2_image_pipeline.ipynb
+
+      - uses: arduino/setup-arduino-cli@81d310742121c928ea9c8bbd407b4217b432ae02 # v2.0.0
+        with:
+          version: 1.5.1
+
+      - name: Compile Arduino sketches (Uno)
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.8
+          arduino-cli lib install Servo@1.3.0
+          for sketch in arduino/*/; do
+            arduino-cli compile --fqbn arduino:avr:uno --warnings all "$sketch"
+          done
