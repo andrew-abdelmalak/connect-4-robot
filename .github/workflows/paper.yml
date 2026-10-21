@@ -12,10 +12,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build paper PDF (pdfLaTeX, TeX Live 2025)
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     container:
       # pdfLaTeX on TeX Live 2025, the engine the Overleaf project uses.
       image: texlive/texlive:TL2025-historic@sha256:7056390eac37715fd3e01875037ceb4016cb17d44c611f7bbbfa7a012007979f

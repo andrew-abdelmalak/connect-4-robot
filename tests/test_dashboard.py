@@ -83,3 +83,18 @@ def test_processed_stream_shows_trusted_board(client):
     before = first_frame(client, "/processed")
     client.post("/step_sim")
     assert first_frame(client, "/processed") != before
+
+
+@pytest.mark.parametrize("payload", [{"mode": []}, {"mode": {"a": 1}}, [1, 2], "text"])
+def test_malformed_json_is_a_400_not_a_500(client, payload):
+    assert client.post("/set_mode", json=payload).status_code == 400
+    assert client.post("/set_classifier", json=payload).status_code == 400
+
+
+def test_simulator_wraps_into_a_fresh_game(client):
+    for _ in range(len(SIM_STATES) - 1):
+        client.post("/step_sim")  # steps 1..11, ending on GAME OVER
+    assert client.post("/step_sim").get_json()["sim_idx"] == 0  # wraps to START
+    data = client.post("/step_sim").get_json()  # VALID #1 again
+    assert data["accepted"] is True
+    assert data["status"]["move_count"] == 1

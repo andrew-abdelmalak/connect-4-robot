@@ -11,7 +11,6 @@ Writes ``~/connect4_cell_model.pkl``. Run with
 ``python -m connect4_robot.train_cell_model``.
 """
 
-import os
 import pickle
 from pathlib import Path
 
@@ -22,7 +21,7 @@ from sklearn.ensemble import RandomForestClassifier
 from .board import EMPTY, P1, P2
 from .vision import ML_MODEL_FILE, extract_cell_features
 
-DATASET_DIR = Path(os.path.expanduser("~/ml_cells"))
+DATASET_DIR = Path.home() / "ml_cells"
 LABELS = {
     "empty": EMPTY,
     "red": P1,
@@ -72,14 +71,7 @@ def main() -> None:
     model = train(X, y)
     payload = {
         "model": model,
-        "labels": {
-            0: EMPTY,
-            1: P1,
-            2: P2,
-            EMPTY: EMPTY,
-            P1: P1,
-            P2: P2,
-        },
+        "labels": {0: EMPTY, 1: P1, 2: P2},  # model class id -> board value
     }
     out = Path(ML_MODEL_FILE)
     with open(out, "wb") as f:

@@ -11,9 +11,9 @@ import time
 import cv2
 import serial
 
-from .board import Board, apply_move, board_copy, boards_equal
+from .board import Board, apply_move, board_copy
 from .game_state import GameState
-from .vision import CellClassifier, VisionPipeline
+from .vision import CellClassifier, VisionPipeline, encode_jpeg
 
 ANALYSIS_INTERVAL = 1.0  # seconds between full board analyses (camera mode)
 PREVIEW_INTERVAL = 0.2  # seconds between preview frames (~5 FPS)
@@ -46,6 +46,15 @@ class Camera:
         self.connected = False
         self.board_detected = False
         self.detection_age = 0
+        self.last_error: str | None = None
+        self._last_preview = 0.0
+        self._last_analysis = 0.0
+
+    def detection(self) -> tuple[Board | None, bool, int]:
+        """Return (candidate copy, board_detected, detection_age) from one consistent snapshot."""
+        with self.lock:
+            cand = board_copy(self.candidate) if self.candidate is not None else None
+            return cand, self.board_detected, self.detection_age
 
     def start(self) -> None:
         """Start the capture thread."""
@@ -65,33 +74,42 @@ class Camera:
             print(f"Camera: open error — {e}")
             return
 
-        last_analysis = 0.0
-        last_preview = 0.0
         while True:
-            now = time.time()
             ret, frame = cap.read()
             if not ret:
                 time.sleep(0.1)
                 continue
-            if now - last_preview >= PREVIEW_INTERVAL:
-                last_preview = now
-                annotated = vp.draw_detection_overlay(frame)
-                _, buf = cv2.imencode(".jpg", annotated, [cv2.IMWRITE_JPEG_QUALITY, PREVIEW_JPEG_QUALITY])
+            self.process_frame(vp, frame, time.time())
+            time.sleep(FRAME_SLEEP)
+
+    def process_frame(self, vp: VisionPipeline, frame, now: float) -> None:
+        """Publish a preview and, once per ANALYSIS_INTERVAL, a new candidate board.
+
+        A failure on one frame is recorded in last_error and the loop goes on.
+        """
+        try:
+            if now - self._last_preview >= PREVIEW_INTERVAL:
+                self._last_preview = now
+                raw = encode_jpeg(vp.draw_detection_overlay(frame), PREVIEW_JPEG_QUALITY)
                 with self.lock:
-                    self.raw_jpg = buf.tobytes()
-            if now - last_analysis >= ANALYSIS_INTERVAL:
-                last_analysis = now
+                    self.raw_jpg = raw
+            if now - self._last_analysis >= ANALYSIS_INTERVAL:
+                self._last_analysis = now
                 warped = vp.preprocess(frame)
                 board, dbg = vp.detect_board(warped)
-                _, b2 = cv2.imencode(".jpg", warped, [cv2.IMWRITE_JPEG_QUALITY, ANALYSIS_JPEG_QUALITY])
-                _, b3 = cv2.imencode(".jpg", dbg, [cv2.IMWRITE_JPEG_QUALITY, ANALYSIS_JPEG_QUALITY])
+                proc = encode_jpeg(warped, ANALYSIS_JPEG_QUALITY)
+                debug = encode_jpeg(dbg, ANALYSIS_JPEG_QUALITY)
                 with self.lock:
-                    self.proc_jpg = b2.tobytes()
-                    self.debug_jpg = b3.tobytes()
+                    self.proc_jpg = proc
+                    self.debug_jpg = debug
                     self.candidate = board
                     self.board_detected = vp.board_detected
                     self.detection_age = vp._detection_age
-            time.sleep(FRAME_SLEEP)
+        except Exception as e:  # noqa: BLE001 - one bad frame must not stop the camera thread
+            with self.lock:
+                self.last_error = f"Frame failed — {e}"
+                self.board_detected = False
+            print(f"Camera: {self.last_error}")
 
 
 class RobotController:
@@ -106,20 +124,9 @@ class RobotController:
         self.mode = MODE_MANUAL
         self.ser = None
         self.connected = False
-        self.busy = False
-        self.awaiting_verification = False
-        self.last_command: str | None = None
-        self.last_sent_col: int | None = None
-        self.last_sent_at: float | None = None
-        self.last_done_at: float | None = None
         self.last_ack = "No serial activity yet."
-        self.last_error: str | None = None
-        self.state = "idle"
+        self.reset()
         self.state_msg = "Manual mode — waiting for confirmation."
-        self.expected_board: Board | None = None
-        self.expected_col: int | None = None
-        self.verify_deadline: float | None = None
-        self.settle_until: float | None = None
         self._started = False
 
     def start(self) -> None:
@@ -132,23 +139,27 @@ class RobotController:
     def reset(self) -> None:
         """Forget any pending move and return to idle."""
         with self.lock:
-            self.busy = False
-            self.awaiting_verification = False
-            self.last_command = None
-            self.last_sent_col = None
-            self.last_sent_at = None
-            self.last_done_at = None
-            self.last_error = None
-            self.state = "idle"
-            self.state_msg = "Reset — waiting for user move."
-            self.expected_board = None
-            self.expected_col = None
-            self.verify_deadline = None
-            self.settle_until = None
+            self._clear_pending("idle", "Reset — waiting for user move.")
+            self.last_command: str | None = None
+            self.last_sent_col: int | None = None
+            self.last_sent_at: float | None = None
+            self.last_done_at: float | None = None
+            self.last_error: str | None = None
+
+    def _clear_pending(self, state: str, msg: str) -> None:
+        """End the pending move (caller holds self.lock)."""
+        self.busy = False
+        self.awaiting_verification = False
+        self.state = state
+        self.state_msg = msg
+        self.expected_board: Board | None = None
+        self.expected_col: int | None = None
+        self.verify_deadline: float | None = None
+        self.settle_until: float | None = None
 
     def set_mode(self, mode: str) -> tuple[bool, str]:
         """Switch operator mode: manual, semi_auto, or auto. Returns (ok, message)."""
-        if mode not in VALID_OPERATOR_MODES:
+        if not isinstance(mode, str) or mode not in VALID_OPERATOR_MODES:
             return False, f"Unknown mode: {mode}"
         with self.lock:
             self.mode = mode
@@ -234,21 +245,14 @@ class RobotController:
             self.last_error = None
         return True, self.state_msg
 
-    def _can_auto_accept(self) -> bool:
-        with self.lock:
-            mode = self.mode
-        if mode == MODE_MANUAL:
-            return False
-        return self.camera.board_detected and self.camera.detection_age == 0
-
     def _maybe_accept_user_move(self) -> None:
         if not self.camera_mode:
             return
-        if not self._can_auto_accept():
-            return
-        with self.camera.lock:
-            cand = board_copy(self.camera.candidate) if self.camera.candidate is not None else None
-        if cand is None:
+        with self.lock:
+            if self.mode == MODE_MANUAL:
+                return
+        cand, detected, age = self.camera.detection()
+        if cand is None or not detected or age != 0:
             return
         gs = self.game
         with self.state_lock:
@@ -256,7 +260,7 @@ class RobotController:
                 return
             if self.awaiting_verification or self.busy:
                 return
-            if boards_equal(gs.trusted, cand):
+            if gs.trusted == cand:
                 return
             accepted, _ = gs.accept(cand)
             if accepted and gs.whose_turn == "robot":
@@ -288,46 +292,43 @@ class RobotController:
             expected = board_copy(self.expected_board) if self.expected_board is not None else None
             exp_col = self.expected_col
             deadline = self.verify_deadline
-        with self.camera.lock:
-            cand = board_copy(self.camera.candidate) if self.camera.candidate is not None else None
-        if cand is not None and expected is not None and boards_equal(cand, expected):
+        cand, _, _ = self.camera.detection()
+        if cand is not None and expected is not None and cand == expected:
             with self.state_lock:
+                with self.lock:
+                    if self.expected_board != expected:
+                        return  # reset or a new move while we were reading the camera
                 accepted, reason = self.game.accept(cand)
-                if accepted:
-                    with self.lock:
-                        self.busy = False
-                        self.awaiting_verification = False
-                        self.state = "idle"
-                        self.state_msg = f"Robot move verified in column {exp_col + 1}."
-                        self.expected_board = None
-                        self.expected_col = None
-                        self.verify_deadline = None
-                        self.settle_until = None
-                    if self.game.whose_turn == "robot":
-                        self.maybe_dispatch_robot_locked()
-                else:
-                    with self.lock:
-                        self.busy = False
-                        self.awaiting_verification = False
-                        self.state = "error"
-                        self.state_msg = f"Verification board rejected — {reason}"
+                with self.lock:
+                    if accepted:
+                        self._clear_pending("idle", f"Robot move verified in column {exp_col + 1}.")
+                    else:
+                        self._clear_pending("error", f"Verification board rejected — {reason}")
                         self.last_error = reason
+                if accepted and self.game.whose_turn == "robot":
+                    self.maybe_dispatch_robot_locked()
             return
         if deadline and time.time() > deadline:
             with self.lock:
-                self.busy = False
-                self.awaiting_verification = False
-                self.state = "error"
-                self.state_msg = "Timed out waiting for verified robot move."
+                self._clear_pending("error", "Timed out waiting for verified robot move.")
                 self.last_error = self.state_msg
 
-    def _loop(self) -> None:
-        while True:
+    def run_once(self) -> None:
+        """One loop pass: serial, auto-accept, verify. Errors put the robot in the error state."""
+        try:
             with self.lock:
                 self._ensure_serial()
                 self._read_serial()
             self._maybe_accept_user_move()
             self._maybe_verify()
+        except Exception as e:  # noqa: BLE001 - keep the loop alive and show the failure
+            with self.lock:
+                self._clear_pending("error", f"Robot loop error — {e}")
+                self.last_error = self.state_msg
+
+    def _loop(self) -> None:
+        while True:
+            self.run_once()
             time.sleep(VERIFY_POLL_SEC)
 
     def to_dict(self) -> dict:

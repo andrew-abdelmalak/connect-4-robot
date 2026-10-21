@@ -8,10 +8,8 @@ that trusts the model only above a confidence threshold.
 """
 
 import json
-import os
 import pickle
 import threading
-import time
 from pathlib import Path
 
 import cv2
@@ -20,8 +18,8 @@ import numpy as np
 from .board import COLS, EMPTY, P1, P2, ROWS, Board, empty_board
 
 WARP_SIZE = 800
-ML_MODEL_FILE = os.path.expanduser("~/connect4_cell_model.pkl")
-CORNERS_FILE = os.path.expanduser("~/warp_corners.json")
+ML_MODEL_FILE = str(Path.home() / "connect4_cell_model.pkl")
+CORNERS_FILE = Path.home() / "warp_corners.json"
 
 # HSV thresholds  (OpenCV: H 0-179, S 0-255, V 0-255)
 RED_LO1 = np.array([0, 80, 50])
@@ -58,6 +56,32 @@ VALID_CLASSIFIER_MODES = {CLASSIFIER_HSV, CLASSIFIER_ML, CLASSIFIER_AUTO}
 CELL_CLASSIFIER_MODE = CLASSIFIER_HSV
 
 
+def encode_jpeg(img: np.ndarray, quality: int | None = None) -> bytes:
+    """Encode an image as JPEG bytes (OpenCV's default quality when quality is None)."""
+    params = [cv2.IMWRITE_JPEG_QUALITY, quality] if quality is not None else []
+    _, buf = cv2.imencode(".jpg", img, params)
+    return buf.tobytes()
+
+
+def color_counts(hsv: np.ndarray) -> tuple[int, int]:
+    """Return (red, yellow) pixel counts of an HSV image; red wraps around hue 0."""
+    red = cv2.countNonZero(cv2.inRange(hsv, RED_LO1, RED_HI1)) + cv2.countNonZero(cv2.inRange(hsv, RED_LO2, RED_HI2))
+    yel = cv2.countNonZero(cv2.inRange(hsv, YEL_LO, YEL_HI))
+    return red, yel
+
+
+def load_corners(shape: tuple[int, ...]) -> np.ndarray:
+    """Board corners from ~/warp_corners.json, else FALLBACK_CORNERS scaled to the frame."""
+    h, w = shape[:2]
+    try:
+        pts = np.float32(json.loads(CORNERS_FILE.read_text())["corners"])
+        if pts.shape == (4, 2):
+            return pts
+    except (OSError, ValueError, KeyError, TypeError):
+        pass  # missing or unreadable corners file: use the default corners
+    return np.float32([[fx * w, fy * h] for fx, fy in FALLBACK_CORNERS])
+
+
 def extract_cell_features(roi: np.ndarray | None) -> np.ndarray:
     """Return the 18 colour-statistics features the ML classifier uses for one cell."""
     if roi is None or roi.size == 0:
@@ -67,15 +91,13 @@ def extract_cell_features(roi: np.ndarray | None) -> np.ndarray:
     hsv_mean = hsv.mean(axis=(0, 1))
     bgr_std = roi.std(axis=(0, 1))
     hsv_std = hsv.std(axis=(0, 1))
-    red_1 = cv2.countNonZero(cv2.inRange(hsv, RED_LO1, RED_HI1))
-    red_2 = cv2.countNonZero(cv2.inRange(hsv, RED_LO2, RED_HI2))
-    yel = cv2.countNonZero(cv2.inRange(hsv, YEL_LO, YEL_HI))
+    red, yel = color_counts(hsv)
     total = max(1, roi.shape[0] * roi.shape[1])
     ratios = np.array(
         [
-            (red_1 + red_2) / total,
+            red / total,
             yel / total,
-            (red_1 + red_2 - yel) / total,
+            (red - yel) / total,
         ],
         dtype=np.float32,
     )
@@ -103,7 +125,6 @@ class CellClassifier:
         self.labels: dict | None = None
         self.loaded = False
         self.last_error: str | None = None
-        self.last_loaded_at: float | None = None
         self.mode = CELL_CLASSIFIER_MODE
         self.reload()
 
@@ -114,7 +135,7 @@ class CellClassifier:
             self.labels = None
             self.loaded = False
             self.last_error = None
-            if not os.path.exists(ML_MODEL_FILE):
+            if not Path(ML_MODEL_FILE).exists():
                 self.last_error = f"Model not found: {ML_MODEL_FILE}"
                 return False
             try:
@@ -124,7 +145,6 @@ class CellClassifier:
                 self.model = payload["model"]
                 self.labels = payload.get("labels", {0: EMPTY, 1: P1, 2: P2})
                 self.loaded = True
-                self.last_loaded_at = round(time.time(), 3)
                 return True
             except Exception as e:  # noqa: BLE001 - any unpickling error is shown on the dashboard
                 self.last_error = f"Model load failed — {e}"
@@ -132,7 +152,7 @@ class CellClassifier:
 
     def set_mode(self, mode: str) -> tuple[bool, str]:
         """Switch between "hsv", "ml", and "auto". Returns (ok, message)."""
-        if mode not in VALID_CLASSIFIER_MODES:
+        if not isinstance(mode, str) or mode not in VALID_CLASSIFIER_MODES:
             return False, f"Unknown classifier mode: {mode}"
         with self.lock:
             self.mode = mode
@@ -145,9 +165,7 @@ class CellClassifier:
             loaded = self.loaded and self.model is not None
             model = self.model
             labels = self.labels
-        if mode == CLASSIFIER_HSV:
-            return None
-        if not loaded:
+        if mode == CLASSIFIER_HSV or not loaded:
             return None
         try:
             feats = extract_cell_features(roi).reshape(1, -1)
@@ -216,13 +234,12 @@ class VisionPipeline:
         largest = max(cnts, key=cv2.contourArea)
         if cv2.contourArea(largest) < MIN_BOARD_AREA_RATIO * frame_area:
             return None
-        candidate = largest
-        peri = cv2.arcLength(candidate, True)
-        approx = cv2.approxPolyDP(candidate, POLY_EPSILON * peri, True)
+        peri = cv2.arcLength(largest, True)
+        approx = cv2.approxPolyDP(largest, POLY_EPSILON * peri, True)
         if len(approx) == 4:
             pts = approx.reshape(4, 2).astype(np.float32)
         else:
-            hull = cv2.convexHull(candidate)
+            hull = cv2.convexHull(largest)
             hperi = cv2.arcLength(hull, True)
             app2 = cv2.approxPolyDP(hull, HULL_EPSILON * hperi, True)
             if len(app2) == 4:
@@ -262,18 +279,6 @@ class VisionPipeline:
         )
         return out
 
-    def _load_corners(self, shape: tuple[int, ...]) -> np.ndarray:
-        h, w = shape[:2]
-        if os.path.exists(CORNERS_FILE):
-            try:
-                data = json.loads(Path(CORNERS_FILE).read_text())
-                pts = np.float32(data["corners"])
-                if pts.shape == (4, 2):
-                    return pts
-            except (OSError, ValueError, KeyError, TypeError):
-                pass  # unreadable corners file: fall back to the default corners
-        return np.float32([[fx * w, fy * h] for fx, fy in FALLBACK_CORNERS])
-
     def preprocess(self, frame: np.ndarray) -> np.ndarray:
         """Auto-detect board → warp → brightness → contrast → blur. Returns color 800x800."""
         found = self._find_board_corners(frame)
@@ -285,7 +290,7 @@ class VisionPipeline:
             self._detection_age += 1
             self.board_detected = False
             if self._src is None:
-                self._src = self._load_corners(frame.shape)  # first-frame fallback only
+                self._src = load_corners(frame.shape)  # first-frame fallback only
         return warp_and_condition(frame, self._src)
 
     def classify_cell(self, roi: np.ndarray | None) -> int:
@@ -299,11 +304,7 @@ class VisionPipeline:
                 return pred
             if confidence is not None and confidence >= AUTO_MIN_CONFIDENCE:
                 return pred
-        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        m1 = cv2.inRange(hsv, RED_LO1, RED_HI1)
-        m2 = cv2.inRange(hsv, RED_LO2, RED_HI2)
-        red = cv2.countNonZero(cv2.bitwise_or(m1, m2))
-        yel = cv2.countNonZero(cv2.inRange(hsv, YEL_LO, YEL_HI))
+        red, yel = color_counts(cv2.cvtColor(roi, cv2.COLOR_BGR2HSV))
         if red >= MIN_PIX and red >= yel:
             return P1
         if yel >= MIN_PIX and yel > red:
