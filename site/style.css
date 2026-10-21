@@ -280,7 +280,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   .hero { grid-template-columns: 1fr; }
   .top nav a:not(:last-child) { display: none; }
   .how-grid > *, .results-grid > *, .ai-grid > *, .build > *, .vision-out > figure:nth-child(n) { grid-column: 1 / -1 !important; }
-  :root { --cell: min(11.2vw, 3.6rem); }
+  :root { --cell: min(10.6vw, 3.6rem); }
 }
 @media (max-width: 420px) {
   .gates { grid-template-columns: 1fr; }
