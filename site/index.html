@@ -128,6 +128,38 @@
   </div>
 </section>
 
+<section class="ai" id="ai" aria-labelledby="ai-title">
+  <h2 id="ai-title">Two AI experiments</h2>
+  <p class="section-lede">Added after the course, to test two ideas from modern AI on this project's own material.</p>
+  <div class="ai-grid">
+    <div class="ask" aria-labelledby="ask-title">
+      <h3 id="ask-title">Ask the reports</h3>
+      <p class="ask-note">Semantic search over the paper and the four milestone reports, run in your browser. It finds the three passages closest in meaning to your question and links to their pages. It quotes the documents and never writes an answer of its own.</p>
+      <form class="ask-form" id="ask-form" role="search">
+        <label for="ask-input">Your question</label>
+        <div class="ask-row">
+          <input id="ask-input" type="search" placeholder="How much did the robot cost?" autocomplete="off" enterkeyhint="search" maxlength="200" required>
+          <button type="submit" class="btn btn-blue">Search</button>
+        </div>
+      </form>
+      <div class="ask-try">
+        <button type="button" data-ask>Why did column 7 miss more?</button>
+        <button type="button" data-ask>How does it know the token landed?</button>
+        <button type="button" data-ask>How long does one move take?</button>
+      </div>
+      <p class="ask-status" id="ask-status" role="status"></p>
+      <ol class="ask-results" id="ask-results"></ol>
+      <p class="ask-quality">On 16 test questions, a passage holding the answer is in the top three for 14.</p>
+    </div>
+    <div class="clip" aria-labelledby="clip-title">
+      <h3 id="clip-title">Could a general AI model read the board?</h3>
+      <p>CLIP is a vision-language model trained on images and captions from the web. With no training on this board, we asked it which of three captions fits each hole: an empty hole, a red disc, or a yellow disc. The robot's own colour thresholds read the same 42 crops.</p>
+      <div class="clip-boards" id="clip-boards"></div>
+      <p class="ask-quality" id="clip-score">One photo, 42 holes: a small sample, computed offline with CLIP ViT-B/32.</p>
+    </div>
+  </div>
+</section>
+
 <section class="build" aria-labelledby="build-title">
   <h2 id="build-title">The robot</h2>
   <figure class="photo">
@@ -166,5 +198,6 @@
 </footer>
 
 <script src="game.js" type="module"></script>
+<script src="ask.js" type="module"></script>
 </body>
 </html>
