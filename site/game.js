@@ -86,10 +86,11 @@ function call(op, ...args) {
 
 // ── Arduino worker: the compiled sketch on an emulated ATmega328P ─────────
 const avr = new Worker("arduino.js", { type: "module" });
-const ard = { t: 0, waiters: [], samples: [], marks: [], cycleStart: null, move: null, lines: [], dir: 0 };
+const ard = { t: 0, waiters: [], samples: [], marks: [], cycleStart: null, move: null, lines: [], dir: 0, failed: null };
 function untilSim(t, e) {
   return new Promise((resolve, reject) => {
     if (e !== epoch) return reject(new Stale());
+    if (ard.failed) return reject(ard.failed);
     if (ard.t >= t) return resolve();
     ard.waiters.push({ t, resolve, reject, e });
   });
@@ -97,6 +98,7 @@ function untilSim(t, e) {
 function untilLine(prefix, e) {
   return new Promise((resolve, reject) => {
     if (e !== epoch) return reject(new Stale());
+    if (ard.failed) return reject(ard.failed);
     const hit = ard.lines.find((l) => l.startsWith(prefix));
     if (hit) return resolve(hit);
     ard.waiters.push({ prefix, resolve, reject, e });
@@ -154,17 +156,30 @@ avr.onmessage = ({ data: m }) => {
   } else if (m.type === "motor") {
     onMotor(m);
   } else if (m.type === "paused") {
-    if (stepMode && m.reason === "line" && ard.move && !ard.lines.at(-1)?.startsWith("DONE")) offerNext("let the Arduino continue", () => avr.postMessage({ op: "resume" }));
+    if (stepMode && m.reason === "line" && ard.move) {
+      // After DONE the camera check may still be waiting on robot time: keep the clock running.
+      if (ard.lines.at(-1)?.startsWith("DONE")) avr.postMessage({ op: "resume" });
+      else offerNext("let the Arduino continue", () => avr.postMessage({ op: "resume" }));
+    }
   } else if (m.type === "reset") {
+    ard.failed = null;
     ard.t = 0;
     ard.lines = [];
     ard.dir = 0;
     serialEl.replaceChildren();
     serialPrint("Arduino powered on", "tx");
   } else if (m.type === "error") {
-    say(`The Arduino emulator stopped (${m.error}).`);
+    arduinoFailed(m.error);
   }
 };
+avr.onerror = (e) => arduinoFailed(e.message || "the worker stopped");
+// Without the emulator no robot move can finish: fail every waiter so the board unlocks.
+function arduinoFailed(why) {
+  ard.failed = new Error(`the Arduino emulator stopped: ${why}`);
+  for (const w of ard.waiters) w.reject(ard.failed);
+  ard.waiters = [];
+  setStage("arduino", "fail", ard.failed.message);
+}
 function onLine(text) {
   const mv = ard.move;
   if (!mv) return;
@@ -229,7 +244,7 @@ function drawTraces() {
     const g = traces.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const left = 46;
-    const top = 26;
+    const top = 34;
     const rowH = (H - top - 6) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
     g.font = "11px ui-monospace, Menlo, monospace";
@@ -241,11 +256,12 @@ function drawTraces() {
       g.fillStyle = "#8ea4dc";
       g.fillText(name, 6, top + rowH * (i + 0.5));
     });
-    let lastLabel = -Infinity;
-    let lane = 0;
+    const laneEnd = [-Infinity, -Infinity, -Infinity]; // labels close together take one of three heights
     for (const [t, text] of ard.marks) {
-      lane = x(t) - lastLabel < 60 ? 1 - lane : 0; // labels close together take turns at two heights
-      lastLabel = x(t);
+      const lx = Math.min(x(t) + 3, W - g.measureText(text).width - 2);
+      let lane = laneEnd.findIndex((end) => lx > end);
+      if (lane < 0) lane = 0;
+      laneEnd[lane] = lx + g.measureText(text).width + 6;
       g.strokeStyle = "rgba(214, 224, 255, 0.35)";
       g.setLineDash([3, 3]);
       g.beginPath();
@@ -254,7 +270,7 @@ function drawTraces() {
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = "#d6e0ff";
-      g.fillText(text, Math.min(x(t) + 3, W - 52), lane ? 17 : 7);
+      g.fillText(text, lx, 6 + lane * 10);
     }
     const s = ard.samples;
     if (!s.length) return;
@@ -285,7 +301,10 @@ for (let i = 0; i < ROWS * COLS; i++) {
 }
 const scoreSlots = [];
 for (let c = 0; c < COLS; c++) scoreSlots.push(scoresEl.appendChild(document.createElement("span")));
-const clearScores = () => scoreSlots.forEach((s) => { s.textContent = ""; s.className = ""; });
+const clearScores = () => {
+  scoreSlots.forEach((s) => { s.textContent = ""; s.className = ""; });
+  $("#scores-cap").hidden = true;
+};
 const colButtons = [];
 for (let c = 0; c < COLS; c++) {
   const b = document.createElement("button");
@@ -511,6 +530,7 @@ function lock(on) {
     b.setAttribute("aria-label", `Drop your ${NAMES[you]} token in column ${c + 1}`);
   });
   cheat.querySelectorAll("button").forEach((b) => { b.disabled = on || over; });
+  $("#depth").disabled = on; // the scores must come from the depth the robot searched
   if (!on && document.activeElement === document.body) {
     const target = colButtons[lastCol]?.disabled ? colButtons.find((b) => !b.disabled) : colButtons[lastCol];
     target?.focus({ preventScroll: true });
@@ -526,6 +546,10 @@ async function flow(fn) {
     await fn(e);
   } catch (err) {
     if (err instanceof Stale) return;
+    if (ard.move) {
+      ard.move = null;
+      avr.postMessage({ op: "idle" });
+    }
     say(`Something went wrong (${err.message}). Press New game to start again.`);
   }
   if (e === epoch && !pendingFix && !finished()) lock(false);
@@ -601,6 +625,7 @@ async function robotTurn(e, nodes) {
     s.textContent = t.scores ? (c in t.scores ? scoreText(t.scores[c]) : "") : c === col ? "here" : "";
     s.className = c === col ? "best" : "";
   });
+  $("#scores-cap").hidden = !t.scores;
   if (t.scores) {
     setStage("think", "pass", `Looked ${t.depth} moves ahead: ${nodes.toLocaleString("en")} positions in ${t.time.toFixed(2)} s. Column ${col + 1} scored highest (${scoreText(t.scores[col])}).`);
   } else {
@@ -638,7 +663,7 @@ async function robotTurn(e, nodes) {
     if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token, or try to cheat.`);
     return;
   }
-  setStage("gate2", "fail", `${TIMEOUT_MSG} The camera saw the token in column ${landed + 1}, not column ${col + 1}.`);
+  setStage("gate2", "fail", landed === col ? TIMEOUT_MSG : `${TIMEOUT_MSG} The camera saw the token in column ${landed + 1}, not column ${col + 1}.`);
   await untilLine("DONE", e);
   ard.move = null;
   avr.postMessage({ op: "idle" });
@@ -652,13 +677,16 @@ async function robotTurn(e, nodes) {
 // is compared with the expected board every VERIFY_POLL_SEC until VERIFY_TIMEOUT.
 async function verify(e, sentAt, expected) {
   let latest = null;
+  let inflight = null;
   let done = false;
   (async () => {
     for (let k = 1; !done; k++) {
       await untilSim(sentAt + k * ANALYSIS_INTERVAL * 1000, e);
       if (done) return;
       setStage("camera", "busy", `Analysing one frame every ${ANALYSIS_INTERVAL} s`);
-      latest = (await readBoard(e)).board;
+      inflight = readBoard(e);
+      latest = (await inflight).board;
+      inflight = null;
       if (!done) setStage("camera", "pass", `Frame read ${((ard.t - sentAt) / 1000).toFixed(1)} s after the command`);
     }
   })().catch((err) => {
@@ -666,6 +694,9 @@ async function verify(e, sentAt, expected) {
   });
   for (let t = ROBOT_SETTLE_SEC; t <= VERIFY_TIMEOUT + 1e-9; t += VERIFY_POLL_SEC) {
     await untilSim(sentAt + t * 1000, e);
+    // The emulator can outrun the browser's vision code; wait for the frame it is reading.
+    if (inflight) await inflight.catch(() => {});
+    guard(e);
     setStage("gate2", "busy", `Waiting for the expected board: ${t.toFixed(1)} of ${VERIFY_TIMEOUT} s`);
     if (latest && same(latest, expected)) {
       done = true;
@@ -748,7 +779,16 @@ fixBtn.addEventListener("click", () => {
     draw();
     say("The operator moved the token. The camera reads the board and gate 1 checks it, as the dashboard's Accept button did.");
     const res = await cameraThenGate1(e);
-    if (res.ok && !state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
+    if (!res.ok) {
+      physical[lowest(physical, col) + 1][col] = 0;
+      physical[lowest(physical, landed)][landed] = robot;
+      draw();
+      pendingFix = { col, landed, robot };
+      fixBtn.hidden = false;
+      say(`Gate 1 rejected the fixed board: ${human(res.reason)}. Try the fix again.`);
+      return;
+    }
+    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
   });
 });
 
@@ -812,6 +852,7 @@ cheat.addEventListener("click", (ev) => {
 // ── new game and settings ─────────────────────────────────────────────────
 async function newGame() {
   epoch++;
+  lock(true);
   wake();
   pendingFix = null;
   nextAction = null;
@@ -834,12 +875,13 @@ async function newGame() {
     if (visionOn) await call("camera_reset");
   } catch (err) {
     say(`The robot's brain is not ready (${err.message}).`);
-    return;
+    return false;
   }
   resetStages();
   drawFrame(physical);
   say(`New game. You play ${NAMES[you]} and go first, as on the robot.`);
   lock(false);
+  return true;
 }
 $("#reset").addEventListener("click", newGame);
 $("#again").addEventListener("click", newGame);
@@ -921,13 +963,11 @@ draw();
 drawFrame(physical);
 lock(true);
 resetStages();
-avr.postMessage({ op: "boot" });
 ready
-  .then(() => call("reset"))
-  .then(({ value }) => {
-    state = value;
+  .then(newGame) // also picks up settings the browser restored or the visitor changed while loading
+  .then((ok) => {
+    if (!ok) return;
     say("Ready. You go first: tap a column.");
-    lock(false);
     call("vision_load")
       .then(() => {
         visionOn = true;

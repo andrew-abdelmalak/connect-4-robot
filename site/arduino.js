@@ -112,6 +112,15 @@ function physics(dt) {
 function tick() {
   timer = null;
   if (paused) return;
+  try {
+    run();
+  } catch (err) {
+    paused = true;
+    post({ type: "error", error: String(err && err.message ? err.message : err) });
+  }
+}
+
+function run() {
   const start = performance.now();
   const target = speed ? simBase + (start - wallBase) * speed : Infinity;
   while (!paused && ms() < target && performance.now() - start < 14) {

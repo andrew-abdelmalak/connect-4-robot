@@ -129,6 +129,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 }
 .carriage[data-loaded="true"] .carriage-token { opacity: 1; }
 
+.scores-cap { margin: 0; font-size: 0.8rem; color: var(--on-blue-soft); text-align: center; }
 .scores { display: grid; grid-template-columns: repeat(7, var(--cell)); gap: var(--gap); padding: 0 var(--gap); min-height: 1.5rem; }
 .scores span { text-align: center; font-family: var(--mono); font-size: clamp(0.6rem, 1.6vw, 0.75rem); line-height: 1.5rem; border-radius: 999px; color: var(--on-blue-soft); background: rgba(11, 38, 114, 0.6); }
 .scores span:empty { background: transparent; }
@@ -179,6 +180,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .cheat summary::-webkit-details-marker { display: none; }
 .cheat-menu { position: absolute; z-index: 7; bottom: calc(100% + 0.5rem); left: 0; display: grid; gap: 0.4rem; padding: 0.6rem; background: var(--blue-ink); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.35); width: max-content; }
 .cheat-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
+.controls-note { margin: 0; max-width: 34rem; font-size: 0.82rem; color: var(--on-blue-soft); text-align: center; }
 .toggle { display: inline-flex; gap: 0.45rem; align-items: center; font-size: 0.9rem; color: var(--on-blue-soft); }
 .toggle input { width: 1.1rem; height: 1.1rem; accent-color: var(--yellow); }
 
@@ -209,7 +211,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .link-btn:disabled { opacity: 0.6; cursor: progress; }
 .ard-live { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.7rem; }
 .serial {
-  margin: 0; min-height: 8.2em; max-height: 8.2em; overflow: auto; padding: 0.5rem 0.7rem; border-radius: 8px;
+  margin: 0; height: calc(6 * 1.35em + 1rem); overflow: auto; padding: 0.5rem 0.7rem; border-radius: 8px;
   background: #050f33; color: #b9f3c8; font-family: var(--mono); font-size: 0.74rem; line-height: 1.35; white-space: pre-wrap;
 }
 .serial .tx { color: var(--yellow); }
@@ -306,6 +308,10 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .clip-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .clip-boards figure { margin: 0; }
 
+/* Keep the whole sticky board column, controls included, inside a short laptop screen. */
+@media (min-width: 1081px) {
+  :root { --cell: max(2.4rem, min(clamp(2.4rem, 6.2vw, 4.1rem), calc((100svh - 27rem) / 7.2))); }
+}
 @media (max-width: 1080px) {
   .rig { grid-template-columns: 1fr; }
   .rig-play { position: relative; top: auto; }
@@ -313,6 +319,9 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 }
 @media (max-width: 880px) {
   .hero-copy { grid-template-columns: 1fr; }
+  /* Phone: the board comes first, settings after the controls. */
+  .rig-play > .settings { order: 1; }
+  .rig-play > .controls-note { order: 2; }
   .top nav a:not(:last-child) { display: none; }
   .how-grid > *, .results-grid > *, .ai-grid > *, .build > * { grid-column: 1 / -1 !important; }
   :root { --cell: min(10.6vw, 3.6rem); }

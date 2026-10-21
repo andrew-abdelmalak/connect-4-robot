@@ -57,6 +57,7 @@
           <div class="carriage" id="carriage"><span class="funnel"></span><span class="carriage-token"></span></div>
         </div>
       </div>
+      <p class="scores-cap" id="scores-cap" hidden>The robot's score for each column. The highlighted one is its pick.</p>
       <div class="scores" id="scores" aria-hidden="true"></div>
       <div class="board-wrap">
         <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your token"></div>
@@ -75,10 +76,11 @@
             <button type="button" data-cheat="robot">Play the robot's colour</button>
           </div>
         </details>
-        <label class="toggle" title="Columns 1 to 3 never missed in testing; column 7 missed 3 of 20 drops."><input type="checkbox" id="misdrops" checked> Miss as often as the real robot</label>
+        <label class="toggle"><input type="checkbox" id="misdrops" checked aria-describedby="misdrops-note"> Miss as often as the real robot</label>
         <button type="button" class="btn-small" id="fix" hidden>Fix it by hand, like the operator</button>
         <button type="button" class="btn-small" id="reset">New game</button>
       </div>
+      <p class="controls-note" id="misdrops-note">In testing, columns 1 to 3 never missed and column 7 missed 3 of 20 drops. With misses on, the page drops the token in the next column that often.</p>
     </div>
 
     <div class="rig-panel">
@@ -86,7 +88,6 @@
         <h2 class="pane-title" id="cam-title">Camera <small>Raspberry Pi, OpenCV</small></h2>
         <ol class="stages">
           <li class="stage" data-stage="camera" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>1. Read the board</strong><span class="stage-msg">Waiting for a move</span></div></li>
-          <li class="stage" data-stage="gate2" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>6. Gate 2: did the token land?</strong><span class="stage-msg">Checks only the robot's own moves</span></div></li>
         </ol>
         <div class="cam-views">
           <figure><canvas id="frame" width="640" height="480"></canvas><figcaption id="frame-cap">Camera picture, drawn by the page</figcaption></figure>
@@ -120,6 +121,13 @@
         </div>
         <canvas class="traces" id="traces" width="720" height="210" role="img" aria-label="Signal traces from the Arduino's motor pins"></canvas>
         <p class="pane-note" id="ard-note">The page draws the motors, encoder, and carriage around the real chip program. The encoder speed is an assumption; the carriage times are the sketch's own.</p>
+      </div>
+
+      <div class="pane" role="group" aria-labelledby="check-title">
+        <h2 class="pane-title" id="check-title">Camera check <small>Raspberry Pi, the same vision code</small></h2>
+        <ol class="stages">
+          <li class="stage" data-stage="gate2" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>6. Gate 2: did the token land?</strong><span class="stage-msg">Checks only the robot's own moves</span></div></li>
+        </ol>
       </div>
     </div>
   </div>
