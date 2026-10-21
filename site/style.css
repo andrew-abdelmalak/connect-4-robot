@@ -211,7 +211,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .link-btn:disabled { opacity: 0.6; cursor: progress; }
 .ard-live { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.7rem; }
 .serial {
-  margin: 0; height: calc(6 * 1.35em + 1rem); overflow: auto; padding: 0.5rem 0.7rem; border-radius: 8px;
+  margin: 0; height: calc(6 * 1.35em + 1rem); overflow: auto; padding: 0 0.7rem; border-block: 0.5rem solid #050f33; border-radius: 8px;
   background: #050f33; color: #b9f3c8; font-family: var(--mono); font-size: 0.74rem; line-height: 1.35; white-space: pre-wrap;
 }
 .serial .tx { color: var(--yellow); }
@@ -320,8 +320,8 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (max-width: 880px) {
   .hero-copy { grid-template-columns: 1fr; }
   /* Phone: the board comes first, settings after the controls. */
-  .rig-play > .settings { order: 1; }
-  .rig-play > .controls-note { order: 2; }
+  .rig-play > .controls-note { order: 1; }
+  .rig-play > .settings { order: 2; }
   .top nav a:not(:last-child) { display: none; }
   .how-grid > *, .results-grid > *, .ai-grid > *, .build > * { grid-column: 1 / -1 !important; }
   :root { --cell: min(10.6vw, 3.6rem); }
