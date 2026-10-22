@@ -1,0 +1,83 @@
+name: Pages
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "site/**"
+      - "src/connect4_robot/**"
+      - "arduino/dispenser/**"
+      - "notebooks/board_sample.png"
+      - "docs/*.pdf"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The page runs the robot's own code: the Python modules unchanged, and
+      # the Arduino sketch compiled for the Uno, plus the board photo the
+      # vision demo reads and the PDFs that search results open at a page.
+      - uses: arduino/setup-arduino-cli@81d310742121c928ea9c8bbd407b4217b432ae02 # v2.0.0
+        with:
+          version: 1.5.1
+
+      - name: Compile the dispenser sketch
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr@1.8.8
+          arduino-cli compile --fqbn arduino:avr:uno --output-dir build/dispenser arduino/dispenser
+
+      - name: Assemble site
+        run: |
+          mkdir -p _site/py _site/docs _site/img _site/firmware
+          cp -r site/. _site/
+          cp src/connect4_robot/{__init__,board,minimax,game_state,vision}.py _site/py/
+          cp build/dispenser/dispenser.ino.hex _site/firmware/dispenser.hex
+          cp notebooks/board_sample.png _site/img/board-sample.png
+          cp docs/*.pdf _site/docs/
+
+      # Mozilla's prebuilt PDF viewer, pinned by version and checksum.
+      - name: Add the PDF.js viewer
+        env:
+          PDFJS_VERSION: 6.4.299
+          PDFJS_SHA256: f2245eb7ef3f674c872fe568a177bfec15874f5c034613e55d8e307f93ebd86d
+        run: |
+          curl -sSfL -o pdfjs.zip "https://github.com/mozilla/pdf.js/releases/download/v${PDFJS_VERSION}/pdfjs-${PDFJS_VERSION}-dist.zip"
+          echo "${PDFJS_SHA256}  pdfjs.zip" | sha256sum -c
+          unzip -q pdfjs.zip -d _site/pdfjs
+          find _site/pdfjs -name '*.map' -delete
+          rm _site/pdfjs/web/compressed.tracemonkey-pldi-09.pdf
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
