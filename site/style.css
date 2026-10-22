@@ -315,6 +315,24 @@ p { max-width: 68ch; }
 .frames img { border-radius: 14px; }
 figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 
+/* Watch it play: the real robot, framed like the board's own rounded parts. */
+.watch-film { margin: 0; }
+.watch-frame { position: relative; border-radius: 22px; overflow: hidden; background: var(--blue-ink); box-shadow: 0 18px 40px rgba(11, 31, 92, 0.25); }
+.watch-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.watch-toggle {
+  position: absolute; left: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: 0.55rem;
+  min-height: 2.75rem; padding: 0 1.15rem 0 0.95rem; border-radius: 999px; cursor: pointer;
+  font-family: var(--display); font-weight: 800; font-size: 1rem; color: var(--on-blue);
+  background: rgba(11, 31, 92, 0.82); border: 2px solid rgba(255, 255, 255, 0.55);
+  transition: background-color 160ms var(--ease), border-color 160ms var(--ease);
+}
+.watch-toggle:hover { background: var(--blue-ink); border-color: var(--on-blue); }
+.watch-toggle:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+/* a play triangle, or two pause bars, in token yellow */
+.watch-toggle::before { content: ""; width: 0.8rem; height: 0.9rem; background: var(--yellow); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.watch-toggle[data-playing="true"]::before { clip-path: none; background: linear-gradient(90deg, var(--yellow) 0 34%, transparent 34% 66%, var(--yellow) 66%); }
+.watch-film figcaption a { color: var(--blue); font-weight: 700; }
+
 .results-grid { display: grid; grid-template-columns: subgrid; row-gap: 2rem; align-items: start; }
 .results-grid > .drops { grid-column: 1 / span 4; }
 .results-grid > .reading { grid-column: 5 / span 3; }

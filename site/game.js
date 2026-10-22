@@ -948,6 +948,29 @@ $("#photo").addEventListener("click", async (ev) => {
   btn.disabled = false;
 });
 
+// ── Watch it play: muted, it plays while on screen, unless the visitor asked for
+// reduced motion or paused it; a visitor's pause sticks.
+const film = $("#watch-video");
+const filmBtn = $("#watch-toggle");
+let filmPausedByVisitor = false;
+const showFilm = (playing) => {
+  filmBtn.dataset.playing = playing;
+  filmBtn.textContent = playing ? "Pause" : "Play";
+};
+film.addEventListener("play", () => showFilm(true));
+film.addEventListener("pause", () => showFilm(false));
+filmBtn.addEventListener("click", () => {
+  filmPausedByVisitor = !film.paused;
+  if (film.paused) film.play().catch(() => {});
+  else film.pause();
+});
+if (!reduceMotion && "IntersectionObserver" in window) {
+  new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting) film.pause();
+    else if (!filmPausedByVisitor) film.play().catch(() => {});
+  }, { threshold: 0.4 }).observe(film);
+}
+
 // ── results chart from the measured drop counts ───────────────────────────
 $("#drop-bars").replaceChildren(...DROP_HITS.map((hit, c) => {
   const row = document.createElement("div");
