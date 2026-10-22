@@ -19,6 +19,7 @@ const VERIFY_POLL_SEC = 0.4;
 const VERIFY_TIMEOUT = 10.0;
 const TIMEOUT_MSG = "Timed out waiting for verified robot move.";
 const WIN_SCORE = 1_000_000; // minimax.py
+const TARGET_PULSES = 400; // dispenser.ino: pulses for one token release
 
 const $ = (sel) => document.querySelector(sel);
 const rigPlay = $(".rig-play");
@@ -186,7 +187,9 @@ function onLine(text) {
   const [word, arg] = text.split(" ");
   const msg = {
     BUSY: `BUSY ${arg}: column ${arg} received, releasing one token`,
-    MAG: `MAG ${arg}: the encoder counted ${arg} pulses, one token released`,
+    MAG: Number(arg) < TARGET_PULSES
+      ? `MAG ${arg}: the sketch stopped the magazine early, at ${arg} of ${TARGET_PULSES} pulses. It reads its pulse count while the encoder interrupt can change it, a known issue in the sketch (see the README). The page still drops the token.`
+      : `MAG ${arg}: the encoder counted ${arg} pulses, one token released`,
     MOVE: `MOVE ${arg}: carriage driving for ${COLUMN_MS[arg - 1]} ms`,
     DONE: `DONE ${arg}: carriage back home`,
   }[word];
