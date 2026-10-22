@@ -54,7 +54,13 @@
       </div>
       <div class="dispenser" aria-hidden="true">
         <div class="rail">
+          <div class="magazine" id="magazine"><span></span><span></span><span></span></div>
+          <svg class="motor-gear mag-wheel" id="mag-wheel" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>
           <div class="carriage" id="carriage"><span class="funnel"></span><span class="carriage-token"></span></div>
+        </div>
+        <div class="motors">
+          <span class="motor" id="motor-mag" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Magazine motor <b>off</b></span>
+          <span class="motor" id="motor-car" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Carriage motor <b>off</b></span>
         </div>
       </div>
       <p class="scores-cap" id="scores-cap" hidden>The robot's score for each column. The highlighted one is its pick.</p>
@@ -231,8 +237,8 @@
 </section>
 
 <section class="team" aria-labelledby="team-title">
-  <h2 id="team-title">Who built it</h2>
-  <p>Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama, for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
+  <h2 id="team-title">Who we are</h2>
+  <p>We are Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama. We built the robot for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
   <div class="links">
     <a class="btn btn-blue" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
     <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
