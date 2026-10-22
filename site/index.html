@@ -50,7 +50,7 @@
         <label class="pick">Arduino speed
           <select id="speed"><option value="0" selected>As fast as it runs</option><option value="1">Real time</option></select>
         </label>
-        <label class="toggle"><input type="checkbox" id="step"> Step by step</label>
+        <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
       </div>
       <div class="dispenser" aria-hidden="true">
         <div class="rail">
@@ -76,7 +76,7 @@
             <button type="button" data-cheat="robot">Play the robot's colour</button>
           </div>
         </details>
-        <label class="toggle"><input type="checkbox" id="misdrops" checked aria-describedby="misdrops-note"> Miss as often as the real robot</label>
+        <label class="toggle"><input type="checkbox" role="switch" id="misdrops" checked aria-describedby="misdrops-note"> Miss as often as the real robot</label>
         <button type="button" class="btn-small" id="fix" hidden>Fix it by hand, like the operator</button>
         <button type="button" class="btn-small" id="reset">New game</button>
       </div>
