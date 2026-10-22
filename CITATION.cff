@@ -1,0 +1,50 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the paper below."
+title: "Vision-Based Connect-4 Robot"
+abstract: "A Raspberry Pi and Arduino robot that reads a Connect-4 board with a camera, accepts only legal one-chip changes, plans with depth-5 minimax, drops a token, and verifies the result with the camera before the game continues."
+type: software
+authors:
+  - family-names: "Abdelmalak"
+    given-names: "Andrew"
+  - family-names: "Boules"
+    given-names: "Daniel"
+  - family-names: "Girgis"
+    given-names: "David"
+  - family-names: "Kirolous"
+    given-names: "Kirolous"
+  - family-names: "Yacoub"
+    given-names: "Samir"
+  - family-names: "Salama"
+    given-names: "Youssef"
+version: "1.2.0"
+date-released: "2026-10-21"
+license: "MIT"
+repository-code: "https://github.com/andrew-abdelmalak/connect-4-robot"
+keywords:
+  - "robotics"
+  - "computer-vision"
+  - "opencv"
+  - "connect-four"
+  - "minimax"
+  - "raspberry-pi"
+  - "arduino"
+preferred-citation:
+  type: report
+  title: "Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement"
+  authors:
+    - family-names: "Abdelmalak"
+      given-names: "Andrew"
+    - family-names: "Boules"
+      given-names: "Daniel"
+    - family-names: "Girgis"
+      given-names: "David"
+    - family-names: "Kirolous"
+      given-names: "Kirolous"
+    - family-names: "Yacoub"
+      given-names: "Samir"
+    - family-names: "Salama"
+      given-names: "Youssef"
+  institution:
+    name: "German University in Cairo, Department of Mechatronics Engineering"
+  year: 2026
+  url: "https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/docs/Vision-Based-Connect-4-Robot.pdf"

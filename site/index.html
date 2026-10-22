@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vision-Based Connect-4 Robot</title>
+<meta name="description" content="A Raspberry Pi robot that plays Connect-4, rejects impossible boards, and checks with its camera that every token it drops really landed. Play against its real Python brain in your browser.">
+<link rel="preload" href="fonts/baloo-2.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#play">Skip to the game</a>
+
+<header class="top">
+  <span class="mark" aria-hidden="true"><i></i><i></i></span>
+  <span class="top-name">Connect-4 Robot</span>
+  <nav aria-label="Sections">
+    <a href="#how">How it works</a>
+    <a href="#results">Results</a>
+    <a href="#limits">Limits</a>
+    <a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero" aria-labelledby="hero-title">
+  <div class="hero-copy">
+    <h1 id="hero-title">A robot that checks its own moves.</h1>
+    <div>
+      <p class="lede">Our camera-guided robot plays Connect-4 against a person. It refuses boards that cannot happen, picks its move with minimax, drops a real token, and only believes the move once its camera sees it.</p>
+      <p class="fineprint">Below, the robot's real code runs in your browser: the Python that reads the camera, checks the board, and plans, and the compiled Arduino sketch that drives the motors. Only the camera picture, motors, and table are simulated.</p>
+    </div>
+  </div>
+
+  <div class="rig" id="play" role="group" aria-label="Play Connect-4 against the robot">
+    <div class="rig-play">
+      <div class="settings">
+        <fieldset class="seg" id="colour">
+          <legend>You play</legend>
+          <label><input type="radio" name="colour" value="1" checked><span class="swatch red"></span>Red</label>
+          <label><input type="radio" name="colour" value="2"><span class="swatch yellow"></span>Yellow</label>
+        </fieldset>
+        <label class="pick">Robot looks ahead
+          <select id="depth">
+            <option value="1">1 move</option><option value="2">2 moves</option><option value="3">3 moves</option><option value="4">4 moves</option>
+            <option value="5" selected>5 moves, as on the robot</option>
+          </select>
+        </label>
+        <label class="pick">Arduino speed
+          <select id="speed"><option value="0" selected>As fast as it runs</option><option value="1">Real time</option></select>
+        </label>
+        <label class="toggle"><input type="checkbox" id="step"> Step by step</label>
+      </div>
+      <div class="dispenser" aria-hidden="true">
+        <div class="rail">
+          <div class="carriage" id="carriage"><span class="funnel"></span><span class="carriage-token"></span></div>
+        </div>
+      </div>
+      <p class="scores-cap" id="scores-cap" hidden>The robot's score for each column. The highlighted one is its pick.</p>
+      <div class="scores" id="scores" aria-hidden="true"></div>
+      <div class="board-wrap">
+        <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your token"></div>
+        <div class="board" id="board" aria-hidden="true"></div>
+        <div class="result" id="result" hidden><p id="result-text"></p><button type="button" class="btn btn-yellow" id="again">Play again</button></div>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite">Waking the robot's brain (Python in your browser, about 10 MB the first time)</p>
+      <div class="controls">
+        <button type="button" class="btn-small btn-next" id="next" hidden>Next step</button>
+        <details class="cheat" id="cheat">
+          <summary>Try to cheat</summary>
+          <div class="cheat-menu">
+            <button type="button" data-cheat="two">Drop two at once</button>
+            <button type="button" data-cheat="vanish">Make a chip vanish</button>
+            <button type="button" data-cheat="float">Float a chip</button>
+            <button type="button" data-cheat="robot">Play the robot's colour</button>
+          </div>
+        </details>
+        <label class="toggle"><input type="checkbox" id="misdrops" checked aria-describedby="misdrops-note"> Miss as often as the real robot</label>
+        <button type="button" class="btn-small" id="fix" hidden>Fix it by hand, like the operator</button>
+        <button type="button" class="btn-small" id="reset">New game</button>
+      </div>
+      <p class="controls-note" id="misdrops-note">In testing, columns 1 to 3 never missed and column 7 missed 3 of 20 drops. With misses on, the page drops the token in the next column that often.</p>
+    </div>
+
+    <div class="rig-panel">
+      <div class="pane" role="group" aria-labelledby="cam-title">
+        <h2 class="pane-title" id="cam-title">Camera <small>Raspberry Pi, OpenCV</small></h2>
+        <ol class="stages">
+          <li class="stage" data-stage="camera" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>1. Read the board</strong><span class="stage-msg">Waiting for a move</span></div></li>
+        </ol>
+        <div class="cam-views">
+          <figure><canvas id="frame" width="640" height="480"></canvas><figcaption id="frame-cap">Camera picture, drawn by the page</figcaption></figure>
+          <figure><div class="cam-img" id="cam-grid"></div><figcaption>Warped to a square</figcaption></figure>
+          <figure><div class="mini" id="cam-board" role="img" aria-label="Board as read"></div><figcaption id="cam-read">Board as read</figcaption></figure>
+        </div>
+        <p class="pane-note"><button type="button" class="link-btn" id="photo">Run the same code on a photo of our board</button> <span id="photo-out"></span></p>
+      </div>
+
+      <div class="pane" role="group" aria-labelledby="brain-title">
+        <h2 class="pane-title" id="brain-title">Brain <small>Raspberry Pi, Python</small></h2>
+        <ol class="stages">
+          <li class="stage" data-stage="gate1" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>2. Gate 1: is it a legal move?</strong><span class="stage-msg">Waiting for a move</span></div></li>
+          <li class="stage" data-stage="think" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>3. Minimax picks a column</strong><span class="stage-msg">Scores appear above each column</span></div></li>
+        </ol>
+      </div>
+
+      <div class="pane" role="group" aria-labelledby="ard-title">
+        <h2 class="pane-title" id="ard-title">Arduino <small id="ard-speed">Uno, running the compiled sketch</small></h2>
+        <ol class="stages">
+          <li class="stage" data-stage="serial" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>4. The Pi sends the column</strong><span class="stage-msg">One byte at 9600 baud</span></div></li>
+          <li class="stage" data-stage="arduino" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>5. Release a token, move, drop</strong><span class="stage-msg">Starting the Arduino</span></div></li>
+        </ol>
+        <div class="ard-live">
+          <pre class="serial" id="serial" aria-label="Serial monitor: what the Arduino prints" tabindex="0"></pre>
+          <dl class="pins" id="pins">
+            <div><dt>Magazine motor</dt><dd><span class="gear" id="gear"></span><span id="mag">off</span></dd></div>
+            <div><dt>Encoder</dt><dd id="enc">0 pulses</dd></div>
+            <div><dt>Carriage motor</dt><dd id="car">stopped at home</dd></div>
+          </dl>
+        </div>
+        <canvas class="traces" id="traces" width="720" height="210" role="img" aria-label="Signal traces from the Arduino's motor pins"></canvas>
+        <p class="pane-note" id="ard-note">The page draws the motors, encoder, and carriage around the real chip program. The encoder speed is an assumption; the carriage times are the sketch's own.</p>
+      </div>
+
+      <div class="pane" role="group" aria-labelledby="check-title">
+        <h2 class="pane-title" id="check-title">Camera check <small>Raspberry Pi, the same vision code</small></h2>
+        <ol class="stages">
+          <li class="stage" data-stage="gate2" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>6. Gate 2: did the token land?</strong><span class="stage-msg">Checks only the robot's own moves</span></div></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="band"><section class="how" id="how" aria-labelledby="how-title">
+  <h2 id="how-title">Two checks keep the game honest</h2>
+  <div class="how-grid">
+    <div class="how-step">
+      <h3>Before it thinks</h3>
+      <p>A new board from the camera only counts if it is exactly one legal move away from the last board the robot trusted. A chip that vanished, two new chips at once, or a chip floating above an empty cell: the robot rejects it and keeps the last good board.</p>
+    </div>
+    <div class="how-step">
+      <h3>After it moves</h3>
+      <p>When the robot drops a token, it already knows what the board should look like. It accepts its own move only when the camera shows that exact board within 10 seconds. A token that slid into the wrong column stops the robot with an error, instead of silently corrupting the game.</p>
+    </div>
+  </div>
+  <figure class="frames">
+    <img src="img/closed-loop-frames.webp" width="1442" height="354" alt="Three frames from the final demo: a human move is accepted, the robot plans its reply on the dashboard, and the camera confirms the token the robot dropped">
+    <figcaption>From the final demo: human move accepted, robot move planned, robot move confirmed by the camera.</figcaption>
+  </figure>
+</section></div>
+
+<section class="results" id="results" aria-labelledby="results-title">
+  <h2 id="results-title">How well it worked</h2>
+  <p class="section-lede">We measured these on the real robot, under indoor light with a fixed camera mount, for our final course report.</p>
+  <div class="results-grid">
+    <figure class="drops" aria-labelledby="drops-cap">
+      <figcaption id="drops-cap"><strong>Tokens that landed in the column the robot aimed for</strong>, 20 drops per column, 133 of 140 overall (95%).</figcaption>
+      <dl class="bars drop-bars" id="drop-bars"></dl>
+      <p class="drops-why">The misses grow toward column 7 because the carriage finds a column by running its motor for a set time, with no sensor to say where it is. The longer the trip, the more the error adds up.</p>
+    </figure>
+    <div class="reading">
+      <h3>Reading the board</h3>
+      <dl class="bars">
+        <div><dt>Colour rules (HSV thresholds)</dt><dd><span style="--v:98"></span>98%</dd></div>
+        <div><dt>Colour rules plus a learned model</dt><dd><span style="--v:96"></span>96%</dd></div>
+        <div><dt>Learned model only</dt><dd><span style="--v:91"></span>91%</dd></div>
+      </dl>
+      <p>Cells read correctly, out of about 200 labelled cell images. The simple thresholds won: the board is blue and the tokens are red and yellow under steady light, while the model had little data to learn from.</p>
+      <p class="time"><strong>3 to 15 s</strong> from command to a verified move, 7.5 s on average. The time is the mechanism and the camera check, not the image processing.</p>
+    </div>
+  </div>
+</section>
+
+<section class="ai" id="ai" aria-labelledby="ai-title">
+  <h2 id="ai-title">Two AI experiments</h2>
+  <p class="section-lede">Added after the course, to test two ideas from modern AI on this project's own material.</p>
+  <div class="ai-grid">
+    <div class="ask" aria-labelledby="ask-title">
+      <h3 id="ask-title">Ask the reports</h3>
+      <p class="ask-note">Semantic search over the paper and the four milestone reports, run in your browser. It finds the three passages closest in meaning to your question and links to their pages. It quotes the documents and never writes an answer of its own.</p>
+      <form class="ask-form" id="ask-form" role="search">
+        <label for="ask-input">Your question</label>
+        <div class="ask-row">
+          <input id="ask-input" type="search" placeholder="How much did the robot cost?" autocomplete="off" enterkeyhint="search" maxlength="200" required>
+          <button type="submit" class="btn btn-blue">Search</button>
+        </div>
+      </form>
+      <div class="ask-try">
+        <button type="button" data-ask>Why did column 7 miss more?</button>
+        <button type="button" data-ask>How does it know the token landed?</button>
+        <button type="button" data-ask>How long does one move take?</button>
+      </div>
+      <p class="ask-status" id="ask-status" role="status"></p>
+      <ol class="ask-results" id="ask-results"></ol>
+      <p class="ask-quality">On 16 test questions, a passage holding the answer is in the top three for 14.</p>
+    </div>
+    <div class="clip" aria-labelledby="clip-title">
+      <h3 id="clip-title">Could a general AI model read the board?</h3>
+      <p>We showed each of the 42 holes in a board photo to CLIP, an image model from OpenAI that learned from pictures and captions across the web and never saw our board. For each hole it picked the best caption: an empty hole, a red disc, or a yellow disc. The robot's simple colour rules read the same holes.</p>
+      <div class="clip-boards" id="clip-boards"></div>
+      <p class="ask-quality" id="clip-score">One photo, 42 holes: a small sample, computed offline.</p>
+    </div>
+  </div>
+</section>
+
+<section class="build" aria-labelledby="build-title">
+  <figure class="photo">
+    <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard">
+  </figure>
+  <div class="build-copy">
+  <h2 id="build-title">The robot</h2>
+  <ul class="facts">
+    <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>
+    <li><strong>Arduino Uno</strong> releases one token with an encoder-counted magazine and moves the carriage to the column.</li>
+    <li><strong>6,100 EGP</strong> in parts for the final build, about 115 USD at the April 2026 rate. The MS3 report priced an earlier stepper-and-servo design at 10,135 EGP.</li>
+  </ul>
+  </div>
+</section>
+
+<section class="limits" id="limits" aria-labelledby="limits-title">
+  <h2 id="limits-title">What it could not do</h2>
+  <ul>
+    <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
+    <li>The carriage has no position sensor, so the far columns miss more often.</li>
+    <li>Board detection assumes the camera sees only the grid. Our demo photo shows the board on its blue legs, which the robot's camera never saw: the legs join the blue frame, so automatic detection reads 32 of 42 holes right. With the grid's own corners, the same code reads all 42.</li>
+    <li>We did not keep the labelled images and drop logs behind the numbers above, so they cannot be re-run.</li>
+    <li>The dashboard has no login: anyone on the same network can send moves.</li>
+  </ul>
+</section>
+
+<section class="team" aria-labelledby="team-title">
+  <h2 id="team-title">Who built it</h2>
+  <p>Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama, for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
+  <div class="links">
+    <a class="btn btn-blue" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
+    <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <p>MIT licensed. The photos are frames from our demo videos.</p>
+</footer>
+
+<script src="game.js" type="module"></script>
+<script src="ask.js" type="module"></script>
+</body>
+</html>

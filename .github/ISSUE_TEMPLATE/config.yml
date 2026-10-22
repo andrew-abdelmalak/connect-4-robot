@@ -1,0 +1,9 @@
+# Controls the "New issue" template chooser. Takes effect on the default branch.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/andrew-abdelmalak/connect-4-robot/security/advisories/new
+    about: Report vulnerabilities privately. Never open a public issue for them.
+  - name: Read the paper
+    url: https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/docs/Vision-Based-Connect-4-Robot.pdf
+    about: The full design, results, and limitations.

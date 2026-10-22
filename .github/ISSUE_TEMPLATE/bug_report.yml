@@ -1,0 +1,60 @@
+name: Bug report
+description: Report behavior that does not match the README.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. For security problems, do not use this form; follow SECURITY.md instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The commands or dashboard steps, in order, or a failing test.
+      placeholder: |
+        1. uv run connect4-robot --sim
+        2. Press Next Sim Step three times
+        3. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Release or commit
+      description: The release tag or commit SHA you ran.
+      placeholder: v1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did you see it?
+      options:
+        - Simulation mode
+        - Camera mode on the robot
+        - Arduino sketch
+        - Tests (uv run pytest)
+        - Paper or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or test failure
+      description: Paste the terminal output, the serial monitor output, or the pytest failure.
+      render: shell
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
