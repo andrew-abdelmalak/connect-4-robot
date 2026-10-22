@@ -138,7 +138,7 @@
   <div class="how-grid">
     <div class="how-step">
       <h3>Before it thinks</h3>
-      <p>A new board from the camera only counts if it is exactly one legal move away from the last board the robot trusted. A chip that vanished, two new chips at once, or a chip floating above an empty cell is rejected, and the robot keeps the last good board.</p>
+      <p>A new board from the camera only counts if it is exactly one legal move away from the last board the robot trusted. A chip that vanished, two new chips at once, or a chip floating above an empty cell: the robot rejects it and keeps the last good board.</p>
     </div>
     <div class="how-step">
       <h3>After it moves</h3>
@@ -153,7 +153,7 @@
 
 <section class="results" id="results" aria-labelledby="results-title">
   <h2 id="results-title">How well it worked</h2>
-  <p class="section-lede">Measured on the real robot under indoor light with a fixed camera mount, as reported in the final course report.</p>
+  <p class="section-lede">We measured these on the real robot, under indoor light with a fixed camera mount, for our final course report.</p>
   <div class="results-grid">
     <figure class="drops" aria-labelledby="drops-cap">
       <figcaption id="drops-cap"><strong>Tokens that landed in the column the robot aimed for</strong>, 20 drops per column, 133 of 140 overall (95%).</figcaption>
@@ -225,7 +225,7 @@
     <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
     <li>The carriage has no position sensor, so the far columns miss more often.</li>
     <li>Board detection assumes the camera sees only the grid. Our demo photo shows the board on its blue legs, which the robot's camera never saw: the legs join the blue frame, so automatic detection reads 32 of 42 holes right. With the grid's own corners, the same code reads all 42.</li>
-    <li>The labelled images and drop logs behind the numbers above were not archived, so they cannot be re-run.</li>
+    <li>We did not keep the labelled images and drop logs behind the numbers above, so they cannot be re-run.</li>
     <li>The dashboard has no login: anyone on the same network can send moves.</li>
   </ul>
 </section>
@@ -241,7 +241,7 @@
 </main>
 
 <footer class="foot">
-  <p>MIT licensed. Photos are frames from the team's demo videos.</p>
+  <p>MIT licensed. The photos are frames from our demo videos.</p>
 </footer>
 
 <script src="game.js" type="module"></script>

@@ -16,7 +16,7 @@ Course project for MCTR 1010, Image Processing for Mechatronics, at the German U
 
 A camera can misread a frame, and a dispenser can miss a column. This robot assumes both will happen and checks them at two gates:
 
-1. **Before it thinks.** A new board from the camera only counts if it is exactly one legal move away from the last accepted board. A chip that vanished, two new chips at once, or a chip floating above an empty cell is rejected, and the robot keeps the last good board.
+1. **Before it thinks.** A new board from the camera only counts if it is exactly one legal move away from the last accepted board. A chip that vanished, two new chips at once, or a chip floating above an empty cell: the robot rejects it and keeps the last good board.
 2. **After it moves.** When the robot drops a token, it already knows what the board should look like. It accepts its own move only when the camera shows that exact board within 10 seconds. A token that slid into the wrong column stops the robot with an error instead of silently corrupting the game.
 
 <picture>
@@ -40,7 +40,7 @@ From the final course report (MS4/5) and the paper, measured on the real robot u
 Two findings stand out. The plain HSV thresholds beat the learned model, because the board is blue and the tokens are red and yellow under steady light, while the model had little training data. The weak point was the mechanism: misses grow with carriage travel toward the far columns, because the carriage is positioned by timing, not by an encoder.
 
 > [!NOTE]
-> The labelled cell images and the drop logs behind these numbers were not archived, so they cannot be re-run from this repository. The code, the board-reading test on a real photo, and the logic tests can.
+> We did not keep the labelled cell images and the drop logs behind these numbers, so they cannot be re-run from this repository. The code, the board-reading test on a real photo, and the logic tests can.
 
 ## Try it without the robot
 
