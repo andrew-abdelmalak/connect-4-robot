@@ -108,7 +108,7 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 - **Small ML dataset.** The machine-learning mode is a secondary option, and its model file is not included.
 - **No login on the dashboard.** Anyone on the same network can send moves or reset the game. Run it only on a network you trust.
 - **Known issues in the dispenser sketch.** A code review found these. We left the sketch as is, because it is the version that ran in the demo and there is no robot to test a change on:
-  - the encoder count is read without pausing interrupts;
+  - the encoder count is read without pausing interrupts. On the project page's emulated Uno this stops the magazine at 256 of 400 pulses in 9 of 40 test runs (at the page's assumed encoder speed); the same sketch with the read wrapped in `noInterrupts()` reached 400 in 40 of 40;
   - the magazine motor has no timeout if the encoder stops;
   - serial bytes that arrive during a move run as a second command afterwards;
   - opening the serial port can reset the Uno, so the Pi should wait for `READY` before the first command.
