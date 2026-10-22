@@ -8,7 +8,7 @@ A Raspberry Pi robot that plays Connect-4 against a person. It reads the board w
 
 ![The finished robot: blue Connect-4 board, overhead token dispenser on a wooden frame, Pi camera, and a laptop showing the live dashboard](paper/figures/final_hardware_overview.jpg)
 
-Course project for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026), built by a team of six. Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
+We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
 
 **[Play against the robot's real code in your browser](https://andrew-abdelmalak.github.io/connect-4-robot/)**: the project page runs the same vision, validator, and planner Python with Pyodide, and the compiled Arduino sketch on an emulated Uno with avr8js.
 
