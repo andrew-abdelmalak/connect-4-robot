@@ -76,6 +76,7 @@ def test_page_constants_match_the_robot_code():
         py = float(re.search(rf"^{name} = ([\d.]+)", hardware, re.MULTILINE).group(1))
         assert float(_js_const(game, name)) == py, name
     assert _js_const(game, "TIMEOUT_MSG").strip('"') in hardware
+    assert int(_js_const(game, "TARGET_PULSES")) == int(re.search(r"targetPulses = (\d+);", sketch).group(1))
 
     from connect4_robot.minimax import WIN_SCORE
 
