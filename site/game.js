@@ -28,6 +28,9 @@ const colsEl = $("#cols");
 const scoresEl = $("#scores");
 const statusEl = $("#status");
 const carriage = $("#carriage");
+const dispenser = $(".dispenser");
+const motorMag = $("#motor-mag");
+const motorCar = $("#motor-car");
 const fixBtn = $("#fix");
 const nextBtn = $("#next");
 const cheat = $("#cheat");
@@ -141,6 +144,11 @@ avr.onmessage = ({ data: m }) => {
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
     $("#ard-speed").textContent = `Uno, running the compiled sketch at ${m.realtime.toFixed(1)}x real time`;
     if (ard.cycleStart !== null) ard.samples.push(...m.samples);
+    const last = m.samples.at(-1); // [t, IN1, IN2, ENA, IN3, IN4, ENB, pulses]
+    if (last) {
+      motorMag.querySelector("b").textContent = motorMag.dataset.on === "true" ? `PWM ${Math.round(last[6] * 100)}%, ${last[7]} pulses` : "off";
+      motorCar.querySelector("b").textContent = motorCar.dataset.on === "true" ? `PWM ${Math.round(last[3] * 100)}%, ${motorCar.dataset.dir}` : "off";
+    }
     drawTraces();
     wake();
   } else if (m.type === "line") {
@@ -197,12 +205,24 @@ function onLine(text) {
   // Column 1 is home: the carriage does not move, so the token drops at once.
   if (word === "MOVE" && COLUMN_MS[mv.col] === 0) dropFromCarriage(mv);
 }
+// The magazine's bottom token drops into the carriage waiting under it at home.
+function feedCarriage() {
+  carriage.dataset.loaded = "true"; // at once: at full speed the carriage can leave before an animation ends
+  if (reduceMotion) return;
+  $("#magazine span:last-child").animate([{ transform: "translateY(0)" }, { transform: "translateY(180%)", opacity: 0 }], { duration: 220, easing: "cubic-bezier(0.5, 0, 1, 1)" });
+}
 function onMotor(m) {
   if (m.motor === "magazine") {
     $("#mag").textContent = m.on ? "turning" : "off";
-    if (!m.on && ard.move && m.pulses > 0) carriage.dataset.loaded = "true";
+    motorMag.dataset.on = m.on;
+    dispenser.dataset.mag = m.on;
+    if (!m.on) motorMag.querySelector("b").textContent = "off";
+    if (!m.on && ard.move && m.pulses > 0) feedCarriage();
     return;
   }
+  motorCar.dataset.on = m.dir !== 0;
+  motorCar.dataset.dir = m.dir > 0 ? "out" : "home";
+  if (m.dir === 0) motorCar.querySelector("b").textContent = "off";
   $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : m.pos > 1 ? `stopped over column ${Math.round(columnAt(m.pos)) + 1}` : "stopped at home";
   // The carriage stops over the column: the token drops through the funnel.
   if (ard.dir > 0 && m.dir === 0 && ard.move) dropFromCarriage(ard.move);
@@ -651,7 +671,6 @@ async function robotTurn(e, nodes) {
   const sentAt = ard.t;
   setStage("serial", "pass", `Sent "${col + 1}": one byte, 0x${(48 + col + 1).toString(16)}, at 9600 baud`);
   setStage("arduino", "busy", "Byte received");
-  carriage.style.setProperty("--token", `var(--${NAMES[robot]})`);
   avr.postMessage({ op: "send", byte: 48 + col + 1 });
 
   const verdict = await verify(e, sentAt, expected);
@@ -871,6 +890,7 @@ async function newGame() {
   draw();
   clearScores();
   carriage.dataset.loaded = "false";
+  dispenser.style.setProperty("--token", `var(--${NAMES[3 - you]})`);
   avr.postMessage({ op: "boot" });
   try {
     const { value } = await call("reset");
