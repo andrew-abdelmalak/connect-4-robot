@@ -477,6 +477,7 @@ async function readBoard(e) {
   const seen = copy(physical);
   drawFrame(seen);
   if (!visionOn) {
+    if (lowData && !visionFailed) loadVision();
     $("#frame-cap").textContent = "Camera picture, drawn by the page. The vision code is still loading.";
     miniBoard($("#cam-board"), seen.flat(), seen.flat(), "Board as drawn");
     return { board: seen, wrong: 0, ms: 0, skipped: true };
@@ -509,7 +510,7 @@ function setStage(name, s, msg, code = false) {
   }
 }
 function resetStages() {
-  setStage("camera", "idle", visionOn ? "Waiting for a move" : "Loading the vision code (OpenCV, about 14 MB)");
+  setStage("camera", "idle", visionOn ? "Waiting for a move" : visionLoading || !lowData ? "Loading the vision code (OpenCV, about 14 MB)" : "The vision code (about 14 MB) loads after your first move");
   setStage("gate1", "idle", "Waiting for a move");
   setStage("think", "idle", "Scores appear above each column");
   setStage("serial", "idle", "One byte at 9600 baud");
@@ -948,6 +949,30 @@ $("#photo").addEventListener("click", async (ev) => {
   btn.disabled = false;
 });
 
+// ── Watch it play: muted, it plays while on screen, unless the visitor asked for
+// reduced motion or paused it; a visitor's pause sticks.
+const film = $("#watch-video");
+const filmBtn = $("#watch-toggle");
+let filmPausedByVisitor = false;
+const showFilm = (playing) => {
+  filmBtn.dataset.playing = playing;
+  filmBtn.textContent = playing ? "Pause" : "Play";
+};
+film.addEventListener("play", () => showFilm(true));
+film.addEventListener("pause", () => showFilm(false));
+filmBtn.addEventListener("click", () => {
+  filmPausedByVisitor = !film.paused;
+  if (film.paused) film.play().catch(() => {});
+  else film.pause();
+});
+if (!reduceMotion && "IntersectionObserver" in window) {
+  new IntersectionObserver((entries) => {
+    const entry = entries.at(-1); // the newest, if several arrive together
+    if (!entry.isIntersecting) film.pause();
+    else if (!filmPausedByVisitor && !lowData) film.play().catch(() => {}); // data saver: only on Play
+  }, { threshold: 0.4 }).observe(film);
+}
+
 // ── results chart from the measured drop counts ───────────────────────────
 $("#drop-bars").replaceChildren(...DROP_HITS.map((hit, c) => {
   const row = document.createElement("div");
@@ -982,6 +1007,39 @@ fetch("clip-cells.json")
   })
   .catch(() => { $("#clip-score").textContent = "The experiment results did not load."; });
 
+// ── loading: the board first, then the rest in reading order ─────────────
+// On data saver or 2G/3G the 14 MB vision code waits for the first move and
+// nothing is fetched ahead.
+const net = navigator.connection;
+const lowData = Boolean(net && (net.saveData || /(^|-)[23]g$/.test(net.effectiveType || "")));
+let visionLoading = null;
+let visionFailed = false; // a failed load is not retried on every camera frame
+function loadVision() {
+  visionLoading ??= call("vision_load")
+    .then(() => {
+      visionOn = true;
+      if (stages.camera.dataset.state === "idle") setStage("camera", "idle", "Waiting for a move");
+    })
+    .catch((err) => {
+      visionLoading = null;
+      visionFailed = true;
+      setStage("camera", "fail", `The vision code could not load (${err.message}). The page passes boards on as drawn.`);
+    });
+  return visionLoading;
+}
+// Warm the browser cache for what a reader opens next: the PDF viewer, the
+// paper, and the search index. One file at a time, only while the tab is visible.
+const READING_ORDER = [
+  "pdfjs/web/viewer.html", "pdfjs/web/viewer.css", "pdfjs/web/viewer.mjs", "pdfjs/build/pdf.mjs", "pdfjs/build/pdf.worker.mjs",
+  "docs/Vision-Based-Connect-4-Robot.pdf", "reports-index.json",
+];
+async function prefetchReading() {
+  for (const url of READING_ORDER) {
+    while (document.hidden) await new Promise((r) => document.addEventListener("visibilitychange", r, { once: true }));
+    await fetch(url, { priority: "low" }).then((r) => r.blob()).catch(() => {});
+  }
+}
+
 // ── boot ──────────────────────────────────────────────────────────────────
 draw();
 drawFrame(physical);
@@ -992,11 +1050,7 @@ ready
   .then((ok) => {
     if (!ok) return;
     say("Ready. You go first: tap a column.");
-    call("vision_load")
-      .then(() => {
-        visionOn = true;
-        if (stages.camera.dataset.state === "idle") setStage("camera", "idle", "Waiting for a move");
-      })
-      .catch((err) => setStage("camera", "fail", `The vision code could not load (${err.message}). The page passes boards on as drawn.`));
+    if (lowData) setStage("camera", "idle", "On a slow or metered connection, the vision code (about 14 MB) loads after your first move");
+    else loadVision().then(prefetchReading);
   })
   .catch((err) => say(`The robot's brain could not load (${err.message}). Reload to try again.`));

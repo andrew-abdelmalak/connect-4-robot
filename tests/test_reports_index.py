@@ -9,7 +9,7 @@ from conftest import REPO
 
 pytest.importorskip("onnxruntime")
 sys.path.insert(0, str(REPO / "scripts"))
-from build_reports_index import Embedder, load_vectors, rank
+from build_reports_index import Embedder, embed_text, load_vectors, rank
 
 # (question a visitor might ask, regex a passage answering it matches, case-insensitive)
 QUESTIONS = [
@@ -56,7 +56,7 @@ def test_index_matches_the_model(setup):
     index, vectors, embed = setup
     for i in (0, len(index["passages"]) // 2, len(index["passages"]) - 1):
         p = index["passages"][i]
-        fresh = embed([f"{p['title']}: {p['text']}"])[0]
+        fresh = embed([embed_text(p)])[0]
         assert float(fresh @ vectors[i]) > 0.97, p["doc"]
 
 
