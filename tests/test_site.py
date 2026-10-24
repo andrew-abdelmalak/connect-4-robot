@@ -23,6 +23,10 @@ def test_local_assets_exist():
     pages = (REPO / ".github" / "workflows" / "pages.yml").read_text()
     for ref in re.findall(r'(?:src|href)="([^"#:]+)"', html):
         path, _, query = ref.partition("?")
+        if path.startswith("diagrams/"):  # the Pages build copies the README's diagrams
+            assert (REPO / "docs" / path).exists(), ref
+            assert f"docs/{path}" in pages, ref
+            continue
         if path.startswith("pdfjs/"):  # the Pages build adds Mozilla's viewer
             assert "unzip -q pdfjs.zip -d _site/pdfjs" in pages
             assert (REPO / "docs" / query.removeprefix("file=../../docs/")).exists(), ref

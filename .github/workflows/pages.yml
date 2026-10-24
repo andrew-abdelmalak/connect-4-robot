@@ -9,6 +9,7 @@ on:
       - "arduino/dispenser/**"
       - "notebooks/board_sample.png"
       - "docs/*.pdf"
+      - "docs/diagrams/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -50,6 +51,8 @@ jobs:
           cp build/dispenser/dispenser.ino.hex _site/firmware/dispenser.hex
           cp notebooks/board_sample.png _site/img/board-sample.png
           cp docs/*.pdf _site/docs/
+          mkdir -p _site/diagrams
+          cp docs/diagrams/closed-loop.svg docs/diagrams/robot-states.svg _site/diagrams/
 
       # Mozilla's prebuilt PDF viewer, pinned by version and checksum.
       - name: Add the PDF.js viewer
