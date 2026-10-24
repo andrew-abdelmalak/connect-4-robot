@@ -135,7 +135,7 @@ function viewerPhrase(text) {
   return words.slice(start, Math.max(end, start + 1)).join(" ").replace(/[,.;:]$/, "");
 }
 function viewerLink(p) {
-  const search = encodeURIComponent(viewerPhrase(p.text));
+  const search = encodeURIComponent(p.find || viewerPhrase(p.text));
   return `pdfjs/web/viewer.html?file=../../docs/${encodeURIComponent(p.doc)}#page=${p.page}&search=${search}&phrase=true`;
 }
 
@@ -153,7 +153,7 @@ function show(passages) {
       const page = `page ${p.page}`;
       const where = document.createElement("p");
       where.className = "ask-where";
-      where.textContent = `${p.title}, ${page}`;
+      where.textContent = [p.title, p.section, page].filter(Boolean).join(", ");
       const text = document.createElement("p");
       text.className = "ask-text";
       text.textContent = p.text;
@@ -187,6 +187,7 @@ async function ask(question) {
     quick = rank(question, null);
     show(quick);
     setStatus(quick.length ? "Keyword matches while the language model loads." : "No keyword matches. The language model is loading.");
+    remember(question, quick, false);
   }
   let query;
   try {
@@ -203,8 +204,35 @@ async function ask(question) {
     return;
   }
   if (id !== latest) return;
-  show(rank(question, query));
+  const passages = rank(question, query);
+  show(passages);
   setStatus(`The three passages closest in meaning to "${question}".`);
+  remember(question, passages, true);
+}
+
+// Keep the last search for this tab, so Back from the PDF viewer brings it
+// back even when the browser reloads the page.
+const SAVED = "ask-the-reports:v1";
+function remember(question, passages, final) {
+  try {
+    const keep = passages.map(({ doc, title, section, page, text, find }) => ({ doc, title, section, page, text, find }));
+    sessionStorage.setItem(SAVED, JSON.stringify({ question, passages: keep, final, status: status.textContent }));
+  } catch {
+    // Storage can be full or blocked; the search still works without it.
+  }
+}
+function restore() {
+  let saved = null;
+  try {
+    saved = JSON.parse(sessionStorage.getItem(SAVED));
+  } catch {
+    return; // unreadable or blocked storage: start fresh
+  }
+  if (!saved?.question || !Array.isArray(saved.passages)) return;
+  input.value = saved.question;
+  show(saved.passages);
+  setStatus(saved.status || "");
+  if (!saved.final) ask(saved.question); // finish ranking keyword-only results
 }
 
 form.addEventListener("submit", (e) => {
@@ -218,3 +246,5 @@ document.querySelectorAll("[data-ask]").forEach((button) => {
     ask(input.value);
   });
 });
+
+restore();

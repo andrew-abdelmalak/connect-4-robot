@@ -6,7 +6,7 @@ A Raspberry Pi robot that plays Connect-4 against a person. It reads the board w
 [![Paper](https://github.com/andrew-abdelmalak/connect-4-robot/actions/workflows/paper.yml/badge.svg)](https://github.com/andrew-abdelmalak/connect-4-robot/actions/workflows/paper.yml)
 [![License: MIT](https://img.shields.io/github/license/andrew-abdelmalak/connect-4-robot)](LICENSE)
 
-![The finished robot: blue Connect-4 board, overhead token dispenser on a wooden frame, Pi camera, and a laptop showing the live dashboard](paper/figures/final_hardware_overview.jpg)
+[![20 seconds of our final demo: the dashboard shows minimax choosing the robot's move, then the robot drops a red token into the board and its camera picture updates](docs/media/watch-it-play.webp)](https://andrew-abdelmalak.github.io/connect-4-robot/#watch)
 
 We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
 
@@ -151,7 +151,16 @@ The milestone reports are the submitted versions and are left unchanged. We corr
 
 ## Team
 
-Andrew Abdelmalak ([@andrew-abdelmalak](https://github.com/andrew-abdelmalak)), Daniel Boules ([@daniel-boules](https://github.com/daniel-boules)), David Girgis ([@davidlouiss](https://github.com/davidlouiss)), Kirolous Kirolous ([@Kiro579](https://github.com/Kiro579)), Samir Yacoub ([@SamirYacoub](https://github.com/SamirYacoub)), and Youssef Salama. Supervised by Dr. Omar M. Shehata.
+We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
+
+| Name | GitHub |
+|---|---|
+| Andrew Abdelmalak | [@andrew-abdelmalak](https://github.com/andrew-abdelmalak) |
+| Daniel Boules | [@daniel-boules](https://github.com/daniel-boules) |
+| David Girgis | [@davidlouiss](https://github.com/davidlouiss) |
+| Kirolous Kirolous | [@Kiro579](https://github.com/Kiro579) |
+| Samir Yacoub | [@SamirYacoub](https://github.com/SamirYacoub) |
+| Youssef Salama | No GitHub account |
 
 ## License
 

@@ -53,9 +53,27 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .mark i { width: 0.85rem; height: 0.85rem; border-radius: 50%; background: var(--red); display: block; }
 .mark i + i { background: var(--yellow); }
 .top-name { font-family: var(--display); font-weight: 800; font-size: 1.15rem; letter-spacing: 0.01em; }
-.top nav { margin-left: auto; display: flex; gap: clamp(0.75rem, 2.4vw, 1.75rem); font-weight: 600; font-size: 0.95rem; }
+.top { position: relative; z-index: 8; }
+.top nav { margin-left: auto; font-weight: 600; font-size: 0.95rem; }
+.top nav ol { list-style: none; margin: 0; padding: 0; display: flex; gap: clamp(0.75rem, 2.4vw, 1.75rem); }
+.top nav li.more { display: none; }
 .top nav a { text-decoration: none; color: var(--on-blue-soft); }
 .top nav a:hover { color: var(--on-blue); text-decoration: underline; }
+.menu-btn {
+  display: none; margin-left: auto; min-height: 2.6rem; padding: 0 1.1rem; border-radius: 999px; cursor: pointer;
+  font: inherit; font-weight: 800; font-family: var(--display); color: var(--on-blue);
+  background: rgba(255, 255, 255, 0.12); border: 2px solid rgba(255, 255, 255, 0.5);
+}
+.menu-btn:hover { background: rgba(255, 255, 255, 0.2); }
+/* Back to top: a yellow token with an arrow, on long scrolls. */
+.to-top {
+  position: fixed; z-index: 9; right: max(1rem, env(safe-area-inset-right)); bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  width: 3rem; height: 3rem; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #ffe27a, var(--yellow) 55%, var(--yellow-deep)); color: var(--blue-ink);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28), inset 0 -3px 0 var(--yellow-deep);
+}
+.to-top svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.to-top[hidden] { display: none; }
 
 /* hero: the whole region is board blue */
 .hero {
@@ -119,7 +137,12 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .seg label:hover { border-color: rgba(255,255,255,0.7); }
 
 .board-wrap { position: relative; }
-.dispenser { display: grid; justify-items: center; gap: 0.45rem; padding-top: calc(var(--cell) * 2.45); }
+/* The dispenser, after our SolidWorks drafts: the magazine, its motor disk, and
+   the base are fixed at the right end; the carriage is the slider and its long
+   channel (the path). At home the channel's left end, its exit, sits over
+   column 1; driving the carriage slides the whole channel right, out past the
+   board's edge. */
+.dispenser { display: grid; justify-items: center; gap: 0.45rem; padding-top: calc(var(--cell) * 2.45); overflow: hidden; }
 .rail {
   width: calc(var(--cell) * 7 + var(--gap) * 8); height: calc(var(--cell) * 0.55);
   border-radius: 999px; background: linear-gradient(#3a6ae6, #1d4ab8);
@@ -127,23 +150,30 @@ a { color: inherit; text-underline-offset: 0.2em; }
 }
 .carriage {
   position: absolute; bottom: 30%; left: 0;
-  width: var(--cell); height: calc(var(--cell) * 1.2);
+  width: calc(var(--cell) * 7 + var(--gap) * 6); height: calc(var(--cell) * 0.45);
   transform: translateX(calc(var(--gap) + var(--x, 0) * (var(--cell) + var(--gap))));
-  display: grid; place-items: center;
+  border-radius: calc(var(--cell) * 0.1); background: linear-gradient(#5a6386, #3a4263);
+  box-shadow: inset 0 3px 4px rgba(0, 0, 0, 0.45), 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+/* the exit: where the token leaves the channel and falls into the column */
+.carriage::before {
+  content: ""; position: absolute; left: calc(var(--cell) * 0.12); bottom: -3px; width: calc(var(--cell) * 0.76); height: 5px;
+  border-radius: 0 0 4px 4px; background: #262c45;
 }
 .funnel {
-  position: absolute; inset: 0 4% 18% 4%;
+  position: absolute; right: 0; bottom: 100%; width: var(--cell); height: calc(var(--cell) * 0.75);
   background: var(--red); clip-path: polygon(0 0, 100% 0, 72% 70%, 72% 100%, 28% 100%, 28% 70%);
   filter: drop-shadow(0 3px 4px rgba(0,0,0,0.35));
 }
 .carriage-token {
-  position: relative; top: -18%; width: 56%; aspect-ratio: 1; border-radius: 50%;
-  background: var(--token, var(--yellow)); opacity: 0; transition: opacity 120ms;
+  position: absolute; left: calc(var(--cell) * 0.2); bottom: 12%; width: calc(var(--cell) * 0.6); height: 76%; border-radius: 999px;
+  background: var(--token, var(--yellow)); opacity: 0; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
 }
-.carriage[data-loaded="true"] .carriage-token { opacity: 1; }
-/* The magazine sits over home (column 1): the sketch releases a token there, then moves. */
+/* loaded at the funnel, the token slides down the channel to the exit */
+.carriage[data-loaded="true"] .carriage-token { opacity: 1; animation: slide-to-exit 700ms cubic-bezier(0.5, 0, 0.75, 1) both; }
+@keyframes slide-to-exit { from { transform: translateX(calc(var(--cell) * 6 + var(--gap) * 6)); } }
 .magazine {
-  position: absolute; left: calc(var(--gap) + var(--cell) * 0.16); bottom: calc(30% + var(--cell) * 1.6);
+  position: absolute; left: calc(var(--gap) + (var(--cell) + var(--gap)) * 6 + var(--cell) * 0.16); bottom: calc(30% + var(--cell) * 1.6);
   width: calc(var(--cell) * 0.68); height: calc(var(--cell) * 1.25);
   display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding: 0 0 3px;
   border: 3px solid rgba(255, 255, 255, 0.55); border-bottom: 0; border-radius: calc(var(--cell) * 0.2) calc(var(--cell) * 0.2) 0 0;
@@ -157,9 +187,9 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .motor { display: inline-flex; align-items: center; gap: 0.4rem; }
 .motor b { font-family: var(--mono); font-weight: 400; font-size: 0.72rem; color: var(--on-blue-soft); min-width: 7.5em; }
 .motor-gear { width: 1.15rem; height: 1.15rem; flex: none; color: rgba(214, 224, 255, 0.55); transition: color 160ms var(--ease); }
-/* The release wheel under the magazine: it turns while the sketch drives the magazine motor. */
+/* The motor disk under the magazine: one turn (400 encoder counts) pushes one token to the funnel. */
 .mag-wheel {
-  position: absolute; left: calc(var(--gap) + var(--cell) * 0.2); bottom: calc(30% + var(--cell) * 1.2);
+  position: absolute; left: calc(var(--gap) + (var(--cell) + var(--gap)) * 6 + var(--cell) * 0.2); bottom: calc(30% + var(--cell) * 1.2);
   width: calc(var(--cell) * 0.6); height: calc(var(--cell) * 0.4); color: rgba(255, 255, 255, 0.6);
 }
 .dispenser[data-mag="true"] .mag-wheel { color: var(--yellow); animation: spin 700ms linear infinite; }
@@ -315,6 +345,47 @@ p { max-width: 68ch; }
 .frames img { border-radius: 14px; }
 figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 
+/* Watch it play: the real robot, framed like the board's own rounded parts. */
+.watch-film { margin: 0; }
+.watch-frame { position: relative; border-radius: 22px; overflow: hidden; background: var(--blue-ink); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18); }
+.watch-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
+.watch-toggle {
+  position: absolute; left: 1rem; bottom: 1rem; display: inline-flex; align-items: center; gap: 0.55rem;
+  min-height: 2.75rem; padding: 0 1.15rem 0 0.95rem; border-radius: 999px; cursor: pointer;
+  font-family: var(--display); font-weight: 800; font-size: 1rem; color: var(--on-blue);
+  background: rgba(11, 31, 92, 0.82); border: 2px solid rgba(255, 255, 255, 0.55);
+  transition: background-color 160ms var(--ease), border-color 160ms var(--ease);
+}
+.watch-toggle:hover { background: var(--blue-ink); border-color: var(--on-blue); }
+.watch-toggle:focus-visible { outline: 3px solid var(--yellow); outline-offset: 3px; }
+/* a play triangle, or two pause bars, in token yellow */
+.watch-toggle::before { content: ""; width: 0.8rem; height: 0.9rem; background: var(--yellow); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.watch-toggle[data-playing="true"]::before { clip-path: none; background: linear-gradient(90deg, var(--yellow) 0 34%, transparent 34% 66%, var(--yellow) 66%); }
+.watch-film figcaption a { color: var(--blue); font-weight: 700; }
+
+/* For engineers: the diagrams, the side photo, and a map of the code. */
+.eng-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
+.eng-grid > figure { margin: 0; grid-column: span 3; }
+.eng-grid > .eng-wide { grid-column: 1 / -1; }
+.eng-grid img { border-radius: 14px; background: var(--paper); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); width: 100%; height: auto; }
+.zoom { display: block; cursor: zoom-in; border-radius: 14px; }
+.code-map { margin: 2rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.75rem; max-width: 70ch; }
+.code-map li { padding-top: 0.75rem; border-top: 2px solid #d5dcef; }
+.code-map a { color: var(--blue); font-weight: 700; }
+.code-map code { font-family: var(--mono); font-size: 0.9em; }
+.paper-card { margin-top: 1.5rem; background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); max-width: 52rem; }
+.paper-kind { margin: 0 0 0.4rem; font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
+.paper-card h3 { font-size: clamp(1.25rem, 2.4vw, 1.6rem); }
+.paper-authors { margin: 0.6rem 0 0.2rem; font-weight: 700; }
+.paper-venue { margin: 0; color: var(--ink-soft); }
+.viewer { width: min(96vw, 82rem); max-height: 92vh; padding: clamp(0.75rem, 2vw, 1.25rem); border: 0; border-radius: 18px; background: var(--paper); }
+.viewer:not([open]) { display: none; } /* browsers without <dialog> */
+.viewer::backdrop { background: rgba(11, 31, 92, 0.7); }
+.viewer figure { margin: 0 0 0.75rem; }
+.viewer img { width: 100%; height: auto; border-radius: 10px; }
+.viewer figcaption { margin-top: 0.6rem; }
+.viewer form { display: flex; justify-content: flex-end; }
+
 .results-grid { display: grid; grid-template-columns: subgrid; row-gap: 2rem; align-items: start; }
 .results-grid > .drops { grid-column: 1 / span 4; }
 .results-grid > .reading { grid-column: 5 / span 3; }
@@ -389,8 +460,16 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   /* Phone: the board comes first, settings after the controls. */
   .rig-play > .controls-note { order: 1; }
   .rig-play > .settings { order: 2; }
-  .top nav a:not(:last-child) { display: none; }
-  .how-grid > *, .results-grid > *, .ai-grid > *, .build > * { grid-column: 1 / -1 !important; }
+  .menu-btn { display: inline-flex; align-items: center; }
+  .top nav { display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0;
+    background: var(--blue-ink); padding: 0.5rem clamp(1rem, 4vw, 3rem) 1rem; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3); }
+  .top[data-menu="open"] nav { display: block; }
+  .top nav ol { flex-direction: column; gap: 0; counter-reset: sect; }
+  .top nav li, .top nav li.more { display: block; counter-increment: sect; border-top: 1px solid rgba(255, 255, 255, 0.12); }
+  .top nav li:first-child { border-top: 0; }
+  .top nav a { display: flex; align-items: center; gap: 0.9rem; min-height: 3rem; font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--on-blue); }
+  .top nav a::before { content: counter(sect, decimal-leading-zero); font-family: var(--mono); font-weight: 400; font-size: 0.78rem; color: var(--yellow); }
+  .how-grid > *, .results-grid > *, .ai-grid > *, .build > *, .eng-grid > * { grid-column: 1 / -1 !important; }
   :root { --cell: min(10.6vw, 3.6rem); }
 }
 @media (max-width: 520px) {
@@ -401,5 +480,5 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (prefers-reduced-motion: reduce) {
   .stage[data-state="busy"] .lamp, .cell.win .token { animation: none; }
   .toggle input, .toggle input::before { transition: none; }
-  .motor[data-on="true"] .motor-gear, .dispenser[data-mag="true"] .mag-wheel { animation: none; }
+  .motor[data-on="true"] .motor-gear, .dispenser[data-mag="true"] .mag-wheel, .carriage[data-loaded="true"] .carriage-token { animation: none; }
 }

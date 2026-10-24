@@ -5,21 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vision-Based Connect-4 Robot</title>
 <meta name="description" content="A Raspberry Pi robot that plays Connect-4, rejects impossible boards, and checks with its camera that every token it drops really landed. Play against its real Python brain in your browser.">
+<meta name="theme-color" content="#1747c4">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="img/icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Vision-Based Connect-4 Robot">
+<meta property="og:description" content="Our Raspberry Pi robot plays Connect-4, refuses impossible boards, and checks with its camera that every token it drops really landed. Play against its real code in your browser.">
+<meta property="og:url" content="https://andrew-abdelmalak.github.io/connect-4-robot/">
+<meta property="og:image" content="https://andrew-abdelmalak.github.io/connect-4-robot/img/share.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The robot during our final demo: the Connect-4 board, the token dispenser above it, and the dashboard on a laptop">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/baloo-2.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts/fonts.css">
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body id="top">
 <a class="skip" href="#play">Skip to the game</a>
 
 <header class="top">
   <span class="mark" aria-hidden="true"><i></i><i></i></span>
   <span class="top-name">Connect-4 Robot</span>
-  <nav aria-label="Sections">
-    <a href="#how">How it works</a>
-    <a href="#results">Results</a>
-    <a href="#limits">Limits</a>
-    <a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a>
+  <button type="button" class="menu-btn" id="menu-btn" aria-expanded="false" aria-controls="menu">Menu</button>
+  <nav aria-label="Sections" id="menu">
+    <ol>
+      <li class="more"><a href="#play">Play the robot</a></li>
+      <li><a href="#watch">Watch it play</a></li>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#results">Results</a></li>
+      <li class="more"><a href="#ai">Two AI experiments</a></li>
+      <li class="more"><a href="#robot">The robot</a></li>
+      <li class="more"><a href="#engineers">For engineers</a></li>
+      <li><a href="#limits">Limits</a></li>
+      <li class="more"><a href="#team">Who we are</a></li>
+      <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a></li>
+    </ol>
   </nav>
 </header>
 
@@ -118,7 +139,7 @@
           <li class="stage" data-stage="arduino" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>5. Release a token, move, drop</strong><span class="stage-msg">Starting the Arduino</span></div></li>
         </ol>
         <div class="ard-live">
-          <pre class="serial" id="serial" aria-label="Serial monitor: what the Arduino prints" tabindex="0"></pre>
+          <pre class="serial" id="serial" role="log" aria-label="Serial monitor: what the Arduino prints" tabindex="0"></pre>
           <dl class="pins" id="pins">
             <div><dt>Magazine motor</dt><dd><span class="gear" id="gear"></span><span id="mag">off</span></dd></div>
             <div><dt>Encoder</dt><dd id="enc">0 pulses</dd></div>
@@ -137,6 +158,18 @@
       </div>
     </div>
   </div>
+</section>
+
+<section class="watch" id="watch" aria-labelledby="watch-title">
+  <h2 id="watch-title">Watch it play</h2>
+  <p class="section-lede">The real robot, from our final demo, in real time. The laptop shows the dashboard: minimax picks the robot's move in 0.495 s, the carriage drops a red token into the board, and the camera picture updates to show it landed.</p>
+  <figure class="watch-film">
+    <div class="watch-frame">
+      <video id="watch-video" src="media/watch-it-play.mp4" poster="media/watch-it-play-poster.webp" width="1280" height="720" muted loop playsinline preload="metadata" aria-label="20 seconds of our final demo: the robot's dashboard shows minimax choosing a move, then the robot drops a red token into the board"></video>
+      <button type="button" class="watch-toggle" id="watch-toggle" data-playing="false">Play</button>
+    </div>
+    <figcaption>20 seconds of our final demo video, muted. <a href="https://drive.google.com/file/d/18XTTzgTcmCbi5YrIL05sTVF-c-OrHYym/view">Watch the whole 2.5-minute demo</a> on Google Drive, with sound.</figcaption>
+  </figure>
 </section>
 
 <div class="band"><section class="how" id="how" aria-labelledby="how-title">
@@ -211,7 +244,7 @@
   </div>
 </section>
 
-<section class="build" aria-labelledby="build-title">
+<section class="build" id="robot" aria-labelledby="build-title">
   <figure class="photo">
     <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard">
   </figure>
@@ -225,6 +258,32 @@
   </div>
 </section>
 
+<section class="engineers" id="engineers" aria-labelledby="eng-title">
+  <h2 id="eng-title">For engineers</h2>
+  <p class="section-lede">How the parts connect, and where each one lives in the code.</p>
+  <div class="eng-grid">
+    <figure class="eng-wide">
+      <a class="zoom" href="diagrams/closed-loop.svg" data-view><img src="diagrams/closed-loop.svg" width="1040" height="440" loading="lazy" alt="Closed loop: camera, vision pipeline, validator (gate 1), minimax, Arduino, dispenser, board, and back to the camera, with the post-drop check (gate 2) before the game moves on"></a>
+      <figcaption>The camera reads the board, a validator accepts only legal one-chip changes, minimax picks a column, the Arduino drops a token, and the camera must see the expected board before the game moves on.</figcaption>
+    </figure>
+    <figure>
+      <a class="zoom" href="diagrams/robot-states.svg" data-view><img src="diagrams/robot-states.svg" width="960" height="380" loading="lazy" alt="Robot controller states: idle, move ready, waiting for the camera check, and error, with Reset back to idle"></a>
+      <figcaption>After a move is sent the controller waits for the camera to show the expected board; a match returns it to idle, a timeout or rejected board puts it in an error state until Reset.</figcaption>
+    </figure>
+    <figure>
+      <a class="zoom" href="img/dispenser-side.webp" data-view><img src="img/dispenser-side.webp" width="640" height="360" loading="lazy" alt="The finished robot from the side: the Connect-4 board, the token magazine and red funnel on a wooden post above it, the yellow carriage motor, and the dashboard on a laptop"></a>
+      <figcaption>The finished robot from the side, from our final presentation: the magazine and funnel sit above the board on a wooden post, beside the yellow carriage motor.</figcaption>
+    </figure>
+  </div>
+  <ul class="code-map">
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/vision.py"><code>vision.py</code></a> finds the blue frame, warps it to 800 by 800, and reads each hole with HSV colour rules.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/game_state.py"><code>game_state.py</code></a> is gate 1, the validator that accepts only one legal move.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/minimax.py"><code>minimax.py</code></a> searches 5 moves ahead with alpha-beta pruning.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/hardware.py"><code>hardware.py</code></a> sends the column over serial and runs gate 2, the camera check.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/arduino/dispenser/dispenser.ino"><code>dispenser.ino</code></a> releases one token by encoder count and drives the carriage by timing.</li>
+  </ul>
+</section>
+
 <section class="limits" id="limits" aria-labelledby="limits-title">
   <h2 id="limits-title">What it could not do</h2>
   <ul>
@@ -236,13 +295,21 @@
   </ul>
 </section>
 
-<section class="team" aria-labelledby="team-title">
+<section class="team" id="team" aria-labelledby="team-title">
   <h2 id="team-title">Who we are</h2>
   <p>We are Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama. We built the robot for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
-  <div class="links">
-    <a class="btn btn-blue" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
-    <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
-  </div>
+  <article class="paper-card" aria-labelledby="paper-title">
+    <p class="paper-kind">Course paper, IEEE conference format, 2026</p>
+    <h3 id="paper-title">Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement</h3>
+    <p class="paper-authors">Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, Youssef Salama</p>
+    <p class="paper-venue">MCTR 1010 Image Processing for Mechatronics, German University in Cairo</p>
+    <div class="links">
+      <a class="btn btn-blue" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/tree/main/paper">LaTeX source</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/CITATION.cff">Cite</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
+    </div>
+  </article>
 </section>
 </main>
 
@@ -250,6 +317,12 @@
   <p>MIT licensed. The photos are frames from our demo videos.</p>
 </footer>
 
+<dialog class="viewer" id="viewer" aria-label="Image viewer">
+  <figure id="viewer-fig"><figcaption id="viewer-cap"></figcaption></figure>
+  <form method="dialog"><button class="btn btn-yellow">Close</button></form>
+</dialog>
+<a class="to-top" id="to-top" href="#top" aria-label="Back to top" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg></a>
+<script src="page.js" type="module"></script>
 <script src="game.js" type="module"></script>
 <script src="ask.js" type="module"></script>
 </body>
