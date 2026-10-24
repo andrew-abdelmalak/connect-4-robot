@@ -159,6 +159,7 @@ We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
 | Daniel Boules | [@daniel-boules](https://github.com/daniel-boules) |
 | David Girgis | [@davidlouiss](https://github.com/davidlouiss) |
 | Kirolous Kirolous | [@Kiro579](https://github.com/Kiro579) |
+| Samir Yacoub | [@SamirYacoub](https://github.com/SamirYacoub) |
 | Youssef Salama | No GitHub account |
 
 ## License
