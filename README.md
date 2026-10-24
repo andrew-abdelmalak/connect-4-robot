@@ -156,6 +156,7 @@ We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
 | Name | GitHub |
 |---|---|
 | Andrew Abdelmalak | [@andrew-abdelmalak](https://github.com/andrew-abdelmalak) |
+| Daniel Boules | [@daniel-boules](https://github.com/daniel-boules) |
 | Youssef Salama | No GitHub account |
 
 ## License
