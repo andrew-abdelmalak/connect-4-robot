@@ -151,7 +151,12 @@ The milestone reports are the submitted versions and are left unchanged. We corr
 
 ## Team
 
-Andrew Abdelmalak ([@andrew-abdelmalak](https://github.com/andrew-abdelmalak)), Daniel Boules ([@daniel-boules](https://github.com/daniel-boules)), David Girgis ([@davidlouiss](https://github.com/davidlouiss)), Kirolous Kirolous ([@Kiro579](https://github.com/Kiro579)), Samir Yacoub ([@SamirYacoub](https://github.com/SamirYacoub)), and Youssef Salama. Supervised by Dr. Omar M. Shehata.
+We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
+
+| Name | GitHub |
+|---|---|
+| Andrew Abdelmalak | [@andrew-abdelmalak](https://github.com/andrew-abdelmalak) |
+| Youssef Salama | No GitHub account |
 
 ## License
 
