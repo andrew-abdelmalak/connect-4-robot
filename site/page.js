@@ -22,7 +22,8 @@ document.addEventListener("click", (e) => {
 
 // Back to top: shown once the visitor has scrolled past the game.
 const toTop = document.getElementById("to-top");
-new IntersectionObserver(([entry]) => {
+new IntersectionObserver((entries) => {
+  const entry = entries.at(-1); // the newest, if several arrive together
   toTop.hidden = entry.isIntersecting || entry.boundingClientRect.top > 0;
 }).observe(document.getElementById("play"));
 
