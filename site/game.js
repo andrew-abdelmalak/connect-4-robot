@@ -205,11 +205,27 @@ function onLine(text) {
   // Column 1 is home: the carriage does not move, so the token drops at once.
   if (word === "MOVE" && COLUMN_MS[mv.col] === 0) dropFromCarriage(mv);
 }
-// The magazine's bottom token drops into the carriage waiting under it at home.
-function feedCarriage() {
+// The magazine: the robot's 21 tokens (one Connect-4 set), up to 5 in view.
+// Each release takes the bottom token out; the ones above fall one slot.
+const magazineEl = $("#magazine");
+const MAGAZINE_SHOWN = 5;
+let magazineLeft = 21;
+function drawMagazine() {
+  magazineEl.replaceChildren(...Array.from({ length: Math.min(MAGAZINE_SHOWN, magazineLeft) }, () => document.createElement("span")));
+}
+const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
+async function feedCarriage() {
   carriage.dataset.loaded = "true"; // at once: at full speed the carriage can leave before an animation ends
-  if (reduceMotion) return;
-  $("#magazine span:last-child").animate([{ transform: "translateY(0)" }, { transform: "translateY(180%)", opacity: 0 }], { duration: 220, easing: "cubic-bezier(0.5, 0, 1, 1)" });
+  magazineLeft = Math.max(0, magazineLeft - 1);
+  const bottom = magazineEl.lastElementChild;
+  if (!bottom || reduceMotion) return drawMagazine();
+  const slot = bottom.getBoundingClientRect().height + 2;
+  await settle(bottom.animate([{ transform: "none" }, { transform: "translateY(160%)", opacity: 0 }], { duration: 220, easing: "cubic-bezier(0.5, 0, 1, 1)" }), 300);
+  bottom.remove();
+  if (magazineEl.childElementCount < Math.min(MAGAZINE_SHOWN, magazineLeft)) magazineEl.prepend(document.createElement("span"));
+  for (const token of magazineEl.children) {
+    token.animate([{ transform: `translateY(-${slot}px)` }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(0.3, 0, 0.6, 1)" });
+  }
 }
 function onMotor(m) {
   if (m.motor === "magazine") {
@@ -892,6 +908,8 @@ async function newGame() {
   clearScores();
   carriage.dataset.loaded = "false";
   dispenser.style.setProperty("--token", `var(--${NAMES[3 - you]})`);
+  magazineLeft = 21;
+  drawMagazine();
   avr.postMessage({ op: "boot" });
   try {
     const { value } = await call("reset");
