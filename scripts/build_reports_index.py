@@ -15,9 +15,11 @@ import functools
 import json
 import re
 import subprocess
+import unicodedata
 from pathlib import Path
 
 import numpy as np
+import paper_latex
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "site" / "reports-index.json"
@@ -92,11 +94,74 @@ def sentences(text: str) -> list[str]:
     return [s for s in re.split(rf"(?<=[.!?])\s+(?=[A-Z(\[])|\s+(?={HEADING})", text) if s]
 
 
+PAPER = "Vision-Based-Connect-4-Robot.pdf"
+
+
+def alnum(text: str) -> list[str]:
+    """Letters and digits as lowercase words, so LaTeX and PDF text compare despite layout."""
+    return re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKC", text).lower())
+
+
+def paper_passages() -> list[dict]:
+    """The paper's passages from its LaTeX source (scripts/paper_latex.py), each
+    placed on the PDF page where it starts and checked against that page's text.
+
+    A passage must show 90% of its three-word runs and every number on its page
+    or the next, and a table every cell, or the build stops.
+    """
+    pdf = ROOT / "docs" / PAPER
+    raw = [
+        subprocess.run(
+            ["pdftotext", "-f", str(n), "-l", str(n), "-enc", "UTF-8", str(pdf), "-"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        for n in range(1, page_count(pdf) + 1)
+    ]
+    joined = ["".join(alnum(t)) for t in raw]
+    words = [set(alnum(t)) for t in raw]
+    out, at, problems = [], 0, []
+    for p in paper_latex.passages():
+        cells = p.get("cells")
+        key = "".join(alnum(" ".join(cells[:5]) if cells else p["text"]))[:40]  # a table: its header row
+        where = next((k for k in range(at, len(raw)) if key in joined[k]), None)
+        if where is None:
+            raise ValueError(f"not found in the PDF: [{p['section']}] {p['text'][:80]}")
+        at = where
+        text, seen = (
+            joined[where] + joined[min(where + 1, len(raw) - 1)],
+            words[where] | words[min(where + 1, len(raw) - 1)],
+        )
+        if cells:
+            problems += [f"[{p['section']}] cell {c!r}" for c in cells if "".join(alnum(c)) not in text]
+            find = " ".join(cells[:5])  # the header row: the PDF stores the rest column by column
+        else:
+            tokens = alnum(p["text"])
+            shingles = ["".join(tokens[k : k + 3]) for k in range(max(1, len(tokens) - 2))]
+            found = sum(sh in text for sh in shingles)
+            numbers = [t for t in tokens if re.search(r"\d", t) and t not in seen]
+            if found < 0.9 * len(shingles) or numbers:
+                problems.append(f"[{p['section']}] {found}/{len(shingles)} runs, numbers {numbers}: {p['text'][:70]}")
+            find = None
+        item = {"doc": PAPER, "title": "Paper", "section": p["section"], "page": where + 1, "text": p["text"]}
+        if find:
+            item["find"] = find
+        out.append(item)
+    if problems:
+        raise ValueError("paper passages differ from the PDF:\n" + "\n".join(problems))
+    return out
+
+
 def passages() -> list[dict]:
-    """Each document read as one text, cut at sentence ends into passages of about
-    PASSAGE_WORDS words; a passage carries the page it starts on."""
+    """Each report read as one text, cut at sentence ends into passages of about
+    PASSAGE_WORDS words; a passage carries the page it starts on. The paper
+    comes from its LaTeX source instead (paper_passages)."""
     items = []
     for file, title in DOCS:
+        if file == PAPER:
+            items += paper_passages()
+            continue
         pdf = ROOT / "docs" / file
         tagged = []  # (page, sentence) in reading order; a sentence crossing a page break stays whole
         carry, carry_page = None, None
@@ -246,9 +311,15 @@ def rank(question: str, query: np.ndarray | None, items: list[dict], vectors: np
     return list(np.argsort(-blended, kind="stable"))
 
 
+def embed_text(p: dict) -> str:
+    """What the model embeds for a passage: its document, its section if any, and its text."""
+    where = f"{p['title']}, {p['section']}" if p.get("section") else p["title"]
+    return f"{where}: {p['text']}"
+
+
 def main() -> None:
     items = passages()
-    vectors = Embedder()([f"{p['title']}: {p['text']}" for p in items])
+    vectors = Embedder()([embed_text(p) for p in items])
     index = {
         "model": MODEL,
         "revision": REVISION,
