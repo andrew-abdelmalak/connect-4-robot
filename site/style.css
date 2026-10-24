@@ -318,7 +318,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 /* reading sections on the table */
 section:not(.hero) {
-  padding: clamp(3rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
+  padding: clamp(2.25rem, 4.5vw, 3.75rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: clamp(0.75rem, 2vw, 1.5rem);
 }
 section:not(.hero) > * { grid-column: 1 / -1; }
@@ -396,10 +396,10 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .drops-why { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
 .bars { margin: 0 0 1.25rem; display: grid; gap: 0.9rem; }
 .bars dt { font-weight: 700; }
-.bars dd { margin: 0.25rem 0 0; display: flex; align-items: center; gap: 0.6rem; font-family: var(--mono); font-size: 0.85rem; }
-.bars dd { position: relative; }
-.bars dd::before { content: ""; flex: 1; max-width: 70%; height: 0.9rem; border-radius: 999px; background: #dfe5f5; order: 0; }
-.bars dd span { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 0.9rem; width: calc(var(--v) * 0.7%); border-radius: 999px; background: var(--blue); }
+/* A bar row: the track and its fill share the first column; the label keeps the rest, whole. */
+.bars dd { margin: 0.25rem 0 0; display: grid; grid-template-columns: minmax(3rem, 1fr) auto; align-items: center; column-gap: 0.6rem; font-family: var(--mono); font-size: 0.85rem; white-space: nowrap; }
+.bars dd::before { content: ""; grid-area: 1 / 1; height: 0.9rem; border-radius: 999px; background: #dfe5f5; }
+.bars dd span { grid-area: 1 / 1; justify-self: start; height: 0.9rem; width: calc(var(--v) * 1%); border-radius: 999px; background: var(--blue); }
 .reading .bars div:first-child dd span { background: var(--yellow); box-shadow: inset 0 -2px 0 var(--yellow-deep); }
 .time { border-top: 2px solid #d5dcef; padding-top: 1rem; }
 
