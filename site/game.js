@@ -477,7 +477,7 @@ async function readBoard(e) {
   const seen = copy(physical);
   drawFrame(seen);
   if (!visionOn) {
-    if (lowData) loadVision();
+    if (lowData && !visionFailed) loadVision();
     $("#frame-cap").textContent = "Camera picture, drawn by the page. The vision code is still loading.";
     miniBoard($("#cam-board"), seen.flat(), seen.flat(), "Board as drawn");
     return { board: seen, wrong: 0, ms: 0, skipped: true };
@@ -966,9 +966,10 @@ filmBtn.addEventListener("click", () => {
   else film.pause();
 });
 if (!reduceMotion && "IntersectionObserver" in window) {
-  new IntersectionObserver(([entry]) => {
+  new IntersectionObserver((entries) => {
+    const entry = entries.at(-1); // the newest, if several arrive together
     if (!entry.isIntersecting) film.pause();
-    else if (!filmPausedByVisitor) film.play().catch(() => {});
+    else if (!filmPausedByVisitor && !lowData) film.play().catch(() => {}); // data saver: only on Play
   }, { threshold: 0.4 }).observe(film);
 }
 
@@ -1012,6 +1013,7 @@ fetch("clip-cells.json")
 const net = navigator.connection;
 const lowData = Boolean(net && (net.saveData || /(^|-)[23]g$/.test(net.effectiveType || "")));
 let visionLoading = null;
+let visionFailed = false; // a failed load is not retried on every camera frame
 function loadVision() {
   visionLoading ??= call("vision_load")
     .then(() => {
@@ -1020,6 +1022,7 @@ function loadVision() {
     })
     .catch((err) => {
       visionLoading = null;
+      visionFailed = true;
       setStage("camera", "fail", `The vision code could not load (${err.message}). The page passes boards on as drawn.`);
     });
   return visionLoading;

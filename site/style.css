@@ -367,6 +367,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .paper-authors { margin: 0.6rem 0 0.2rem; font-weight: 700; }
 .paper-venue { margin: 0; color: var(--ink-soft); }
 .viewer { width: min(96vw, 82rem); max-height: 92vh; padding: clamp(0.75rem, 2vw, 1.25rem); border: 0; border-radius: 18px; background: var(--paper); }
+.viewer:not([open]) { display: none; } /* browsers without <dialog> */
 .viewer::backdrop { background: rgba(11, 31, 92, 0.7); }
 .viewer figure { margin: 0 0 0.75rem; }
 .viewer img { width: 100%; height: auto; border-radius: 10px; }
