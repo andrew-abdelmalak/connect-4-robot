@@ -109,7 +109,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
   max-width: 82rem; margin: 0 auto;
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr); gap: clamp(1.25rem, 3vw, 2.5rem); align-items: start;
 }
-.rig-play { position: sticky; top: 1rem; display: grid; gap: 0.8rem; justify-items: center; }
+.rig-play { --rig-gap: 0.8rem; position: sticky; top: 1rem; display: grid; gap: var(--rig-gap); justify-items: center; }
 .settings { display: flex; flex-wrap: wrap; gap: 0.6rem 1.1rem; align-items: center; justify-content: center; font-size: 0.9rem; color: var(--on-blue-soft); }
 .seg { border: 0; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.35rem; }
 .seg legend { float: left; margin-right: 0.35rem; padding: 0; }
@@ -137,62 +137,28 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .seg label:hover { border-color: rgba(255,255,255,0.7); }
 
 .board-wrap { position: relative; }
-/* The dispenser, after our SolidWorks drafts: the magazine, its motor disk, and
-   the base are fixed at the right end; the carriage is the slider and its long
-   channel (the path). At home the channel's left end, its exit, sits over
-   column 1; driving the carriage slides the whole channel right, out past the
-   board's edge. */
-.dispenser { display: grid; justify-items: center; gap: 0.45rem; padding-top: calc(var(--cell) * 2.45); overflow: hidden; }
-.rail {
-  width: calc(var(--cell) * 7 + var(--gap) * 8); height: calc(var(--cell) * 0.55);
-  border-radius: 999px; background: linear-gradient(#3a6ae6, #1d4ab8);
-  position: relative; box-shadow: inset 0 2px 0 rgba(255,255,255,0.3), inset 0 -3px 0 rgba(0,0,0,0.25);
-}
-.carriage {
-  position: absolute; bottom: 30%; left: 0;
-  width: calc(var(--cell) * 7 + var(--gap) * 6); height: calc(var(--cell) * 0.45);
-  transform: translateX(calc(var(--gap) + var(--x, 0) * (var(--cell) + var(--gap))));
-  border-radius: calc(var(--cell) * 0.1); background: linear-gradient(#5a6386, #3a4263);
-  box-shadow: inset 0 3px 4px rgba(0, 0, 0, 0.45), 0 4px 8px rgba(0, 0, 0, 0.3);
-}
-/* the exit: where the token leaves the channel and falls into the column */
-.carriage::before {
-  content: ""; position: absolute; left: calc(var(--cell) * 0.12); bottom: -3px; width: calc(var(--cell) * 0.76); height: 5px;
-  border-radius: 0 0 4px 4px; background: #262c45;
-}
-.funnel {
-  position: absolute; right: 0; bottom: 100%; width: var(--cell); height: calc(var(--cell) * 0.75);
-  background: var(--red); clip-path: polygon(0 0, 100% 0, 72% 70%, 72% 100%, 28% 100%, 28% 70%);
-  filter: drop-shadow(0 3px 4px rgba(0,0,0,0.35));
-}
-.carriage-token {
-  position: absolute; left: calc(var(--cell) * 0.2); bottom: 12%; width: calc(var(--cell) * 0.6); height: 76%; border-radius: 999px;
-  background: var(--token, var(--yellow)); opacity: 0; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
-}
-/* loaded at the funnel, the token slides down the channel to the exit */
-.carriage[data-loaded="true"] .carriage-token { opacity: 1; animation: slide-to-exit 700ms cubic-bezier(0.5, 0, 0.75, 1) both; }
-@keyframes slide-to-exit { from { transform: translateX(calc(var(--cell) * 6 + var(--gap) * 6)); } }
-.magazine {
-  position: absolute; left: calc(var(--gap) + (var(--cell) + var(--gap)) * 6 + var(--cell) * 0.16); bottom: calc(30% + var(--cell) * 1.6);
-  width: calc(var(--cell) * 0.68); height: calc(var(--cell) * 1.25);
-  display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 2px; padding: 0 0 3px;
-  border: 3px solid rgba(255, 255, 255, 0.55); border-bottom: 0; border-radius: calc(var(--cell) * 0.2) calc(var(--cell) * 0.2) 0 0;
-  background: rgba(255, 255, 255, 0.08); overflow: hidden;
-}
-.magazine span {
-  flex: none; width: 82%; height: calc(var(--cell) * 0.16); border-radius: 999px;
-  background: var(--token, var(--yellow)); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
-}
+/* The dispenser, from the robot's side, drawn on the board's own grid: the
+   storage, motor disk, and chute over column 1, and the rail along the board
+   with the carriage, a rod, inside it. The rod slides out and covers the holes
+   before the target; the released token rolls to the first open hole. The parts
+   at work stay bright while the others step back. */
+.dispenser { display: grid; justify-items: center; gap: 0.35rem; margin-bottom: calc(-1 * var(--rig-gap)); } /* the rail sits on the board */
+.mech { display: block; width: calc(var(--cell) * 7 + var(--gap) * 8); height: auto; overflow: visible; }
+.mech .part { transition: opacity 0.25s var(--ease); }
+.mech[data-phase="cover"] .part:not(.p-rod),
+.mech[data-phase="hold"] .part:not(.p-rod),
+.mech[data-phase="release"] .part:not(.p-store),
+.mech[data-phase="roll"] .part:not(.p-rail):not(.p-chute),
+.mech[data-phase="back"] .part:not(.p-rod) { opacity: 0.5; }
+.mech .flat { fill: var(--token, var(--yellow)); stroke: rgba(0, 0, 0, 0.3); stroke-width: 2; }
+.mx-labels { font-family: var(--body); font-size: 21px; fill: var(--on-blue-soft); }
+.mx-labels path { stroke: rgba(214, 224, 255, 0.5); stroke-width: 2; }
+.mx-tag { font-family: var(--body); font-size: 15px; fill: #59627f; }
+@media (max-width: 880px) { .mx-labels, .mx-tag { display: none; } }
 .motors { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--on-blue-soft); }
 .motor { display: inline-flex; align-items: center; gap: 0.4rem; }
 .motor b { font-family: var(--mono); font-weight: 400; font-size: 0.72rem; color: var(--on-blue-soft); min-width: 7.5em; }
 .motor-gear { width: 1.15rem; height: 1.15rem; flex: none; color: rgba(214, 224, 255, 0.55); transition: color 160ms var(--ease); }
-/* The motor disk under the magazine: one turn (400 encoder counts) pushes one token to the funnel. */
-.mag-wheel {
-  position: absolute; left: calc(var(--gap) + (var(--cell) + var(--gap)) * 6 + var(--cell) * 0.2); bottom: calc(30% + var(--cell) * 1.2);
-  width: calc(var(--cell) * 0.6); height: calc(var(--cell) * 0.4); color: rgba(255, 255, 255, 0.6);
-}
-.dispenser[data-mag="true"] .mag-wheel { color: var(--yellow); animation: spin 700ms linear infinite; }
 .motor[data-on="true"] { color: var(--on-blue); }
 .motor[data-on="true"] b { color: var(--yellow); }
 .motor[data-on="true"] .motor-gear { color: var(--yellow); animation: spin 700ms linear infinite; }
@@ -318,10 +284,22 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 /* reading sections on the table */
 section:not(.hero) {
-  padding: clamp(3rem, 7vw, 6rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
+  padding: var(--space-topic) clamp(1rem, 4vw, 3rem) 0; max-width: 76rem; margin: 0 auto;
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: clamp(0.75rem, 2vw, 1.5rem);
 }
 section:not(.hero) > * { grid-column: 1 / -1; }
+/* Space follows the content, the same model as our other project page: a
+   change of topic gets a full pause, a section that continues the one before
+   it a shorter one, and each gap is one padding, never two. Both grow with the
+   screen's width and height, so a short laptop screen keeps less dead space. */
+:root {
+  --space-topic: clamp(48px, 3vw + 4vh, 96px);
+  --space-related: clamp(32px, 2vw + 2vh, 56px);
+  --space-head: clamp(16px, 1vw + 1.5vh, 32px);
+}
+main > section.engineers { padding-top: var(--space-related); } /* How it works continues The robot */
+.band > section { padding-bottom: var(--space-topic); } /* the dark band needs its own bottom edge */
+main > section:last-child { padding-bottom: var(--space-topic); }
 /* The board's hole row is the rule above every reading heading. */
 section:not(.hero) > h2::before, .build-copy > h2::before {
   content: ""; display: block; width: min(15rem, 60%); aspect-ratio: 7 / 1; margin-bottom: 1rem;
@@ -331,7 +309,7 @@ section:not(.hero) > h2::before, .build-copy > h2::before {
 h2 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 4.2vw, 3.2rem); line-height: 1.05; letter-spacing: -0.015em; margin: 0 0 1.25rem; color: var(--blue-ink); text-wrap: balance; }
 h3 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; line-height: 1.15; margin: 0 0 0.5rem; color: var(--blue-ink); }
 p { max-width: 68ch; }
-.section-lede { color: var(--ink-soft); margin: -0.5rem 0 2rem; }
+.section-lede { color: var(--ink-soft); margin: -0.5rem 0 var(--space-head); }
 
 .band { background: var(--blue-ink); color: var(--on-blue); }
 .band h2, .band h3 { color: var(--on-blue); }
@@ -396,10 +374,10 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .drops-why { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
 .bars { margin: 0 0 1.25rem; display: grid; gap: 0.9rem; }
 .bars dt { font-weight: 700; }
-.bars dd { margin: 0.25rem 0 0; display: flex; align-items: center; gap: 0.6rem; font-family: var(--mono); font-size: 0.85rem; }
-.bars dd { position: relative; }
-.bars dd::before { content: ""; flex: 1; max-width: 70%; height: 0.9rem; border-radius: 999px; background: #dfe5f5; order: 0; }
-.bars dd span { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 0.9rem; width: calc(var(--v) * 0.7%); border-radius: 999px; background: var(--blue); }
+/* A bar row: the track and its fill share the first column; the label keeps the rest, whole. */
+.bars dd { margin: 0.25rem 0 0; display: grid; grid-template-columns: minmax(3rem, 1fr) auto; align-items: center; column-gap: 0.6rem; font-family: var(--mono); font-size: 0.85rem; white-space: nowrap; }
+.bars dd::before { content: ""; grid-area: 1 / 1; height: 0.9rem; border-radius: 999px; background: #dfe5f5; }
+.bars dd span { grid-area: 1 / 1; justify-self: start; height: 0.9rem; width: calc(var(--v) * 1%); border-radius: 999px; background: var(--blue); }
 .reading .bars div:first-child dd span { background: var(--yellow); box-shadow: inset 0 -2px 0 var(--yellow-deep); }
 .time { border-top: 2px solid #d5dcef; padding-top: 1rem; }
 
@@ -447,7 +425,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 /* Keep the whole sticky board column, controls included, inside a short laptop screen. */
 @media (min-width: 1081px) {
   :root { --cell: max(2.4rem, min(clamp(2.4rem, 6.2vw, 4.1rem), calc((100svh - 30.5rem) / 9))); }
-  .rig-play { gap: 0.55rem; }
+  .rig-play { --rig-gap: 0.55rem; }
   .controls-note { line-height: 1.4; }
 }
 @media (max-width: 1080px) {
@@ -480,5 +458,6 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (prefers-reduced-motion: reduce) {
   .stage[data-state="busy"] .lamp, .cell.win .token { animation: none; }
   .toggle input, .toggle input::before { transition: none; }
-  .motor[data-on="true"] .motor-gear, .dispenser[data-mag="true"] .mag-wheel, .carriage[data-loaded="true"] .carriage-token { animation: none; }
+  .motor[data-on="true"] .motor-gear { animation: none; }
+  .mech .part { transition: none; }
 }
