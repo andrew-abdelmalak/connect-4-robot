@@ -318,10 +318,16 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 /* reading sections on the table */
 section:not(.hero) {
-  padding: clamp(2.25rem, 4.5vw, 3.75rem) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
+  padding: var(--space-y) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: clamp(0.75rem, 2vw, 1.5rem);
 }
 section:not(.hero) > * { grid-column: 1 / -1; }
+/* Spacing follows the neighbours: a light section after another light section
+   starts with half the gap (the hole-row rule above its heading separates
+   them); the dark band and the hero keep the full gap, since the colour change
+   already marks the edge. The gap also shrinks on short screens. */
+:root { --space-y: clamp(2rem, min(4.5vw, 7svh), 3.75rem); }
+main > section:not(.hero) + section:not(.hero) { padding-top: calc(var(--space-y) * 0.5); }
 /* The board's hole row is the rule above every reading heading. */
 section:not(.hero) > h2::before, .build-copy > h2::before {
   content: ""; display: block; width: min(15rem, 60%); aspect-ratio: 7 / 1; margin-bottom: 1rem;
