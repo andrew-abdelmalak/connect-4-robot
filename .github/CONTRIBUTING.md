@@ -33,7 +33,7 @@ arduino-cli lib install Servo@1.3.0
 arduino-cli compile --fqbn arduino:avr:uno arduino/dispenser
 ```
 
-CI runs these checks, plus the Milestone 2 notebook, on every pull request. A pull request with failing checks is not merged.
+CI runs these checks, plus the image-pipeline notebook, on every pull request. A pull request with failing checks is not merged.
 
 ## Build the paper
 

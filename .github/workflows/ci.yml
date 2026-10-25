@@ -39,11 +39,11 @@ jobs:
       - name: Test
         run: uv run pytest
 
-      - name: Run the MS2 notebook
+      - name: Run the image-pipeline notebook
         working-directory: notebooks
         env:
           MPLBACKEND: Agg
-        run: uv run jupyter nbconvert --to notebook --execute --output /tmp/ms2_executed.ipynb ms2_image_pipeline.ipynb
+        run: uv run jupyter nbconvert --to notebook --execute --output /tmp/image_pipeline_executed.ipynb image_pipeline.ipynb
 
       - uses: arduino/setup-arduino-cli@81d310742121c928ea9c8bbd407b4217b432ae02 # v2.0.0
         with:

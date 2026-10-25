@@ -134,6 +134,30 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .pick select:hover { border-color: rgba(255,255,255,0.7); background-color: #163a9e; }
 .pick select:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 .pick select option { background: var(--blue-ink); color: var(--on-blue); }
+/* Where the browser lets the open list be styled (customizable select), it
+   matches the closed pill: a deep-blue rounded panel, pill rows, and the chosen
+   row in yellow like the robot's pick above the board. Elsewhere the list is
+   the browser's own. */
+@supports (appearance: base-select) {
+  .pick select, .pick select::picker(select) { appearance: base-select; }
+  .pick select { background-image: none; padding-right: 0.95rem; gap: 0.6rem; align-items: center; }
+  .pick select::picker-icon {
+    content: ""; width: 0.8rem; height: 0.55rem; align-self: center; transition: rotate 160ms var(--ease);
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 9'%3E%3Cpath d='M2 2l5 5 5-5' fill='none' stroke='%23ffc61a' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat center / contain;
+  }
+  .pick select:open::picker-icon { rotate: 180deg; }
+  .pick select::picker(select) {
+    margin-top: 0.4rem; padding: 0.35rem; border: 2px solid rgba(255,255,255,0.35); border-radius: 1.2rem;
+    background: var(--blue-deep); color: var(--on-blue); box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4), inset 0 -3px 0 rgba(0, 0, 0, 0.25);
+    transition: opacity 160ms var(--ease), translate 160ms var(--ease), overlay 160ms allow-discrete, display 160ms allow-discrete;
+  }
+  .pick select:not(:open)::picker(select) { opacity: 0; translate: 0 -0.3rem; }
+  @starting-style { .pick select:open::picker(select) { opacity: 0; translate: 0 -0.3rem; } }
+  .pick select option { padding: 0.55rem 0.95rem; border-radius: 999px; font-weight: 700; background: transparent; cursor: pointer; }
+  .pick select option:hover, .pick select option:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
+  .pick select option:checked { background: var(--yellow); color: var(--blue-ink); }
+  .pick select option::checkmark { display: none; }
+}
 .seg label:hover { border-color: rgba(255,255,255,0.7); }
 
 .board-wrap { position: relative; }
@@ -341,7 +365,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .watch-toggle[data-playing="true"]::before { clip-path: none; background: linear-gradient(90deg, var(--yellow) 0 34%, transparent 34% 66%, var(--yellow) 66%); }
 .watch-film figcaption a { color: var(--blue); font-weight: 700; }
 
-/* For engineers: the diagrams, the side photo, and a map of the code. */
+/* How it works: the diagrams, the side photo, and a map of the code. */
 .eng-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
 .eng-grid > figure { margin: 0; grid-column: span 3; }
 .eng-grid > .eng-wide { grid-column: 1 / -1; }
@@ -460,4 +484,5 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   .toggle input, .toggle input::before { transition: none; }
   .motor[data-on="true"] .motor-gear { animation: none; }
   .mech .part { transition: none; }
+  .pick select::picker(select), .pick select::picker-icon { transition: none; }
 }

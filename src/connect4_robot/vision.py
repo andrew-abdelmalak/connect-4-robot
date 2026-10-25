@@ -38,7 +38,7 @@ CORNER_ALPHA = 0.25  # EMA weight for corner smoothing
 MORPH_KERNEL = 9  # px, closes gaps in the blue mask
 POLY_EPSILON = 0.04  # approxPolyDP tolerance, fraction of contour perimeter
 HULL_EPSILON = 0.08  # same, for the convex-hull retry
-# Fallback corners as fractions of the frame (TL, TR, BR, BL), from the MS2 notebook.
+# Fallback corners as fractions of the frame (TL, TR, BR, BL), from the image-pipeline notebook.
 FALLBACK_CORNERS = [[0.03, 0.02], [0.97, 0.02], [0.97, 0.80], [0.03, 0.80]]
 
 # Intensity conditioning applied after the warp (deployed runtime values).

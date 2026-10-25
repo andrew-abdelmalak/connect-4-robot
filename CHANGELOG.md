@@ -20,13 +20,13 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Pi vs Laptop benchmark results
 - Per-column drop success testing (140 trials, 95% overall)
 - 31/31 unit tests passing
-- docs/ folder with all 5 milestone documents
+- docs/ folder with the paper and the course reports
 - results/ folder with all pipeline output figures
 - LICENSE (MIT), CONTRIBUTING.md, requirements.txt
 
 ### Changed
-- Paper rewritten from MS3 level to MS4/5 final level
-- BOM updated from 10,135 EGP (MS3 design) to 6,100 EGP (final as-built)
+- Paper rewritten from the closed-loop draft to the final version
+- BOM updated from 10,135 EGP (earlier stepper design) to 6,100 EGP (final as-built)
 - Hardware: NEMA 17 steppers + SG90 servo → TT DC motor + encoder DC motor
 - Camera: Pi Camera V2 8MP → Pi Camera 5MP Rev 1.3
 - Brightness offset: +60 → +30; Contrast: α=1.8 → α=1.4
@@ -41,7 +41,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.3.0] — 2026-05-04 *(MS3 — Closed-Loop Integration)*
+## [0.3.0] — 2026-05-04 *(closed-loop integration)*
 
 - Vision pipeline fully implemented on Raspberry Pi
 - Minimax with alpha-beta pruning
@@ -49,7 +49,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Flask dashboard with live camera streams
 - NEMA 17 + SG90 servo hardware (later superseded)
 
-## [0.2.0] — 2026-03-17 *(MS2 — Pipeline & Hardware)*
+## [0.2.0] — 2026-03-17 *(image pipeline and hardware)*
 
 - Image processing pipeline: rotation, warp, brightness, contrast, smoothing
 - Feature extraction: mean brightness, rotation angle
@@ -57,7 +57,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - SolidWorks mechanical design
 - Arduino servo control prototype
 
-## [0.1.0] — 2026-03-05 *(MS1 — Literature Review)*
+## [0.1.0] — 2026-03-05 *(literature review)*
 
 - Literature review of 6 papers
 - Pipeline flowchart designed
