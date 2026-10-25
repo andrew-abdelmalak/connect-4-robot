@@ -36,15 +36,6 @@ def test_local_assets_exist():
         assert (SITE / "img" / ref).exists(), ref
 
 
-def test_clip_results_are_consistent():
-    import json
-
-    d = json.loads((SITE / "clip-cells.json").read_text())
-    assert d["cells"] == len(d["truth"]) == len(d["hsv"]) == len(d["clip"]) == 42
-    assert d["hsv_correct"] == sum(a == b for a, b in zip(d["hsv"], d["truth"], strict=True)) == 42
-    assert d["clip_correct"] == sum(a == b for a, b in zip(d["clip"], d["truth"], strict=True))
-
-
 def _js_const(src: str, name: str) -> str:
     return re.search(rf"const {name} = ([^;]+);", src).group(1)
 

@@ -38,10 +38,8 @@ const rollLine = $("#mx-roll"); // the rod's top, where the token rolls
 const dispenser = $(".dispenser");
 const motorMag = $("#motor-mag");
 const motorCar = $("#motor-car");
-const fixBtn = $("#fix");
 const nextBtn = $("#next");
 const cheat = $("#cheat");
-const misdrops = $("#misdrops");
 const resultEl = $("#result");
 const serialEl = $("#serial");
 const frame = $("#frame");
@@ -62,7 +60,6 @@ let physical = empty(); // what is really on the board
 let you = RED;
 let busy = true;
 let epoch = 0; // bumped by New game; a flow that sees a newer epoch stops
-let pendingFix = null;
 let lastCol = 3;
 let visionOn = false;
 let stepMode = false;
@@ -261,11 +258,11 @@ function onMotor(m) {
 function dropToken(mv) {
   if (mv.dropped) return;
   mv.dropped = true;
-  const r = lowest(physical, mv.landed);
+  const r = lowest(physical, mv.col);
   if (mv.e !== epoch || r < 0) return;
-  fall(r, mv.landed, mv.robot, { roll: true }).then(() => {
+  fall(r, mv.col, mv.robot, { roll: true }).then(() => {
     if (mv.e !== epoch) return;
-    physical[r][mv.landed] = mv.robot;
+    physical[r][mv.col] = mv.robot;
     draw();
   });
 }
@@ -608,7 +605,7 @@ async function flow(fn) {
     }
     say(`Something went wrong (${err.message}). Press New game to start again.`);
   }
-  if (e === epoch && !pendingFix && !finished()) lock(false);
+  if (e === epoch && !finished()) lock(false);
 }
 
 // ── the loop ──────────────────────────────────────────────────────────────
@@ -693,10 +690,7 @@ async function robotTurn(e, nodes) {
 
   const expected = copy(state.trusted);
   expected[lowest(expected, col)][col] = robot;
-  let landed = col;
-  if (misdrops.checked && Math.random() * 20 >= DROP_HITS[col]) landed = col === COLS - 1 ? col - 1 : col + (Math.random() < 0.5 ? -1 : 1);
-  if (lowest(physical, landed) < 0) landed = col; // neighbour full: the token falls in the aimed column
-  ard.move = { col, landed, robot, e, dropped: false };
+  ard.move = { col, robot, e, dropped: false };
   ard.samples = [];
   ard.marks = [];
   ard.lines = [];
@@ -718,13 +712,12 @@ async function robotTurn(e, nodes) {
     if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token, or try to cheat.`);
     return;
   }
-  setStage("gate2", "fail", landed === col ? TIMEOUT_MSG : `${TIMEOUT_MSG} The camera saw the token in column ${landed + 1}, not column ${col + 1}.`);
+  // As on the robot: no matching board in time puts the controller in its error state until Reset.
+  setStage("gate2", "fail", TIMEOUT_MSG);
   await untilLine("DONE", e);
   ard.move = null;
   avr.postMessage({ op: "idle" });
-  pendingFix = { col, landed, robot };
-  fixBtn.hidden = false;
-  say("Gate 2 caught a missed drop and stopped the robot. On the real robot, 3 of 20 column-7 drops slid into column 6. Fix it by hand to continue.");
+  say("Gate 2 saw no matching board in time and stopped the robot. Press New game to start again.");
 }
 
 // Gate 2, as RobotController runs it: the camera thread analyses a frame every
@@ -821,33 +814,6 @@ function finished() {
   return false;
 }
 
-fixBtn.addEventListener("click", () => {
-  if (!pendingFix) return;
-  const { col, landed, robot } = pendingFix;
-  pendingFix = null;
-  fixBtn.hidden = true;
-  busy = false;
-  flow(async (e) => {
-    // The operator lifts the token out of the wrong column and drops it in the right one.
-    physical[lowest(physical, landed) + 1][landed] = 0;
-    physical[lowest(physical, col)][col] = robot;
-    draw();
-    say("The operator moved the token. The camera reads the board and gate 1 checks it, as the dashboard's Accept button did.");
-    const res = await cameraThenGate1(e);
-    if (!res.ok) {
-      physical[lowest(physical, col) + 1][col] = 0;
-      physical[lowest(physical, landed)][landed] = robot;
-      draw();
-      pendingFix = { col, landed, robot };
-      fixBtn.hidden = false;
-      say(`Gate 1 rejected the fixed board: ${human(res.reason)}. Try the fix again.`);
-      return;
-    }
-    setStage("gate2", "pass", "The operator fixed the missed drop by hand; gate 1 accepted the board");
-    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
-  });
-});
-
 // ── cheats: impossible boards, read by the camera and judged by the real validator
 cheat.addEventListener("click", (ev) => {
   const kind = ev.target.dataset?.cheat;
@@ -910,11 +876,9 @@ async function newGame() {
   epoch++;
   lock(true);
   wake();
-  pendingFix = null;
   nextAction = null;
   ghost = null;
   Object.assign(ard, { move: null, cycleStart: null, samples: [], marks: [] });
-  fixBtn.hidden = true;
   nextBtn.hidden = true;
   resultEl.hidden = true;
   you = Number(document.querySelector('[name="colour"]:checked').value);
@@ -1019,26 +983,6 @@ $("#drop-bars").replaceChildren(...DROP_HITS.map((hit, c) => {
   row.append(dt, dd);
   return row;
 }));
-
-// ── CLIP experiment: results computed by scripts/eval_clip_cells.py ───────
-fetch("clip-cells.json")
-  .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status))))
-  .then((d) => {
-    const boards = $("#clip-boards");
-    for (const [key, label, right] of [["hsv", "Robot's colour rules", d.hsv_correct], ["clip", "CLIP, never trained on our board", d.clip_correct]]) {
-      const fig = document.createElement("figure");
-      const mini = document.createElement("div");
-      mini.className = "mini";
-      mini.setAttribute("role", "img");
-      miniBoard(mini, d[key], d.truth, `${label}: ${right} of ${d.cells} holes read right`);
-      const cap = document.createElement("figcaption");
-      cap.textContent = `${label}: ${right} of ${d.cells} right`;
-      fig.append(mini, cap);
-      boards.append(fig);
-    }
-    $("#clip-score").textContent = `One photo, ${d.cells} holes, a small sample computed offline with CLIP ViT-B/32: ${d.clip_correct} of ${d.cells} on the plain photo, ${d.clip_on_hsv_crops_correct} on the brightened crops the colour rules use.`;
-  })
-  .catch(() => { $("#clip-score").textContent = "The experiment results did not load."; });
 
 // ── loading: the board first, then the rest in reading order ─────────────
 // On data saver or 2G/3G the 14 MB vision code waits for the first move and
