@@ -318,16 +318,22 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 /* reading sections on the table */
 section:not(.hero) {
-  padding: var(--space-y) clamp(1rem, 4vw, 3rem); max-width: 76rem; margin: 0 auto;
+  padding: var(--space-topic) clamp(1rem, 4vw, 3rem) 0; max-width: 76rem; margin: 0 auto;
   display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); column-gap: clamp(0.75rem, 2vw, 1.5rem);
 }
 section:not(.hero) > * { grid-column: 1 / -1; }
-/* Spacing follows the neighbours: a light section after another light section
-   starts with half the gap (the hole-row rule above its heading separates
-   them); the dark band and the hero keep the full gap, since the colour change
-   already marks the edge. The gap also shrinks on short screens. */
-:root { --space-y: clamp(2rem, min(4.5vw, 7svh), 3.75rem); }
-main > section:not(.hero) + section:not(.hero) { padding-top: calc(var(--space-y) * 0.5); }
+/* Space follows the content, the same model as our other project page: a
+   change of topic gets a full pause, a section that continues the one before
+   it a shorter one, and each gap is one padding, never two. Both grow with the
+   screen's width and height, so a short laptop screen keeps less dead space. */
+:root {
+  --space-topic: clamp(48px, 3vw + 4vh, 96px);
+  --space-related: clamp(32px, 2vw + 2vh, 56px);
+  --space-head: clamp(16px, 1vw + 1.5vh, 32px);
+}
+main > section.engineers { padding-top: var(--space-related); } /* How it works continues The robot */
+.band > section { padding-bottom: var(--space-topic); } /* the dark band needs its own bottom edge */
+main > section:last-child { padding-bottom: var(--space-topic); }
 /* The board's hole row is the rule above every reading heading. */
 section:not(.hero) > h2::before, .build-copy > h2::before {
   content: ""; display: block; width: min(15rem, 60%); aspect-ratio: 7 / 1; margin-bottom: 1rem;
@@ -337,7 +343,7 @@ section:not(.hero) > h2::before, .build-copy > h2::before {
 h2 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 4.2vw, 3.2rem); line-height: 1.05; letter-spacing: -0.015em; margin: 0 0 1.25rem; color: var(--blue-ink); text-wrap: balance; }
 h3 { font-family: var(--display); font-weight: 800; font-size: 1.5rem; line-height: 1.15; margin: 0 0 0.5rem; color: var(--blue-ink); }
 p { max-width: 68ch; }
-.section-lede { color: var(--ink-soft); margin: -0.5rem 0 2rem; }
+.section-lede { color: var(--ink-soft); margin: -0.5rem 0 var(--space-head); }
 
 .band { background: var(--blue-ink); color: var(--on-blue); }
 .band h2, .band h3 { color: var(--on-blue); }
