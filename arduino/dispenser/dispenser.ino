@@ -1,8 +1,8 @@
-// Connect-4 dispenser sketch, rebuilt from the MS4/5 final report.
+// Connect-4 dispenser sketch, rebuilt from our final course report.
 //
 // The sketch that ran in our demo was not kept. This file follows the
-// report's Listing 1 (the actuation sequence) and Table II (the carriage
-// drive time per column). What the listing does not give (the pins, the motor
+// report's actuation sequence and carriage drive time per column, both
+// reproduced in paper/supplement.tex (Fig. 2 and Table II). What the listing does not give (the pins, the motor
 // speeds, READY and ERR on serial) comes from the team's earlier sketch, which
 // released the token first; it is in this file's git history.
 //

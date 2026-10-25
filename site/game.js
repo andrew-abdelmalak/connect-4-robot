@@ -10,7 +10,7 @@ const RED = 1;
 const NAMES = { 1: "red", 2: "yellow" };
 // Measured on the robot: drops out of 20 per column that landed where aimed.
 const DROP_HITS = [20, 20, 20, 19, 19, 18, 17];
-// dispenser.ino (MS4/5 report, Table II): carriage drive time from home to each column (ms).
+// dispenser.ino (supplement, Table II): carriage drive time from home to each column (ms).
 const COLUMN_MS = [0, 330, 600, 900, 1200, 1500, 1800];
 // hardware.py: the robot loop's timing (s) and its timeout message.
 const ANALYSIS_INTERVAL = 1.0;
@@ -21,7 +21,7 @@ const TIMEOUT_MSG = "Timed out waiting for verified robot move.";
 const WIN_SCORE = 1_000_000; // minimax.py
 const TARGET_PULSES = 430; // dispenser.ino: pulses for one token release
 const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls along the rail
-const COUNTS_PER_TURN = 400; // MS4/5 report: encoder counts per turn of the motor disk
+const COUNTS_PER_TURN = 400; // supplement: encoder counts per turn of the motor disk
 // The dispenser drawing is on the board's grid: 100 units a hole, 16 a gap.
 const MECH_X0 = 16;
 const MECH_PITCH = 116;
@@ -1064,7 +1064,7 @@ function loadVision() {
 // paper, and the search index. One file at a time, only while the tab is visible.
 const READING_ORDER = [
   "pdfjs/web/viewer.html", "pdfjs/web/viewer.css", "pdfjs/web/viewer.mjs", "pdfjs/build/pdf.mjs", "pdfjs/build/pdf.worker.mjs",
-  "docs/Vision-Based-Connect-4-Robot.pdf", "reports-index.json",
+  "docs/Vision-Based-Connect-4-Robot.pdf", "search-index.json",
 ];
 async function prefetchReading() {
   for (const url of READING_ORDER) {

@@ -1,12 +1,12 @@
-"""Build site/reports-index.json, the search index behind "Ask the reports".
+"""Build site/search-index.json, the search index behind "Ask the paper".
 
-Each page of the paper and the four milestone reports is cut into short
+Each page of the paper and its supplement is cut into short
 passages, and each passage gets a vector from the all-MiniLM-L6-v2 sentence
 model, computed exactly as transformers.js computes it in the browser (same
 ONNX file, mean pooling, unit length). The browser embeds a question with the
 same model and ranks passages with rank() below, mirrored in site/ask.js.
 
-Run with ``uv run --group search python scripts/build_reports_index.py``.
+Run with ``uv run --group search python scripts/build_search_index.py``.
 Needs poppler's pdftotext.
 """
 
@@ -22,7 +22,7 @@ import numpy as np
 import paper_latex
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT = ROOT / "site" / "reports-index.json"
+OUT = ROOT / "site" / "search-index.json"
 MODEL = "Xenova/all-MiniLM-L6-v2"
 REVISION = "751bff37182d3f1213fa05d7196b954e230abad9"
 ONNX_FILE = "onnx/model_quantized.onnx"  # transformers.js dtype "q8"
@@ -30,10 +30,7 @@ PASSAGE_WORDS = 90  # a passage ends at the first sentence end past this
 MIN_TAIL_WORDS = 30  # a shorter last piece joins the passage before it
 DOCS = [
     ("Vision-Based-Connect-4-Robot.pdf", "Paper"),
-    ("MS4_5_Final_Report.pdf", "MS4/5 final report"),
-    ("MS3_Closed_Loop_Integration.pdf", "MS3 closed-loop integration"),
-    ("MS2_Pipeline_Hardware.pdf", "MS2 pipeline and hardware"),
-    ("MS1_Literature_Review.pdf", "MS1 literature review"),
+    ("Vision-Based-Connect-4-Robot-Supplement.pdf", "Supplement"),
 ]
 
 
@@ -154,7 +151,7 @@ def paper_passages() -> list[dict]:
 
 
 def passages() -> list[dict]:
-    """Each report read as one text, cut at sentence ends into passages of about
+    """Each document read as one text, cut at sentence ends into passages of about
     PASSAGE_WORDS words; a passage carries the page it starts on. The paper
     comes from its LaTeX source instead (paper_passages)."""
     items = []
