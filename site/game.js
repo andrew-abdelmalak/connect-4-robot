@@ -10,8 +10,8 @@ const RED = 1;
 const NAMES = { 1: "red", 2: "yellow" };
 // Measured on the robot: drops out of 20 per column that landed where aimed.
 const DROP_HITS = [20, 20, 20, 19, 19, 18, 17];
-// dispenser.ino: carriage drive time from home to each column (ms).
-const COLUMN_MS = [0, 330, 600, 900, 1000, 3000, 4000];
+// dispenser.ino (MS4/5 report, Table II): carriage drive time from home to each column (ms).
+const COLUMN_MS = [0, 330, 600, 900, 1200, 1500, 1800];
 // hardware.py: the robot loop's timing (s) and its timeout message.
 const ANALYSIS_INTERVAL = 1.0;
 const ROBOT_SETTLE_SEC = 2.5;
@@ -19,7 +19,8 @@ const VERIFY_POLL_SEC = 0.4;
 const VERIFY_TIMEOUT = 10.0;
 const TIMEOUT_MSG = "Timed out waiting for verified robot move.";
 const WIN_SCORE = 1_000_000; // minimax.py
-const TARGET_PULSES = 400; // dispenser.ino: pulses for one token release
+const TARGET_PULSES = 430; // dispenser.ino: pulses for one token release
+const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls along the rail
 
 const $ = (sel) => document.querySelector(sel);
 const rigPlay = $(".rig-play");
@@ -28,6 +29,7 @@ const colsEl = $("#cols");
 const scoresEl = $("#scores");
 const statusEl = $("#status");
 const carriage = $("#carriage");
+const rail = $(".rail");
 const dispenser = $(".dispenser");
 const motorMag = $("#motor-mag");
 const motorCar = $("#motor-car");
@@ -194,16 +196,11 @@ function onLine(text) {
   if (!mv) return;
   const [word, arg] = text.split(" ");
   const msg = {
-    BUSY: `BUSY ${arg}: column ${arg} received, releasing one token`,
-    MAG: Number(arg) < TARGET_PULSES
-      ? `MAG ${arg}: the sketch stopped the magazine early, at ${arg} of ${TARGET_PULSES} pulses. It reads its pulse count while the encoder interrupt can change it, a known issue in the sketch (see the README). The page still drops the token.`
-      : `MAG ${arg}: the encoder counted ${arg} pulses, one token released`,
-    MOVE: `MOVE ${arg}: carriage driving for ${COLUMN_MS[arg - 1]} ms`,
+    BUSY: `BUSY ${arg}: column ${arg} received. The carriage drives out for ${COLUMN_MS[arg - 1]} ms to cover the holes before it, then holds 2 s`,
+    MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls to the first open hole`,
     DONE: `DONE ${arg}: carriage back home`,
   }[word];
   if (msg) setStage("arduino", word === "DONE" ? "pass" : "busy", msg);
-  // Column 1 is home: the carriage does not move, so the token drops at once.
-  if (word === "MOVE" && COLUMN_MS[mv.col] === 0) dropFromCarriage(mv);
 }
 // The magazine: the robot's 21 tokens (one Connect-4 set), up to 5 in view.
 // Each release takes the bottom token out; the ones above fall one slot.
@@ -214,8 +211,10 @@ function drawMagazine() {
   magazineEl.replaceChildren(...Array.from({ length: Math.min(MAGAZINE_SHOWN, magazineLeft) }, () => document.createElement("span")));
 }
 const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
-async function feedCarriage() {
-  carriage.dataset.loaded = "true"; // at once: at full speed the carriage can leave before an animation ends
+// The carriage is already over the column: the released token rolls along
+// the rail and drops through the first hole the carriage left open.
+async function releaseToken(mv) {
+  dropToken(mv);
   magazineLeft = Math.max(0, magazineLeft - 1);
   const bottom = magazineEl.lastElementChild;
   if (!bottom || reduceMotion) return drawMagazine();
@@ -233,24 +232,21 @@ function onMotor(m) {
     motorMag.dataset.on = m.on;
     dispenser.dataset.mag = m.on;
     if (!m.on) motorMag.querySelector("b").textContent = "off";
-    if (!m.on && ard.move && m.pulses > 0) feedCarriage();
+    if (!m.on && ard.move && m.pulses > 0) releaseToken(ard.move);
     return;
   }
   motorCar.dataset.on = m.dir !== 0;
   motorCar.dataset.dir = m.dir > 0 ? "out" : "home";
   if (m.dir === 0) motorCar.querySelector("b").textContent = "off";
   $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : m.pos > 1 ? `stopped over column ${Math.round(columnAt(m.pos)) + 1}` : "stopped at home";
-  // The carriage stops over the column: the token drops through the funnel.
-  if (ard.dir > 0 && m.dir === 0 && ard.move) dropFromCarriage(ard.move);
   ard.dir = m.dir;
 }
-function dropFromCarriage(mv) {
-  if (mv.dropped || carriage.dataset.loaded !== "true") return;
+function dropToken(mv) {
+  if (mv.dropped) return;
   mv.dropped = true;
-  carriage.dataset.loaded = "false";
   const r = lowest(physical, mv.landed);
   if (mv.e !== epoch || r < 0) return;
-  fall(r, mv.landed, mv.robot, mv.col).then(() => {
+  fall(r, mv.landed, mv.robot, { roll: true }).then(() => {
     if (mv.e !== epoch) return;
     physical[r][mv.landed] = mv.robot;
     draw();
@@ -388,33 +384,34 @@ function draw() {
 }
 
 // A token falls from the funnel's height into its cell; fromCol is where it starts.
-async function fall(row, col, colour, fromCol = col) {
+// A token falls into its cell; the robot's first rolls along the rail from the storage end.
+async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
   const cr = cells[row * COLS + col].getBoundingClientRect();
-  const from = cells[row * COLS + fromCol].getBoundingClientRect();
   const size = cr.width * 0.86;
   const endX = cr.left - host.left + cr.width * 0.07;
   const endY = cr.top - host.top + cr.width * 0.07;
-  const startY = carriage.getBoundingClientRect().bottom - host.top - size * 0.9;
-  const dx = from.left - cr.left;
+  const startY = rail.getBoundingClientRect().top - host.top - size * 0.55;
   const el = document.createElement("span");
   el.className = "falling " + NAMES[colour];
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
   rigPlay.append(el);
-  const ms = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
-  const anim = el.animate(
-    [
-      { transform: `translate(${dx}px, ${startY}px)` },
-      { transform: `translate(${dx * 0.3}px, ${startY + (endY - startY) * 0.55}px)`, offset: 0.45 },
-      { transform: `translate(0, ${endY}px)`, offset: 0.86 },
-      { transform: `translate(0, ${endY - size * 0.06}px)`, offset: 0.93 },
-      { transform: `translate(0, ${endY}px)` },
-    ],
-    { duration: ms, easing: "cubic-bezier(0.45, 0, 0.9, 0.6)" },
-  );
+  const fallMs = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
+  const rollMs = roll ? ((col + 0.6) / ROLL_COLS_PER_S) * 1000 : 0;
+  const pitch = cells[1].getBoundingClientRect().left - cells[0].getBoundingClientRect().left;
+  const at = (ms) => (rollMs + ms) / (rollMs + fallMs);
+  const down = [
+    { transform: `translate(0, ${startY}px)`, offset: at(0) },
+    { transform: `translate(0, ${endY}px)`, offset: at(fallMs * 0.86), easing: "ease-out" },
+    { transform: `translate(0, ${endY - size * 0.06}px)`, offset: at(fallMs * 0.93) },
+    { transform: `translate(0, ${endY}px)`, offset: 1 },
+  ];
+  down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
+  const frames = roll ? [{ transform: `translate(${-(col + 0.6) * pitch}px, ${startY}px) rotate(-${Math.round((col + 0.6) * 200)}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
+  const anim = el.animate(frames, { duration: rollMs + fallMs });
   // A hidden tab freezes animations; the game goes on without waiting for this one.
-  await Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms + 300))]);
+  await Promise.race([anim.finished, new Promise((r) => setTimeout(r, rollMs + fallMs + 300))]);
   el.remove();
 }
 
@@ -906,7 +903,6 @@ async function newGame() {
   physical = empty();
   draw();
   clearScores();
-  carriage.dataset.loaded = "false";
   dispenser.style.setProperty("--token", `var(--${NAMES[3 - you]})`);
   magazineLeft = 21;
   drawMagazine();

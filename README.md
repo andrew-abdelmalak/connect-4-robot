@@ -107,8 +107,7 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 - **Carriage by timing.** The carriage has no position sensor, so the far columns miss more often. A carriage encoder or limit switch is the most useful upgrade.
 - **Small ML dataset.** The machine-learning mode is a secondary option, and its model file is not included.
 - **No login on the dashboard.** Anyone on the same network can send moves or reset the game. Run it only on a network you trust.
-- **Known issues in the dispenser sketch.** A code review found these. We left the sketch as is, because it is the version that ran in the demo and there is no robot to test a change on:
-  - the encoder count is read without pausing interrupts. On the project page's emulated Uno this stops the magazine at 256 of 400 pulses in 9 of 40 test runs (at the page's assumed encoder speed); the same sketch with the read wrapped in `noInterrupts()` reached 400 in 40 of 40;
+- **The dispenser sketch is a rebuild.** The file that ran in the demo was not kept. `arduino/dispenser/dispenser.ino` is rebuilt from the MS4/5 report's Listing 1 and Table II: the carriage moves to the column and holds 2 s, the magazine motor turns 430 encoder pulses to release one token, and 0.5 s later the carriage returns home. The pins, the motor speeds, and the `READY` and `ERR` messages come from the team's earlier sketch, which released the token first (it is in the file's git history). The rebuild compiles and runs on the project page's emulated Uno, but it has not run on the robot. Limits it keeps:
   - the magazine motor has no timeout if the encoder stops;
   - serial bytes that arrive during a move run as a second command afterwards;
   - opening the serial port can reset the Uno, so the Pi should wait for `READY` before the first command.
@@ -118,7 +117,7 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 ```text
 src/connect4_robot/   Python package: board, minimax, validator, simulator, vision, hardware, dashboard
 tests/                pytest suite, including a recorded set of minimax answers
-arduino/dispenser/    final Arduino sketch (carriage + magazine)
+arduino/dispenser/    Arduino sketch (carriage + magazine), rebuilt from the MS4/5 report
 arduino/m1_servo_gate_controller/   Milestone 1 servo prototype
 notebooks/            Milestone 1 and 2 image-processing work and the sample board photo
 paper/                IEEE-style paper source (LaTeX), same file names as the Overleaf project

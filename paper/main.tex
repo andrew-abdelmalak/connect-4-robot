@@ -198,7 +198,7 @@ V(S)=\max_{a \in \mathcal{A}(S)} \min_{b \in \mathcal{A}(T(S,a))} V\bigl(T(T(S,a
 
 where $\mathcal{A}(S)$ is the set of legal columns and $T(S,a)$ is the gravity-respecting state transition induced by dropping a token in column $a$. The archived runtime also includes immediate-win and immediate-block shortcuts before the full search, which matters because the robot only needs a good move quickly, not a mathematically exhaustive search of every future board.
 
-The chosen column is transmitted at 9600 baud to the Arduino. The magazine motor first rotates 400 encoder pulses with a fast/slow two-stage profile to release one token; the carriage then moves laterally using calibrated durations $[0, 330, 600, 900, 1000, 3000, 4000]$~ms for columns 1 through 7, pauses 2~s over the target, and returns home. After a 2.5~s settling delay, the camera polls the board every 0.4~s until 10~s after the command. The internal state advances only if the expected new token is observed in the commanded column.
+The chosen column is transmitted at 9600 baud to the Arduino. The carriage first moves laterally using calibrated durations $[0, 330, 600, 900, 1200, 1500, 1800]$~ms for columns 1 through 7 and holds 2~s over the target; the magazine motor then rotates 430 encoder pulses with a fast/slow two-stage profile to release one token, and 0.5~s later the carriage returns home. After a 2.5~s settling delay, the camera polls the board every 0.4~s until 10~s after the command. The internal state advances only if the expected new token is observed in the commanded column.
 
 \section{Experimental Results}
 \subsection{Why HSV Is the Practical Default}
