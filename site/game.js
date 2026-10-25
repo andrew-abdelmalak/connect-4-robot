@@ -21,6 +21,10 @@ const TIMEOUT_MSG = "Timed out waiting for verified robot move.";
 const WIN_SCORE = 1_000_000; // minimax.py
 const TARGET_PULSES = 430; // dispenser.ino: pulses for one token release
 const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls along the rail
+const COUNTS_PER_TURN = 400; // MS4/5 report: encoder counts per turn of the motor disk
+// The dispenser drawing is on the board's grid: 100 units a hole, 16 a gap.
+const MECH_X0 = 16;
+const MECH_PITCH = 116;
 
 const $ = (sel) => document.querySelector(sel);
 const rigPlay = $(".rig-play");
@@ -28,8 +32,9 @@ const boardEl = $("#board");
 const colsEl = $("#cols");
 const scoresEl = $("#scores");
 const statusEl = $("#status");
-const carriage = $("#carriage");
-const rail = $(".rail");
+const mech = $("#mech");
+const rod = $("#mx-rod");
+const rollLine = $("#mx-roll"); // the rod's top, where the token rolls
 const dispenser = $(".dispenser");
 const motorMag = $("#motor-mag");
 const motorCar = $("#motor-car");
@@ -141,7 +146,8 @@ function columnAt(pos) {
 avr.onmessage = ({ data: m }) => {
   if (m.type === "tick") {
     ard.t = m.t;
-    carriage.style.setProperty("--x", columnAt(m.pos).toFixed(3));
+    rod.setAttribute("x", (MECH_X0 + columnAt(m.pos) * MECH_PITCH - 828).toFixed(1));
+    $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
     $("#ard-speed").textContent = `Uno, running the compiled sketch at ${m.realtime.toFixed(1)}x real time`;
@@ -177,6 +183,7 @@ avr.onmessage = ({ data: m }) => {
     ard.t = 0;
     ard.lines = [];
     ard.dir = 0;
+    mech.dataset.phase = "";
     serialEl.replaceChildren();
     serialPrint("Arduino powered on", "tx");
   } else if (m.type === "error") {
@@ -201,14 +208,25 @@ function onLine(text) {
     DONE: `DONE ${arg}: carriage back home`,
   }[word];
   if (msg) setStage("arduino", word === "DONE" ? "pass" : "busy", msg);
+  if (word === "DONE") mech.dataset.phase = "";
 }
-// The magazine: the robot's 21 tokens (one Connect-4 set), up to 5 in view.
-// Each release takes the bottom token out; the ones above fall one slot.
-const magazineEl = $("#magazine");
+// The magazine: the robot's 21 tokens (one Connect-4 set), up to 5 in view,
+// lying flat in the storage tube. Each release takes the bottom one out.
+const magazineEl = $("#mx-stack");
 const MAGAZINE_SHOWN = 5;
 let magazineLeft = 21;
+const SVG_NS = "http://www.w3.org/2000/svg";
+for (let c = 0; c < COLS; c++) {
+  const slot = document.createElementNS(SVG_NS, "rect");
+  for (const [k, v] of Object.entries({ x: MECH_X0 + c * MECH_PITCH + 7, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v);
+  $("#mx-slots").append(slot);
+}
 function drawMagazine() {
-  magazineEl.replaceChildren(...Array.from({ length: Math.min(MAGAZINE_SHOWN, magazineLeft) }, () => document.createElement("span")));
+  magazineEl.replaceChildren(...Array.from({ length: Math.min(MAGAZINE_SHOWN, magazineLeft) }, (_, i) => {
+    const t = document.createElementNS(SVG_NS, "rect");
+    for (const [k, v] of Object.entries({ class: "flat", x: 23, y: 98 - i * 20, width: 86, height: 18, rx: 9 })) t.setAttribute(k, v);
+    return t;
+  }));
 }
 const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
 // The carriage is already over the column: the released token rolls along
@@ -216,25 +234,24 @@ const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => set
 async function releaseToken(mv) {
   dropToken(mv);
   magazineLeft = Math.max(0, magazineLeft - 1);
-  const bottom = magazineEl.lastElementChild;
+  const bottom = magazineEl.firstElementChild;
   if (!bottom || reduceMotion) return drawMagazine();
-  const slot = bottom.getBoundingClientRect().height + 2;
-  await settle(bottom.animate([{ transform: "none" }, { transform: "translateY(160%)", opacity: 0 }], { duration: 220, easing: "cubic-bezier(0.5, 0, 1, 1)" }), 300);
-  bottom.remove();
-  if (magazineEl.childElementCount < Math.min(MAGAZINE_SHOWN, magazineLeft)) magazineEl.prepend(document.createElement("span"));
+  await settle(bottom.animate([{ transform: "none" }, { transform: "translateY(60px)", opacity: 0 }], { duration: 220, easing: "cubic-bezier(0.5, 0, 1, 1)" }), 300);
+  drawMagazine();
   for (const token of magazineEl.children) {
-    token.animate([{ transform: `translateY(-${slot}px)` }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(0.3, 0, 0.6, 1)" });
+    token.animate([{ transform: "translateY(-20px)" }, { transform: "none" }], { duration: 260, easing: "cubic-bezier(0.3, 0, 0.6, 1)" });
   }
 }
 function onMotor(m) {
   if (m.motor === "magazine") {
     $("#mag").textContent = m.on ? "turning" : "off";
     motorMag.dataset.on = m.on;
-    dispenser.dataset.mag = m.on;
+    if (ard.move) mech.dataset.phase = m.on ? "release" : "roll";
     if (!m.on) motorMag.querySelector("b").textContent = "off";
     if (!m.on && ard.move && m.pulses > 0) releaseToken(ard.move);
     return;
   }
+  if (ard.move) mech.dataset.phase = m.dir > 0 ? "cover" : m.dir < 0 ? "back" : ard.dir > 0 ? "hold" : "";
   motorCar.dataset.on = m.dir !== 0;
   motorCar.dataset.dir = m.dir > 0 ? "out" : "home";
   if (m.dir === 0) motorCar.querySelector("b").textContent = "off";
@@ -384,7 +401,7 @@ function draw() {
 }
 
 // A token falls from the funnel's height into its cell; fromCol is where it starts.
-// A token falls into its cell; the robot's first rolls along the rail from the storage end.
+// A token falls into its cell; the robot's first rolls along the rail from under the chute.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -392,13 +409,13 @@ async function fall(row, col, colour, { roll = false } = {}) {
   const size = cr.width * 0.86;
   const endX = cr.left - host.left + cr.width * 0.07;
   const endY = cr.top - host.top + cr.width * 0.07;
-  const startY = rail.getBoundingClientRect().top - host.top - size * 0.55;
+  const startY = rollLine.getBoundingClientRect().top - host.top - size;
   const el = document.createElement("span");
   el.className = "falling " + NAMES[colour];
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
   rigPlay.append(el);
   const fallMs = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
-  const rollMs = roll ? ((col + 0.6) / ROLL_COLS_PER_S) * 1000 : 0;
+  const rollMs = roll ? (col / ROLL_COLS_PER_S) * 1000 : 0;
   const pitch = cells[1].getBoundingClientRect().left - cells[0].getBoundingClientRect().left;
   const at = (ms) => (rollMs + ms) / (rollMs + fallMs);
   const down = [
@@ -408,7 +425,9 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
-  const frames = roll ? [{ transform: `translate(${-(col + 0.6) * pitch}px, ${startY}px) rotate(-${Math.round((col + 0.6) * 200)}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
+  // from under the chute, over column 1, rolling one turn per 3.14 token widths
+  const turn = Math.round(((col * pitch) / (Math.PI * size)) * 360);
+  const frames = rollMs ? [{ transform: `translate(${-col * pitch}px, ${startY}px) rotate(-${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
   const anim = el.animate(frames, { duration: rollMs + fallMs });
   // A hidden tab freezes animations; the game goes on without waiting for this one.
   await Promise.race([anim.finished, new Promise((r) => setTimeout(r, rollMs + fallMs + 300))]);
