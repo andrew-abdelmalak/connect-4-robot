@@ -8,7 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     "flask",
     "numpy",
-    "opencv-python-headless>=4.8,<5",  # deployed on OpenCV 4.x (MS4/5 report)
+    "opencv-python-headless>=4.8,<5",  # deployed on OpenCV 4.x (final course report)
     "pyserial",
     "scikit-learn",
 ]

@@ -10,8 +10,8 @@ import paper_latex
 
 
 def test_paper_passages_match_the_latex():
-    """A stale index fails: rebuild it with scripts/build_reports_index.py after editing paper/main.tex."""
-    index = json.loads((REPO / "site" / "reports-index.json").read_text())
+    """A stale index fails: rebuild it with scripts/build_search_index.py after editing paper/main.tex."""
+    index = json.loads((REPO / "site" / "search-index.json").read_text())
     stored = [(p["section"], p["text"]) for p in index["passages"] if p["doc"] == "Vision-Based-Connect-4-Robot.pdf"]
     assert stored == [(p["section"], p["text"]) for p in paper_latex.passages()]
 

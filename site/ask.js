@@ -1,9 +1,9 @@
-// "Ask the reports": semantic search over the paper and the four milestone
-// reports, run in the browser.
+// "Ask the paper": semantic search over the paper and its supplement, run in
+// the browser.
 //
-// reports-index.json holds the documents cut into short passages, each with a
+// search-index.json holds the documents cut into short passages, each with a
 // vector from the all-MiniLM-L6-v2 model (built by
-// scripts/build_reports_index.py). A question gets a vector from the same
+// scripts/build_search_index.py). A question gets a vector from the same
 // model here, through transformers.js, and passages rank by meaning plus a
 // share of keyword match. Results show at once from keywords alone, then
 // re-rank when the model has loaded. The ranking mirrors rank() in the
@@ -30,11 +30,11 @@ let latest = 0; // Drop answers to questions the visitor has since replaced.
 const words = (text) => (text.toLowerCase().match(/[a-z0-9]+/g) || []).filter((w) => !STOPWORDS.has(w));
 
 async function loadIndex() {
-  const res = await fetch("reports-index.json");
-  if (!res.ok) throw new Error(`reports-index.json: HTTP ${res.status}`);
+  const res = await fetch("search-index.json");
+  if (!res.ok) throw new Error(`search-index.json: HTTP ${res.status}`);
   const data = await res.json();
   const bytes = Uint8Array.from(atob(data.vectors), (c) => c.charCodeAt(0));
-  if (bytes.length !== data.passages.length * data.dim) throw new Error("reports-index.json: vectors do not match passages");
+  if (bytes.length !== data.passages.length * data.dim) throw new Error("search-index.json: vectors do not match passages");
   const docs = data.passages.map((p) => words(`${p.title} ${p.text}`));
   return {
     ...data,
@@ -212,7 +212,7 @@ async function ask(question) {
 
 // Keep the last search for this tab, so Back from the PDF viewer brings it
 // back even when the browser reloads the page.
-const SAVED = "ask-the-reports:v1";
+const SAVED = "ask-the-paper:v1";
 function remember(question, passages, final) {
   try {
     const keep = passages.map(({ doc, title, section, page, text, find }) => ({ doc, title, section, page, text, find }));

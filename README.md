@@ -8,7 +8,7 @@ A Raspberry Pi robot that plays Connect-4 against a person. It reads the board w
 
 [![20 seconds of our final demo: the dashboard shows minimax choosing the robot's move, then the robot drops a red token into the board and its camera picture updates](docs/media/watch-it-play.webp)](https://andrew-abdelmalak.github.io/connect-4-robot/#watch)
 
-We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
+We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
 
 **[Play against the robot's real code in your browser](https://andrew-abdelmalak.github.io/connect-4-robot/)**: the project page runs the same vision, validator, and planner Python with Pyodide, and the compiled Arduino sketch on an emulated Uno with avr8js.
 
@@ -26,7 +26,7 @@ A camera can misread a frame, and a dispenser can miss a column. This robot assu
 
 ## Results
 
-From the final course report (MS4/5) and the paper, measured on the real robot under indoor lighting with a fixed camera mount:
+From the paper and its [supplement](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf), measured on the real robot under indoor lighting with a fixed camera mount:
 
 | Measure | Result |
 |---|---|
@@ -98,7 +98,7 @@ The dashboard has three operator modes. **Manual** waits for you to accept each 
 3. Brighten (+20), stretch contrast (x1.3), and blur (5 x 5 Gaussian).
 4. Cut the view into a 6 x 7 grid and read the centre of each cell as empty, red, or yellow.
 
-The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_image_pipeline.ipynb), shows each image operation on a sample board with timings. CI runs it on every push.
+The image-pipeline notebook, [`notebooks/image_pipeline.ipynb`](notebooks/image_pipeline.ipynb), shows each image operation on a sample board with timings. CI runs it on every push.
 
 ## Limitations
 
@@ -107,7 +107,7 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 - **Carriage by timing.** The carriage has no position sensor, so the far columns miss more often. A carriage encoder or limit switch is the most useful upgrade.
 - **Small ML dataset.** The machine-learning mode is a secondary option, and its model file is not included.
 - **No login on the dashboard.** Anyone on the same network can send moves or reset the game. Run it only on a network you trust.
-- **The dispenser sketch is a rebuild.** The file that ran in the demo was not kept. `arduino/dispenser/dispenser.ino` is rebuilt from the MS4/5 report's Listing 1 and Table II: the carriage moves to the column and holds 2 s, the magazine motor turns 430 encoder pulses to release one token, and 0.5 s later the carriage returns home. The pins, the motor speeds, and the `READY` and `ERR` messages come from the team's earlier sketch, which released the token first (it is in the file's git history). The rebuild compiles and runs on the project page's emulated Uno, but it has not run on the robot. Limits it keeps:
+- **The dispenser sketch is a rebuild.** The file that ran in the demo was not kept. `arduino/dispenser/dispenser.ino` is rebuilt from the actuation sequence and carriage times in our final course report, both reproduced in the supplement: the carriage moves to the column and holds 2 s, the magazine motor turns 430 encoder pulses to release one token, and 0.5 s later the carriage returns home. The pins, the motor speeds, and the `READY` and `ERR` messages come from the team's earlier sketch, which released the token first (it is in the file's git history). The rebuild compiles and runs on the project page's emulated Uno, but it has not run on the robot. Limits it keeps:
   - the magazine motor has no timeout if the encoder stops;
   - serial bytes that arrive during a move run as a second command afterwards;
   - opening the serial port can reset the Uno, so the Pi should wait for `READY` before the first command.
@@ -117,11 +117,11 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 ```text
 src/connect4_robot/   Python package: board, minimax, validator, simulator, vision, hardware, dashboard
 tests/                pytest suite, including a recorded set of minimax answers
-arduino/dispenser/    Arduino sketch (carriage + magazine), rebuilt from the MS4/5 report
-arduino/m1_servo_gate_controller/   Milestone 1 servo prototype
-notebooks/            Milestone 1 and 2 image-processing work and the sample board photo
-paper/                IEEE-style paper source (LaTeX), same file names as the Overleaf project
-docs/                 paper PDF, milestone reports MS1 to MS4/5, presentation, figures, diagrams
+arduino/dispenser/    Arduino sketch (carriage + magazine), rebuilt from our final course report
+arduino/servo_prototype/   early prototype: a servo driven by board brightness and rotation
+notebooks/            image acquisition and the image-pipeline notebook, with the sample board photo
+paper/                IEEE-style paper and supplement sources (LaTeX), same file names as the Overleaf project
+docs/                 paper and supplement PDFs, image-pipeline figures, diagrams
 ```
 
 ## Hardware and cost
@@ -142,15 +142,14 @@ That is about 115 USD at the April 2026 rate of roughly 53 EGP per USD. An earli
 
 ## Documents
 
-- [Paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) and its [LaTeX source](paper/main.tex)
-- Milestone reports: [MS1 literature review](docs/MS1_Literature_Review.pdf), [MS2 pipeline and hardware](docs/MS2_Pipeline_Hardware.pdf), [MS3 closed-loop integration](docs/MS3_Closed_Loop_Integration.pdf), [MS4/5 final report](docs/MS4_5_Final_Report.pdf)
-- [Final presentation](docs/Final_Presentation.pptx)
+- [Paper](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf) and its [LaTeX source](paper/main.tex)
+- [Supplement](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf) and its [LaTeX source](paper/supplement.tex): how the design developed, the parts and costs, the actuation sequence, the timing measurements, and the detailed test results, taken from our course reports
 
-The milestone reports are the submitted versions and are left unchanged. We corrected the paper after the course: four references had the wrong authors, and its parameter values now match the code in this repository.
+We corrected the paper after the course: four references had the wrong authors, and its parameter values now match the code in this repository.
 
 ## Team
 
-We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
+We built the robot as a team of six, with guidance from Assoc. Prof. Dr. Omar M. Shehata, Eng. Dalia M. Mahfouz, Eng. Abdelrahman Hatem, and Eng. Mohammed Ashraf.
 
 | Name | GitHub |
 |---|---|
