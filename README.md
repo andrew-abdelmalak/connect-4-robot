@@ -8,7 +8,7 @@ A Raspberry Pi robot that plays Connect-4 against a person. It reads the board w
 
 [![20 seconds of our final demo: the dashboard shows minimax choosing the robot's move, then the robot drops a red token into the board and its camera picture updates](docs/media/watch-it-play.webp)](https://andrew-abdelmalak.github.io/connect-4-robot/#watch)
 
-We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
+We built it as a team of six for MCTR 1010, Image Processing for Mechatronics, at the German University in Cairo (Spring 2026). Read the [paper](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf) for the full write-up.
 
 **[Play against the robot's real code in your browser](https://andrew-abdelmalak.github.io/connect-4-robot/)**: the project page runs the same vision, validator, and planner Python with Pyodide, and the compiled Arduino sketch on an emulated Uno with avr8js.
 
@@ -98,7 +98,7 @@ The dashboard has three operator modes. **Manual** waits for you to accept each 
 3. Brighten (+20), stretch contrast (x1.3), and blur (5 x 5 Gaussian).
 4. Cut the view into a 6 x 7 grid and read the centre of each cell as empty, red, or yellow.
 
-The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_image_pipeline.ipynb), shows each image operation on a sample board with timings. CI runs it on every push.
+The image-pipeline notebook, [`notebooks/image_pipeline.ipynb`](notebooks/image_pipeline.ipynb), shows each image operation on a sample board with timings. CI runs it on every push.
 
 ## Limitations
 
@@ -118,8 +118,8 @@ The Milestone 2 notebook, [`notebooks/ms2_image_pipeline.ipynb`](notebooks/ms2_i
 src/connect4_robot/   Python package: board, minimax, validator, simulator, vision, hardware, dashboard
 tests/                pytest suite, including a recorded set of minimax answers
 arduino/dispenser/    Arduino sketch (carriage + magazine), rebuilt from the MS4/5 report
-arduino/m1_servo_gate_controller/   Milestone 1 servo prototype
-notebooks/            Milestone 1 and 2 image-processing work and the sample board photo
+arduino/servo_prototype/   early prototype: a servo driven by board brightness and rotation
+notebooks/            image acquisition and the image-pipeline notebook, with the sample board photo
 paper/                IEEE-style paper source (LaTeX), same file names as the Overleaf project
 docs/                 paper PDF, milestone reports MS1 to MS4/5, presentation, figures, diagrams
 ```
@@ -142,15 +142,14 @@ That is about 115 USD at the April 2026 rate of roughly 53 EGP per USD. An earli
 
 ## Documents
 
-- [Paper (PDF)](docs/Vision-Based-Connect-4-Robot.pdf) and its [LaTeX source](paper/main.tex)
+- [Paper](https://andrew-abdelmalak.github.io/connect-4-robot/pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf) and its [LaTeX source](paper/main.tex)
 - Milestone reports: [MS1 literature review](docs/MS1_Literature_Review.pdf), [MS2 pipeline and hardware](docs/MS2_Pipeline_Hardware.pdf), [MS3 closed-loop integration](docs/MS3_Closed_Loop_Integration.pdf), [MS4/5 final report](docs/MS4_5_Final_Report.pdf)
-- [Final presentation](docs/Final_Presentation.pptx)
 
 The milestone reports are the submitted versions and are left unchanged. We corrected the paper after the course: four references had the wrong authors, and its parameter values now match the code in this repository.
 
 ## Team
 
-We built the robot as Team 21, supervised by Dr. Omar M. Shehata.
+We built the robot as a team of six, supervised by Dr. Omar M. Shehata.
 
 | Name | GitHub |
 |---|---|
