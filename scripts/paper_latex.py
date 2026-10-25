@@ -5,7 +5,7 @@ section names, splits hyphenated words, and runs the author block into the
 first passage. Reading the LaTeX keeps each passage inside its section and
 labels it the way the PDF does ("IV. Vision and State Estimation", "VI-B.").
 Figures, equations, and the bibliography are left out; a table becomes one
-passage of its own. scripts/build_reports_index.py places each passage on its
+passage of its own. scripts/build_search_index.py places each passage on its
 PDF page and checks its words against the PDF text.
 """
 

@@ -1,4 +1,4 @@
-"""Quality of "Ask the reports": the top three passages must hold the answer."""
+"""Quality of "Ask the paper": the top three passages must hold the answer."""
 
 import json
 import re
@@ -9,7 +9,7 @@ from conftest import REPO
 
 pytest.importorskip("onnxruntime")
 sys.path.insert(0, str(REPO / "scripts"))
-from build_reports_index import Embedder, embed_text, load_vectors, rank
+from build_search_index import Embedder, embed_text, load_vectors, rank
 
 # (question a visitor might ask, regex a passage answering it matches, case-insensitive)
 QUESTIONS = [
@@ -35,7 +35,7 @@ MIN_HIT_RATE = 0.8
 
 @pytest.fixture(scope="module")
 def setup():
-    index = json.loads((REPO / "site" / "reports-index.json").read_text())
+    index = json.loads((REPO / "site" / "search-index.json").read_text())
     return index, load_vectors(index), Embedder()
 
 
@@ -44,10 +44,7 @@ def test_index_shape(setup):
     assert vectors.shape == (len(index["passages"]), 384)
     assert {p["doc"] for p in index["passages"]} == {
         "Vision-Based-Connect-4-Robot.pdf",
-        "MS4_5_Final_Report.pdf",
-        "MS3_Closed_Loop_Integration.pdf",
-        "MS2_Pipeline_Hardware.pdf",
-        "MS1_Literature_Review.pdf",
+        "Vision-Based-Connect-4-Robot-Supplement.pdf",
     }
 
 

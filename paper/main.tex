@@ -124,7 +124,7 @@ The final setup used a Raspberry Pi~4~\cite{RaspberryPi2024} for perception and 
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\columnwidth]{figures/final_hardware_overview.jpg}
+\includegraphics[width=\columnwidth]{figures/hardware_overview.jpg}
 \caption{Final assembled evaluation setup. The physical board, overhead dispenser, camera mount, Raspberry Pi, and operator dashboard are visible in one frame, showing the exact integrated system used in the final demonstrations.}
 \label{fig:hardware}
 \end{figure}
@@ -155,7 +155,7 @@ Figure~\ref{fig:vision} gives the curated pipeline story for one representative 
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/final_vision_pipeline.png}
+\includegraphics[width=0.92\textwidth]{figures/vision_pipeline.png}
 \caption{Representative vision pipeline output from a single board position. The raw board image shows the starting scene, the warped board shows the geometry-normalized view used for cell analysis, the audited token overlay shows the interpreted token locations on that same warped image, and the recovered board state shows the discrete $6\times7$ representation used by the game logic.}
 \label{fig:vision}
 \end{figure*}
@@ -241,7 +241,7 @@ Figure~\ref{fig:closedloop} shows the system-level proof sequence used in the fi
 
 \begin{figure*}[t]
 \centering
-\includegraphics[width=\textwidth]{figures/final_closed_loop_sequence.png}
+\includegraphics[width=\textwidth]{figures/closed_loop_sequence.png}
 \caption{System-level proof of closed-loop behavior from the final demo. A human move is accepted first, the robot plans from the trusted board, and the internal state is only advanced after the camera confirms the physical post-drop result.}
 \label{fig:closedloop}
 \end{figure*}
