@@ -320,11 +320,10 @@ section:not(.hero) > * { grid-column: 1 / -1; }
   --space-related: clamp(32px, 2vw + 2vh, 56px);
   --space-head: clamp(16px, 1vw + 1.5vh, 32px);
 }
-main > section.engineers { padding-top: var(--space-related); } /* How it works continues The robot */
 .band > section { padding-bottom: var(--space-topic); } /* the dark band needs its own bottom edge */
 main > section:last-child { padding-bottom: var(--space-topic); }
 /* The board's hole row is the rule above every reading heading. */
-section:not(.hero) > h2::before, .build-copy > h2::before {
+section:not(.hero) > h2::before, .build-copy > h2::before, .watch-copy > h2::before {
   content: ""; display: block; width: min(15rem, 60%); aspect-ratio: 7 / 1; margin-bottom: 1rem;
   background: radial-gradient(circle, var(--rule-hole, #c9d3ee) 36%, transparent 39%) 0 0 / calc(100% / 7) 100% repeat-x;
 }
@@ -342,11 +341,14 @@ p { max-width: 68ch; }
 .how-step + .how-step { grid-column: 5 / span 3; }
 .how-step h3::before { content: ""; display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.45em; border-radius: 50%; background: var(--yellow); vertical-align: -0.05em; }
 .how-step + .how-step h3::before { background: var(--red); }
-.frames { margin: 0; }
-.frames img { border-radius: 14px; }
 figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 
-/* Watch it play: the real robot, framed like the board's own rounded parts. */
+/* Watch it play: the clip beside its text, about two thirds of the width, so
+   the one piece of real footage stays the size of what it is. */
+.watch { align-items: center; row-gap: 1rem; }
+.watch > .watch-copy { grid-column: 1 / span 3; }
+.watch > .watch-film { grid-column: 4 / span 4; }
+.watch-copy p { color: var(--ink-soft); margin: 0; }
 .watch-film { margin: 0; }
 .watch-frame { position: relative; border-radius: 22px; overflow: hidden; background: var(--blue-ink); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18); }
 .watch-frame video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; }
@@ -364,11 +366,20 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .watch-toggle[data-playing="true"]::before { clip-path: none; background: linear-gradient(90deg, var(--yellow) 0 34%, transparent 34% 66%, var(--yellow) 66%); }
 .watch-film figcaption a { color: var(--blue); font-weight: 700; }
 
-/* How it works: the diagrams, the side photo, and a map of the code. */
-.eng-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
-.eng-grid > figure { margin: 0; grid-column: span 3; }
-.eng-grid > .eng-wide { grid-column: 1 / -1; }
-.eng-grid img { border-radius: 14px; background: var(--paper); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); width: 100%; height: auto; }
+/* Diagrams and figures sit on light cards, readable without opening them. */
+.loop, .states, .reads-fig { margin: 0; }
+.loop img, .states img, .reads-fig img { display: block; width: 100%; height: auto; border-radius: 14px; background: var(--paper); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }
+.band .loop img { box-shadow: none; }
+.loop, .states { max-width: 54rem; } /* full detail without filling the screen */
+.loop { margin-top: 0.5rem; }
+
+/* How it works: reading the board, the states after a move, the code map. */
+.reads { display: grid; grid-template-columns: subgrid; row-gap: 1.25rem; align-items: start; }
+.reads-fig { grid-column: 1 / span 3; }
+.reads-copy { grid-column: 4 / span 4; }
+.steps { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.7rem; max-width: 60ch; }
+.after-move, .code { margin-top: var(--space-related); }
+.engineers h3, .results h3 { font-size: 1.25rem; }
 .zoom { display: block; cursor: zoom-in; border-radius: 14px; }
 .code-map { margin: 2rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.75rem; max-width: 70ch; }
 .code-map li { padding-top: 0.75rem; border-top: 2px solid #d5dcef; }
@@ -387,22 +398,20 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .viewer figcaption { margin-top: 0.6rem; }
 .viewer form { display: flex; justify-content: flex-end; }
 
-.results-grid { display: grid; grid-template-columns: subgrid; row-gap: 2rem; align-items: start; }
-.results-grid > .drops { grid-column: 1 / span 4; }
-.results-grid > .reading { grid-column: 5 / span 3; }
-.drops { margin: 0; background: var(--paper); border-radius: 22px; padding: clamp(1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }
-.drops figcaption { margin: 0 0 1rem; font-size: 1rem; color: var(--ink); }
-.drop-bars dd span { background: var(--blue); }
-.drop-bars .short dd span { background: var(--red); }
-.drops-why { color: var(--ink-soft); font-size: 0.95rem; margin: 0; }
-.bars { margin: 0 0 1.25rem; display: grid; gap: 0.9rem; }
-.bars dt { font-weight: 700; }
-/* A bar row: the track and its fill share the first column; the label keeps the rest, whole. */
-.bars dd { margin: 0.25rem 0 0; display: grid; grid-template-columns: minmax(3rem, 1fr) auto; align-items: center; column-gap: 0.6rem; font-family: var(--mono); font-size: 0.85rem; white-space: nowrap; }
-.bars dd::before { content: ""; grid-area: 1 / 1; height: 0.9rem; border-radius: 999px; background: #dfe5f5; }
-.bars dd span { grid-area: 1 / 1; justify-self: start; height: 0.9rem; width: calc(var(--v) * 1%); border-radius: 999px; background: var(--blue); }
-.reading .bars div:first-child dd span { background: var(--yellow); box-shadow: inset 0 -2px 0 var(--yellow-deep); }
-.time { border-top: 2px solid #d5dcef; padding-top: 1rem; }
+/* Results and limits: plain tables at the same weight as the limits below
+   them; the numbers are stated, not celebrated. */
+.results-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
+.stat { padding-top: 0.9rem; border-top: 2px solid #d5dcef; }
+.stat.reading { grid-column: 1 / span 3; grid-row: span 2; }
+.stat.drops, .stat.time { grid-column: 4 / span 4; }
+.stat p { color: var(--ink-soft); font-size: 0.95rem; margin: 0.6rem 0 0; }
+.numbers { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+.numbers th, .numbers td { padding: 0.45rem 0.5rem; border-bottom: 1px solid #e1e6f4; text-align: left; font-weight: 400; }
+.numbers td { font-family: var(--mono); font-size: 0.88rem; text-align: right; white-space: nowrap; }
+.by-column th, .by-column td { text-align: center; padding-inline: 0.35rem; }
+.by-column th:first-child { text-align: left; white-space: nowrap; color: var(--ink-soft); }
+.numbers-scroll { overflow-x: auto; }
+.limits { margin-top: 2rem; padding-top: 0.9rem; border-top: 2px solid #d5dcef; }
 
 .build { align-items: center; }
 .build > .photo { grid-column: 1 / span 4; }
@@ -414,7 +423,12 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 
 .limits ul { margin: 0; padding-left: 1.25rem; display: grid; gap: 0.6rem; max-width: 70ch; }
 .limits li::marker { color: var(--red); }
-.team .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+.paper-card .links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.5rem; }
+/* The paper and the team: the paper card beside the search over it. */
+.pt-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
+.pt-grid > .paper-card { grid-column: 1 / span 3; max-width: none; }
+.pt-grid > .ask { grid-column: 4 / span 4; max-width: none; }
+.ask-note { color: var(--ink-soft); }
 .foot { background: var(--blue-ink); color: var(--on-blue-soft); text-align: center; padding: 1.5rem 1rem; font-size: 0.9rem; }
 .foot p { margin: 0 auto; }
 
@@ -462,7 +476,8 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   .top nav li:first-child { border-top: 0; }
   .top nav a { display: flex; align-items: center; gap: 0.9rem; min-height: 3rem; font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--on-blue); }
   .top nav a::before { content: counter(sect, decimal-leading-zero); font-family: var(--mono); font-weight: 400; font-size: 0.78rem; color: var(--yellow); }
-  .how-grid > *, .results-grid > *, .build > *, .eng-grid > * { grid-column: 1 / -1 !important; }
+  .how-grid > *, .results-grid > *, .build > *, .watch > *, .reads > *, .pt-grid > * { grid-column: 1 / -1 !important; }
+  .stat.reading { grid-row: auto; }
   :root { --cell: min(10.6vw, 3.6rem); }
 }
 @media (max-width: 520px) {
