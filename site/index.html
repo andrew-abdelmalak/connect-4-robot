@@ -34,7 +34,7 @@
       <li><a href="#watch">Watch it play</a></li>
       <li><a href="#how">Two checks</a></li>
       <li><a href="#results">Results</a></li>
-      <li class="more"><a href="#ai">Two AI experiments</a></li>
+      <li class="more"><a href="#ask">Ask the paper</a></li>
       <li class="more"><a href="#robot">The robot</a></li>
       <li><a href="#how-it-works">How it works</a></li>
       <li><a href="#limits">Limits</a></li>
@@ -131,11 +131,8 @@
             <button type="button" data-cheat="robot">Play the robot's colour</button>
           </div>
         </details>
-        <label class="toggle"><input type="checkbox" role="switch" id="misdrops" checked aria-describedby="misdrops-note"> Miss as often as the real robot</label>
-        <button type="button" class="btn-small" id="fix" hidden>Fix it by hand, like the operator</button>
         <button type="button" class="btn-small" id="reset">New game</button>
       </div>
-      <p class="controls-note" id="misdrops-note">In testing, columns 1 to 3 never missed and column 7 missed 3 of 20 drops. With misses on, the page drops the token in the next column that often.</p>
     </div>
 
     <div class="rig-panel">
@@ -240,13 +237,10 @@
   </div>
 </section>
 
-<section class="ai" id="ai" aria-labelledby="ai-title">
-  <h2 id="ai-title">Two AI experiments</h2>
-  <p class="section-lede">Added after the course, to test two ideas from modern AI on this project's own material.</p>
-  <div class="ai-grid">
-    <div class="ask" aria-labelledby="ask-title">
-      <h3 id="ask-title">Ask the paper</h3>
-      <p class="ask-note">Semantic search over the paper and its supplement, run in your browser. It finds the three passages closest in meaning to your question and links to their pages. It quotes the documents and never writes an answer of its own.</p>
+<section class="ask-section" id="ask" aria-labelledby="ask-title">
+  <h2 id="ask-title">Ask the paper</h2>
+  <p class="section-lede">Semantic search over the paper and its supplement, run in your browser. It finds the three passages closest in meaning to your question and links to their pages. It quotes the documents and never writes an answer of its own.</p>
+    <div class="ask">
       <form class="ask-form" id="ask-form" role="search">
         <label for="ask-input">Your question</label>
         <div class="ask-row">
@@ -261,15 +255,8 @@
       </div>
       <p class="ask-status" id="ask-status" role="status"></p>
       <ol class="ask-results" id="ask-results"></ol>
-      <p class="ask-quality">On 16 test questions, a passage holding the answer is in the top three for 14.</p>
+      <p class="ask-quality">On 16 test questions, a passage holding the answer is in the top three for 13.</p>
     </div>
-    <div class="clip" aria-labelledby="clip-title">
-      <h3 id="clip-title">Could a general AI model read the board?</h3>
-      <p>We showed each of the 42 holes in a board photo to CLIP, an image model from OpenAI that learned from pictures and captions across the web and never saw our board. For each hole it picked the best caption: an empty hole, a red disc, or a yellow disc. The robot's simple colour rules read the same holes.</p>
-      <div class="clip-boards" id="clip-boards"></div>
-      <p class="ask-quality" id="clip-score">One photo, 42 holes: a small sample, computed offline.</p>
-    </div>
-  </div>
 </section>
 
 <section class="build" id="robot" aria-labelledby="build-title">
@@ -325,14 +312,15 @@
 
 <section class="team" id="team" aria-labelledby="team-title">
   <h2 id="team-title">Who we are</h2>
-  <p>We are Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, and Youssef Salama. We built the robot for MCTR 1010 Image Processing for Mechatronics at the German University in Cairo, Spring 2026, supervised by Dr. Omar M. Shehata.</p>
   <article class="paper-card" aria-labelledby="paper-title">
     <p class="paper-kind">Course paper, IEEE conference format, 2026</p>
     <h3 id="paper-title">Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement</h3>
     <p class="paper-authors">Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, Youssef Salama</p>
-    <p class="paper-venue">MCTR 1010 Image Processing for Mechatronics, German University in Cairo</p>
+    <p class="paper-venue">MCTR 1010 Image Processing for Mechatronics, German University in Cairo, Spring 2026</p>
+    <p class="paper-venue">With guidance from Assoc. Prof. Dr. Omar M. Shehata, Eng. Dalia M. Mahfouz, Eng. Abdelrahman Hatem, and Eng. Mohammed Ashraf</p>
     <div class="links">
       <a class="btn btn-blue" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
+      <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf">Supplement</a>
       <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/tree/main/paper">LaTeX source</a>
       <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/CITATION.cff">Cite</a>
       <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>

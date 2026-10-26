@@ -240,7 +240,6 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .cheat summary::-webkit-details-marker { display: none; }
 .cheat-menu { position: absolute; z-index: 7; bottom: calc(100% + 0.5rem); left: 0; display: grid; gap: 0.4rem; padding: 0.6rem; background: var(--blue-ink); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.35); width: max-content; }
 .cheat-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
-.controls-note { margin: 0; max-width: 34rem; font-size: 0.82rem; color: var(--on-blue-soft); text-align: center; }
 .toggle { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.4rem; font-size: 0.9rem; color: var(--on-blue-soft); cursor: pointer; }
 /* A switch in the board's own parts: a recessed slot, an empty hole that slides into a yellow token. */
 .toggle input {
@@ -375,7 +374,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .code-map li { padding-top: 0.75rem; border-top: 2px solid #d5dcef; }
 .code-map a { color: var(--blue); font-weight: 700; }
 .code-map code { font-family: var(--mono); font-size: 0.9em; }
-.paper-card { margin-top: 1.5rem; background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); max-width: 52rem; }
+.paper-card { background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); max-width: 52rem; }
 .paper-kind { margin: 0 0 0.4rem; font-family: var(--mono); font-size: 0.8rem; color: var(--ink-soft); }
 .paper-card h3 { font-size: clamp(1.25rem, 2.4vw, 1.6rem); }
 .paper-authors { margin: 0.6rem 0 0.2rem; font-weight: 700; }
@@ -425,11 +424,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .mini .m2 { background: var(--yellow); }
 .mini .wrong { box-shadow: 0 0 0 3px var(--on-blue), 0 0 0 5px var(--red-deep); }
 
-.ai-grid { display: grid; grid-template-columns: subgrid; row-gap: 1.5rem; align-items: start; }
-.ai-grid > .ask { grid-column: 1 / span 4; }
-.ai-grid > .clip { grid-column: 5 / span 3; }
-.ask, .clip { background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }
-.ask-note { color: var(--ink-soft); }
+.ask { max-width: 52rem; background: var(--paper); border-radius: 22px; padding: clamp(1.1rem, 2.5vw, 1.75rem); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06); }
 .ask-form label { display: block; font-weight: 700; margin-bottom: 0.35rem; }
 .ask-row { display: flex; gap: 0.5rem; }
 .ask-row input { flex: 1; min-width: 0; min-height: 3rem; padding: 0 1rem; font: inherit; border: 2px solid #c7d1ec; border-radius: 999px; background: var(--table); color: var(--ink); }
@@ -443,14 +438,11 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .ask-text { margin: 0.25rem 0; color: var(--ink-soft); font-size: 0.95rem; }
 .ask-results a { font-weight: 700; color: var(--blue); }
 .ask-quality { font-size: 0.9rem; color: var(--ink-soft); border-top: 2px solid #e1e6f4; padding-top: 0.75rem; margin-top: 1rem; }
-.clip-boards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.clip-boards figure { margin: 0; }
 
 /* Keep the whole sticky board column, controls included, inside a short laptop screen. */
 @media (min-width: 1081px) {
   :root { --cell: max(2.4rem, min(clamp(2.4rem, 6.2vw, 4.1rem), calc((100svh - 30.5rem) / 9))); }
   .rig-play { --rig-gap: 0.55rem; }
-  .controls-note { line-height: 1.4; }
 }
 @media (max-width: 1080px) {
   .rig { grid-template-columns: 1fr; }
@@ -460,7 +452,6 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (max-width: 880px) {
   .hero-copy { grid-template-columns: 1fr; }
   /* Phone: the board comes first, settings after the controls. */
-  .rig-play > .controls-note { order: 1; }
   .rig-play > .settings { order: 2; }
   .menu-btn { display: inline-flex; align-items: center; }
   .top nav { display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0;
@@ -471,7 +462,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   .top nav li:first-child { border-top: 0; }
   .top nav a { display: flex; align-items: center; gap: 0.9rem; min-height: 3rem; font-family: var(--display); font-weight: 800; font-size: 1.15rem; color: var(--on-blue); }
   .top nav a::before { content: counter(sect, decimal-leading-zero); font-family: var(--mono); font-weight: 400; font-size: 0.78rem; color: var(--yellow); }
-  .how-grid > *, .results-grid > *, .ai-grid > *, .build > *, .eng-grid > * { grid-column: 1 / -1 !important; }
+  .how-grid > *, .results-grid > *, .build > *, .eng-grid > * { grid-column: 1 / -1 !important; }
   :root { --cell: min(10.6vw, 3.6rem); }
 }
 @media (max-width: 520px) {
