@@ -33,12 +33,10 @@
       <li class="more"><a href="#play">Play the robot</a></li>
       <li><a href="#watch">Watch it play</a></li>
       <li><a href="#how">Two checks</a></li>
-      <li><a href="#results">Results</a></li>
-      <li class="more"><a href="#ask">Ask the paper</a></li>
       <li class="more"><a href="#robot">The robot</a></li>
+      <li><a href="#results">Results and limits</a></li>
       <li><a href="#how-it-works">How it works</a></li>
-      <li><a href="#limits">Limits</a></li>
-      <li class="more"><a href="#team">Who we are</a></li>
+      <li><a href="#paper">Paper and team</a></li>
       <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot">Code</a></li>
     </ol>
   </nav>
@@ -186,8 +184,10 @@
 </section>
 
 <section class="watch" id="watch" aria-labelledby="watch-title">
-  <h2 id="watch-title">Watch it play</h2>
-  <p class="section-lede">The real robot, from our final demo, in real time. The laptop shows the dashboard: minimax picks the robot's move in 0.495 s, the robot drops a red token into the board, and the camera picture updates to show it landed.</p>
+  <div class="watch-copy">
+    <h2 id="watch-title">Watch it play</h2>
+    <p>The real robot, from our final demo, in real time. The laptop shows the dashboard: minimax picks the robot's move in 0.495 s, the robot drops a red token into the board, and the camera picture updates to show it landed.</p>
+  </div>
   <figure class="watch-film">
     <div class="watch-frame">
       <video id="watch-video" src="media/watch-it-play.mp4" poster="media/watch-it-play-poster.webp" width="1280" height="720" muted loop playsinline preload="metadata" aria-label="20 seconds of our final demo: the robot's dashboard shows minimax choosing a move, then the robot drops a red token into the board"></video>
@@ -209,38 +209,126 @@
       <p>When the robot drops a token, it already knows what the board should look like. It accepts its own move only when the camera shows that exact board within 10 seconds. A token that slid into the wrong column stops the robot with an error, instead of silently corrupting the game.</p>
     </div>
   </div>
-  <figure class="frames">
-    <img src="img/closed-loop-frames.webp" width="1442" height="354" alt="Three frames from the final demo: a human move is accepted, the robot plans its reply on the dashboard, and the camera confirms the token the robot dropped">
-    <figcaption>From the final demo: human move accepted, robot move planned, robot move confirmed by the camera.</figcaption>
+  <figure class="loop">
+    <a class="zoom" href="diagrams/closed-loop.svg" data-view><img src="diagrams/closed-loop.svg" width="1040" height="440" loading="lazy" alt="Closed loop: camera, vision pipeline, validator (gate 1), minimax, Arduino, dispenser, board, and back to the camera, with the post-drop check (gate 2) before the game moves on"></a>
+    <figcaption>The camera reads the board, a validator accepts only legal one-chip changes, minimax picks a column, the Arduino drops a token, and the camera must see the expected board before the game moves on.</figcaption>
   </figure>
 </section></div>
 
-<section class="results" id="results" aria-labelledby="results-title">
-  <h2 id="results-title">How well it worked</h2>
-  <p class="section-lede">We measured these on the real robot, under indoor light with a fixed camera mount. The <a href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf">supplement</a> has the full tables.</p>
-  <div class="results-grid">
-    <figure class="drops" aria-labelledby="drops-cap">
-      <figcaption id="drops-cap"><strong>Tokens that landed in the column the robot aimed for</strong>, 20 drops per column, 133 of 140 overall (95%).</figcaption>
-      <dl class="bars drop-bars" id="drop-bars"></dl>
-      <p class="drops-why">The misses grow toward column 7 because the carriage finds a column by running its motor for a set time, with no sensor to say where it is. The longer the trip, the more the error adds up.</p>
-    </figure>
-    <div class="reading">
-      <h3>Reading the board</h3>
-      <dl class="bars">
-        <div><dt>Colour rules (HSV thresholds)</dt><dd><span style="--v:98"></span>98%</dd></div>
-        <div><dt>Colour rules plus a learned model</dt><dd><span style="--v:96"></span>96%</dd></div>
-        <div><dt>Learned model only</dt><dd><span style="--v:91"></span>91%</dd></div>
-      </dl>
-      <p>Cells read correctly, out of about 200 labelled cell images. The simple thresholds won: the board is blue and the tokens are red and yellow under steady light, while the model had little data to learn from.</p>
-      <p class="time"><strong>3 to 15 s</strong> from command to a verified move, 7.5 s on average. The time is the mechanism and the camera check, not the image processing.</p>
-    </div>
+<section class="build" id="robot" aria-labelledby="build-title">
+  <figure class="photo">
+    <a class="zoom" href="img/dispenser-side.webp" data-view><img src="img/dispenser-side.webp" width="640" height="360" loading="lazy" alt="The finished robot from the side: the Connect-4 board, the token magazine and red funnel on a wooden post above it, the yellow carriage motor, and the dashboard on a laptop"></a>
+    <figcaption>From the side: the magazine and funnel sit above the board on a wooden post, beside the yellow carriage motor.</figcaption>
+  </figure>
+  <div class="build-copy">
+  <h2 id="build-title">The robot</h2>
+  <ul class="facts">
+    <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>
+    <li><strong>Arduino Uno</strong> moves the carriage to the column, then releases one token with an encoder-counted magazine.</li>
+    <li><strong>6,100 EGP</strong> in parts for the final build, about 115 USD at the April 2026 rate. An earlier design with stepper motors and a servo gate was priced at 10,135 EGP.</li>
+  </ul>
   </div>
 </section>
 
-<section class="ask-section" id="ask" aria-labelledby="ask-title">
-  <h2 id="ask-title">Ask the paper</h2>
-  <p class="section-lede">Semantic search over the paper and its supplement, run in your browser. It finds the three passages closest in meaning to your question and links to their pages. It quotes the documents and never writes an answer of its own.</p>
-    <div class="ask">
+<section class="results" id="results" aria-labelledby="results-title">
+  <h2 id="results-title">Results and limits</h2>
+  <p class="section-lede">Measured on the real robot, under indoor light with a fixed camera mount. The <a href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf">supplement</a> has the full tables.</p>
+  <div class="results-grid">
+    <div class="stat reading">
+      <h3>Reading the board</h3>
+      <table class="numbers">
+        <tbody>
+          <tr><th scope="row">Colour rules (HSV thresholds)</th><td>98%</td></tr>
+          <tr><th scope="row">Colour rules plus a learned model</th><td>96%</td></tr>
+          <tr><th scope="row">Learned model only</th><td>91%</td></tr>
+        </tbody>
+      </table>
+      <p>Cells read correctly, out of about 200 labelled cell images. The simple thresholds did best: under steady light the board is blue and the tokens are red and yellow, and the model had little data to learn from.</p>
+    </div>
+    <div class="stat drops">
+      <h3>Dropping a token</h3>
+      <div class="numbers-scroll">
+        <table class="numbers by-column">
+          <thead><tr><th scope="col">Column</th><th scope="col">1</th><th scope="col">2</th><th scope="col">3</th><th scope="col">4</th><th scope="col">5</th><th scope="col">6</th><th scope="col">7</th></tr></thead>
+          <tbody><tr><th scope="row">Landed, of 20</th><td>20</td><td>20</td><td>20</td><td>19</td><td>19</td><td>18</td><td>17</td></tr></tbody>
+        </table>
+      </div>
+      <p>133 of 140 drops landed in the column the robot aimed for. The misses grow toward column 7.</p>
+    </div>
+    <div class="stat time">
+      <h3>Time per move</h3>
+      <p>3 to 15 s from command to a verified move, 7.5 s on average. Most of it is the mechanism and the camera check, not the image processing.</p>
+    </div>
+  </div>
+  <div class="limits">
+    <h3>Limits</h3>
+    <ul>
+    <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
+    <li>The carriage has no position sensor, so the far columns miss more often.</li>
+    <li>Board detection assumes the camera sees only the grid. Our demo photo shows the board on its blue legs, which the robot's camera never saw: the legs join the blue frame, so automatic detection reads 32 of 42 holes right. With the grid's own corners, the same code reads all 42.</li>
+    <li>We did not keep the labelled images and drop logs behind the numbers above, so they cannot be re-run.</li>
+    <li>The dashboard has no login: anyone on the same network can send moves.</li>
+  </ul>
+  </div>
+</section>
+
+<section class="engineers" id="how-it-works" aria-labelledby="eng-title">
+  <h2 id="eng-title">How it works</h2>
+  <p class="section-lede">How the robot reads the board, what it does after each move, and where each part lives in the code.</p>
+  <div class="reads">
+    <figure class="reads-fig">
+      <a class="zoom" href="img/vision-pipeline.webp" data-view><img src="img/vision-pipeline.webp" width="1058" height="1166" loading="lazy" alt="Four panels from the paper: the raw photo of the board with red and yellow tokens, the board warped to a top-down greyscale view, the same view with the read tokens marked, and the recovered 6 by 7 board state"></a>
+      <figcaption>From the paper: one board read end to end.</figcaption>
+    </figure>
+    <div class="reads-copy">
+      <h3>How it reads the board</h3>
+      <ol class="steps">
+        <li>Find the blue board frame by colour, and smooth its four corners over frames.</li>
+        <li>Warp the board to an 800 by 800 top-down view.</li>
+        <li>Brighten it (+20), stretch the contrast (×1.3), and blur it (5 by 5 Gaussian).</li>
+        <li>Cut the view into a 6 by 7 grid and read the centre of each cell as empty, red, or yellow.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="after-move">
+    <h3>After each robot move</h3>
+    <figure class="states">
+      <a class="zoom" href="diagrams/robot-states.svg" data-view><img src="diagrams/robot-states.svg" width="960" height="380" loading="lazy" alt="Robot controller states: idle, move ready, waiting for the camera check, and error, with Reset back to idle"></a>
+      <figcaption>After a move is sent the controller waits for the camera to show the expected board; a match returns it to idle, a timeout or rejected board puts it in an error state until Reset.</figcaption>
+    </figure>
+  </div>
+  <div class="code">
+    <h3>Where it lives in the code</h3>
+    <ul class="code-map">
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/vision.py"><code>vision.py</code></a> finds the blue frame, warps it to 800 by 800, and reads each hole with HSV colour rules.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/game_state.py"><code>game_state.py</code></a> is gate 1, the validator that accepts only one legal move.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/minimax.py"><code>minimax.py</code></a> searches 5 moves ahead with alpha-beta pruning.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/hardware.py"><code>hardware.py</code></a> sends the column over serial and runs gate 2, the camera check.</li>
+    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/arduino/dispenser/dispenser.ino"><code>dispenser.ino</code></a> drives the carriage by timing, then releases one token by encoder count. We rebuilt it from the final report, because the file that ran in the demo was not kept.</li>
+  </ul>
+  </div>
+</section>
+
+<section class="paper-team" id="paper" aria-labelledby="paper-team-title">
+  <h2 id="paper-team-title">The paper and the team</h2>
+  <div class="pt-grid">
+    <article class="paper-card" aria-labelledby="paper-title">
+    <p class="paper-kind">Course paper, IEEE conference format, 2026</p>
+    <h3 id="paper-title">Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement</h3>
+    <p class="paper-authors">Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, Youssef Salama</p>
+    <p class="paper-venue">MCTR 1010 Image Processing for Mechatronics, German University in Cairo, Spring 2026</p>
+    <p class="paper-venue">With guidance from Assoc. Prof. Dr. Omar M. Shehata, Eng. Dalia M. Mahfouz, Eng. Abdelrahman Hatem, and Eng. Mohammed Ashraf</p>
+    <div class="links">
+      <a class="btn btn-blue" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
+      <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf">Supplement</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/tree/main/paper">LaTeX source</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/CITATION.cff">Cite</a>
+      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
+    </div>
+  </article>
+    <div class="ask" aria-labelledby="ask-title">
+      <h3 id="ask-title">Ask the paper</h3>
+      <p class="ask-note">Search the paper and its supplement in your browser. It shows the three passages closest in meaning to your question, with links to their pages, and never writes an answer of its own.</p>
       <form class="ask-form" id="ask-form" role="search">
         <label for="ask-input">Your question</label>
         <div class="ask-row">
@@ -257,80 +345,12 @@
       <ol class="ask-results" id="ask-results"></ol>
       <p class="ask-quality">On 16 test questions, a passage holding the answer is in the top three for 13.</p>
     </div>
-</section>
-
-<section class="build" id="robot" aria-labelledby="build-title">
-  <figure class="photo">
-    <img src="img/robot-setup.webp" width="1600" height="852" alt="The finished robot: blue Connect-4 board, a red funnel and token magazine on a wooden frame above it, the Pi camera on the table, and a laptop showing the dashboard">
-  </figure>
-  <div class="build-copy">
-  <h2 id="build-title">The robot</h2>
-  <ul class="facts">
-    <li><strong>Raspberry Pi 4</strong> reads the camera, runs the validator and minimax, and serves the dashboard.</li>
-    <li><strong>Arduino Uno</strong> moves the carriage to the column, then releases one token with an encoder-counted magazine.</li>
-    <li><strong>6,100 EGP</strong> in parts for the final build, about 115 USD at the April 2026 rate. An earlier design with stepper motors and a servo gate was priced at 10,135 EGP.</li>
-  </ul>
   </div>
-</section>
-
-<section class="engineers" id="how-it-works" aria-labelledby="eng-title">
-  <h2 id="eng-title">How it works</h2>
-  <p class="section-lede">How the parts connect, and where each one lives in the code.</p>
-  <div class="eng-grid">
-    <figure class="eng-wide">
-      <a class="zoom" href="diagrams/closed-loop.svg" data-view><img src="diagrams/closed-loop.svg" width="1040" height="440" loading="lazy" alt="Closed loop: camera, vision pipeline, validator (gate 1), minimax, Arduino, dispenser, board, and back to the camera, with the post-drop check (gate 2) before the game moves on"></a>
-      <figcaption>The camera reads the board, a validator accepts only legal one-chip changes, minimax picks a column, the Arduino drops a token, and the camera must see the expected board before the game moves on.</figcaption>
-    </figure>
-    <figure>
-      <a class="zoom" href="diagrams/robot-states.svg" data-view><img src="diagrams/robot-states.svg" width="960" height="380" loading="lazy" alt="Robot controller states: idle, move ready, waiting for the camera check, and error, with Reset back to idle"></a>
-      <figcaption>After a move is sent the controller waits for the camera to show the expected board; a match returns it to idle, a timeout or rejected board puts it in an error state until Reset.</figcaption>
-    </figure>
-    <figure>
-      <a class="zoom" href="img/dispenser-side.webp" data-view><img src="img/dispenser-side.webp" width="640" height="360" loading="lazy" alt="The finished robot from the side: the Connect-4 board, the token magazine and red funnel on a wooden post above it, the yellow carriage motor, and the dashboard on a laptop"></a>
-      <figcaption>The finished robot from the side: the magazine and funnel sit above the board on a wooden post, beside the yellow carriage motor.</figcaption>
-    </figure>
-  </div>
-  <ul class="code-map">
-    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/vision.py"><code>vision.py</code></a> finds the blue frame, warps it to 800 by 800, and reads each hole with HSV colour rules.</li>
-    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/game_state.py"><code>game_state.py</code></a> is gate 1, the validator that accepts only one legal move.</li>
-    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/minimax.py"><code>minimax.py</code></a> searches 5 moves ahead with alpha-beta pruning.</li>
-    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/src/connect4_robot/hardware.py"><code>hardware.py</code></a> sends the column over serial and runs gate 2, the camera check.</li>
-    <li><a href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/arduino/dispenser/dispenser.ino"><code>dispenser.ino</code></a> drives the carriage by timing, then releases one token by encoder count. We rebuilt it from the final report, because the file that ran in the demo was not kept.</li>
-  </ul>
-</section>
-
-<section class="limits" id="limits" aria-labelledby="limits-title">
-  <h2 id="limits-title">What it could not do</h2>
-  <ul>
-    <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
-    <li>The carriage has no position sensor, so the far columns miss more often.</li>
-    <li>Board detection assumes the camera sees only the grid. Our demo photo shows the board on its blue legs, which the robot's camera never saw: the legs join the blue frame, so automatic detection reads 32 of 42 holes right. With the grid's own corners, the same code reads all 42.</li>
-    <li>We did not keep the labelled images and drop logs behind the numbers above, so they cannot be re-run.</li>
-    <li>The dashboard has no login: anyone on the same network can send moves.</li>
-  </ul>
-</section>
-
-<section class="team" id="team" aria-labelledby="team-title">
-  <h2 id="team-title">Who we are</h2>
-  <article class="paper-card" aria-labelledby="paper-title">
-    <p class="paper-kind">Course paper, IEEE conference format, 2026</p>
-    <h3 id="paper-title">Vision-Based Connect-4 Robot: Closed-Loop Game-State Extraction and Verified Token Placement</h3>
-    <p class="paper-authors">Andrew Abdelmalak, Daniel Boules, David Girgis, Kirolous Kirolous, Samir Yacoub, Youssef Salama</p>
-    <p class="paper-venue">MCTR 1010 Image Processing for Mechatronics, German University in Cairo, Spring 2026</p>
-    <p class="paper-venue">With guidance from Assoc. Prof. Dr. Omar M. Shehata, Eng. Dalia M. Mahfouz, Eng. Abdelrahman Hatem, and Eng. Mohammed Ashraf</p>
-    <div class="links">
-      <a class="btn btn-blue" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot.pdf">Read the paper</a>
-      <a class="btn btn-ghost-dark" href="pdfjs/web/viewer.html?file=../../docs/Vision-Based-Connect-4-Robot-Supplement.pdf">Supplement</a>
-      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/tree/main/paper">LaTeX source</a>
-      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot/blob/main/CITATION.cff">Cite</a>
-      <a class="btn btn-ghost-dark" href="https://github.com/andrew-abdelmalak/connect-4-robot">Read the code</a>
-    </div>
-  </article>
 </section>
 </main>
 
 <footer class="foot">
-  <p>MIT licensed. The photos are frames from our demo videos.</p>
+  <p>MIT licensed. Video and photos by our team.</p>
 </footer>
 
 <dialog class="viewer" id="viewer" aria-label="Image viewer">

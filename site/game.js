@@ -8,8 +8,6 @@ const ROWS = 6;
 const COLS = 7;
 const RED = 1;
 const NAMES = { 1: "red", 2: "yellow" };
-// Measured on the robot: drops out of 20 per column that landed where aimed.
-const DROP_HITS = [20, 20, 20, 19, 19, 18, 17];
 // dispenser.ino (supplement, Table II): carriage drive time from home to each column (ms).
 const COLUMN_MS = [0, 330, 600, 900, 1200, 1500, 1800];
 // hardware.py: the robot loop's timing (s) and its timeout message.
@@ -969,20 +967,6 @@ if (!reduceMotion && "IntersectionObserver" in window) {
     else if (!filmPausedByVisitor && !lowData) film.play().catch(() => {}); // data saver: only on Play
   }, { threshold: 0.4 }).observe(film);
 }
-
-// ── results chart from the measured drop counts ───────────────────────────
-$("#drop-bars").replaceChildren(...DROP_HITS.map((hit, c) => {
-  const row = document.createElement("div");
-  if (hit < 20) row.className = "short";
-  const dt = document.createElement("dt");
-  dt.textContent = `Column ${c + 1}`;
-  const dd = document.createElement("dd");
-  const bar = document.createElement("span");
-  bar.style.setProperty("--v", (hit / 20) * 100);
-  dd.append(bar, `${hit} of 20 (${(hit / 20) * 100}%)`);
-  row.append(dt, dd);
-  return row;
-}));
 
 // ── loading: the board first, then the rest in reading order ─────────────
 // On data saver or 2G/3G the 14 MB vision code waits for the first move and
