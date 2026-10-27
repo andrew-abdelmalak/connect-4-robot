@@ -2,13 +2,16 @@
 //
 // The sketch that ran in our demo was not kept. This file follows the
 // report's actuation sequence and carriage drive time per column, both
-// reproduced in paper/supplement.tex (Fig. 2 and Table II). What the listing does not give (the pins, the motor
-// speeds, READY and ERR on serial) comes from the team's earlier sketch, which
-// released the token first; it is in this file's git history.
+// reproduced in paper/supplement.tex (Fig. 2 and Table II). What the listing
+// does not give (the pins, the motor speeds, READY and ERR on serial) comes
+// from the team's earlier sketch, which released the token first; it is in
+// this file's git history.
 //
 // Serial input from the Pi: one ASCII digit '1'..'7' per move. Per move:
-//   1. Drive the carriage (the moving rod) out for the column's time, so it
-//      covers the holes before the target. Hard-brake, then hold 2 s.
+//   1. Drive the carriage (the moving rod) for the column's time. At rest the
+//      rod covers every hole except column 1, the one farthest from the
+//      storage; driving it slides it toward the storage and opens column N.
+//      Hard-brake, then hold 2 s.
 //   2. Turn the magazine motor 430 encoder pulses, fast and then slow for the
 //      last 40, to push out one token. Nothing holds the token: it rolls along
 //      the rail by gravity and drops through the first open hole.

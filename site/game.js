@@ -141,7 +141,8 @@ function columnAt(pos) {
 avr.onmessage = ({ data: m }) => {
   if (m.type === "tick") {
     ard.t = m.t;
-    rod.setAttribute("x", (MECH_X0 + columnAt(m.pos) * MECH_PITCH - 828).toFixed(1));
+    // At rest the rod covers columns 2 to 7; driving it opens one more column toward the storage.
+    rod.setAttribute("x", (MECH_X0 + (1 + columnAt(m.pos)) * MECH_PITCH).toFixed(1));
     $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
@@ -198,7 +199,7 @@ function onLine(text) {
   if (!mv) return;
   const [word, arg] = text.split(" ");
   const msg = {
-    BUSY: `BUSY ${arg}: column ${arg} received. The carriage drives out for ${COLUMN_MS[arg - 1]} ms to cover the holes before it, then holds 2 s`,
+    BUSY: `BUSY ${arg}: column ${arg} received. The carriage slides toward the storage for ${COLUMN_MS[arg - 1]} ms to open column ${arg}, then holds 2 s`,
     MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls to the first open hole`,
     DONE: `DONE ${arg}: carriage back home`,
   }[word];
@@ -224,8 +225,8 @@ function drawMagazine() {
   }));
 }
 const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
-// The carriage is already over the column: the released token rolls along
-// the rail and drops through the first hole the carriage left open.
+// The carriage has already opened the column: the released token rolls along
+// the rail from the storage end and drops through the first open hole.
 async function releaseToken(mv) {
   dropToken(mv);
   magazineLeft = Math.max(0, magazineLeft - 1);
@@ -396,7 +397,7 @@ function draw() {
 }
 
 // A token falls from the funnel's height into its cell; fromCol is where it starts.
-// A token falls into its cell; the robot's first rolls along the rail from under the chute.
+// A token falls into its cell; the robot's first rolls along the rail from under the chute, over column 7.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -410,7 +411,8 @@ async function fall(row, col, colour, { roll = false } = {}) {
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
   rigPlay.append(el);
   const fallMs = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
-  const rollMs = roll ? (col / ROLL_COLS_PER_S) * 1000 : 0;
+  const rollCols = COLS - 1 - col; // from the storage end to the target
+  const rollMs = roll ? (rollCols / ROLL_COLS_PER_S) * 1000 : 0;
   const pitch = cells[1].getBoundingClientRect().left - cells[0].getBoundingClientRect().left;
   const at = (ms) => (rollMs + ms) / (rollMs + fallMs);
   const down = [
@@ -420,9 +422,9 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
-  // from under the chute, over column 1, rolling one turn per 3.14 token widths
-  const turn = Math.round(((col * pitch) / (Math.PI * size)) * 360);
-  const frames = rollMs ? [{ transform: `translate(${-col * pitch}px, ${startY}px) rotate(-${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
+  // from under the chute, over column 7, rolling left one turn per 3.14 token widths
+  const turn = Math.round(((rollCols * pitch) / (Math.PI * size)) * 360);
+  const frames = rollMs ? [{ transform: `translate(${rollCols * pitch}px, ${startY}px) rotate(${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
   const anim = el.animate(frames, { duration: rollMs + fallMs });
   // A hidden tab freezes animations; the game goes on without waiting for this one.
   await Promise.race([anim.finished, new Promise((r) => setTimeout(r, rollMs + fallMs + 300))]);
