@@ -161,11 +161,12 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .seg label:hover { border-color: rgba(255,255,255,0.7); }
 
 .board-wrap { position: relative; }
-/* The dispenser, from the robot's side, drawn on the board's own grid: the
-   storage, motor disk, and chute over column 1, and the rail along the board
-   with the carriage, a rod, inside it. The rod slides out and covers the holes
-   before the target; the released token rolls to the first open hole. The parts
-   at work stay bright while the others step back. */
+/* The dispenser, drawn on the board's own grid as the camera sees it: the
+   storage, motor disk, and chute over column 7, and the rail along the board
+   with the carriage, a rod, inside it. At rest the rod covers every hole but
+   column 1; it slides toward the storage to open the target, and the released
+   token rolls to the first open hole. The parts at work stay bright while the
+   others step back. */
 .dispenser { display: grid; justify-items: center; gap: 0.35rem; margin-bottom: calc(-1 * var(--rig-gap)); } /* the rail sits on the board */
 .mech { display: block; width: calc(var(--cell) * 7 + var(--gap) * 8); height: auto; overflow: visible; }
 .mech .part { transition: opacity 0.25s var(--ease); }

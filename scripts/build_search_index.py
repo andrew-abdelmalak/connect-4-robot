@@ -11,7 +11,6 @@ Needs poppler's pdftotext.
 """
 
 import base64
-import functools
 import json
 import re
 import subprocess
@@ -26,11 +25,9 @@ OUT = ROOT / "site" / "search-index.json"
 MODEL = "Xenova/all-MiniLM-L6-v2"
 REVISION = "751bff37182d3f1213fa05d7196b954e230abad9"
 ONNX_FILE = "onnx/model_quantized.onnx"  # transformers.js dtype "q8"
-PASSAGE_WORDS = 90  # a passage ends at the first sentence end past this
-MIN_TAIL_WORDS = 30  # a shorter last piece joins the passage before it
-DOCS = [
-    ("Vision-Based-Connect-4-Robot.pdf", "Paper"),
-    ("Vision-Based-Connect-4-Robot-Supplement.pdf", "Supplement"),
+DOCS = [  # (PDF in docs/, title, LaTeX source in paper/)
+    ("Vision-Based-Connect-4-Robot.pdf", "Paper", "main.tex"),
+    ("Vision-Based-Connect-4-Robot-Supplement.pdf", "Supplement", "supplement.tex"),
 ]
 
 
@@ -39,74 +36,19 @@ def page_count(pdf: Path) -> int:
     return int(re.search(r"^Pages:\s+(\d+)", info, re.MULTILINE).group(1))
 
 
-@functools.cache
-def compounds() -> frozenset[str]:
-    """Hyphenated words that appear unbroken somewhere in the documents."""
-    found = set()
-    for file, _ in DOCS:
-        text = subprocess.run(
-            ["pdftotext", "-enc", "UTF-8", str(ROOT / "docs" / file), "-"], capture_output=True, text=True, check=True
-        ).stdout
-        found |= {w.lower() for w in re.findall(r"\b([A-Za-z]+-[A-Za-z]+)\b", text)}
-    return frozenset(found)
-
-
-def page_text(pdf: Path, page: int) -> str:
-    text = subprocess.run(
-        ["pdftotext", "-f", str(page), "-l", str(page), "-enc", "UTF-8", str(pdf), "-"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    # A hyphen at a line end is either line-breaking ("valida-tion") or part of a
-    # compound ("trusted-state"); keep it when the compound also appears unbroken.
-    intact = compounds()
-    text = re.sub(
-        r"\b(\w+)-\n(\w+)",
-        lambda m: f"{m[1]}-{m[2]}" if f"{m[1]}-{m[2]}".lower() in intact else m[1] + m[2],
-        text,
-    )
-    # The PDFs drop some line-break hyphens from compounds ("closedloop"); restore
-    # the hyphen wherever the same compound appears hyphenated in the documents.
-    for c in intact:
-        text = re.sub(rf"\b{c.replace('-', '')}\b", c, text)
-    # Small caps come out split ("P ER -C OLUMN"); rejoin a capital and the capitals after it.
-    text = re.sub(r"\b([A-Z]) (?=[A-Z]{2,}\b)", r"\1", text)
-    text = re.sub(r"([A-Z])- ?([A-Z])", r"\1-\2", text)
-    return " ".join(text.split())
-
-
-def is_table_run(sentence: str) -> bool:
-    """Table cells and figure debris: mostly bare numbers and percentages."""
-    tokens = sentence.split()
-    numeric = sum(bool(re.fullmatch(r"[\d.,%×x+-]+", t)) for t in tokens)
-    return sentence.startswith(("TABLE ", "Fig. ")) or (len(tokens) >= 6 and numeric / len(tokens) > 0.4)
-
-
-HEADING = r"(?:[IVX]+\.|[A-H]\.|TABLE [IVX]+) [A-Z][A-Za-z]"  # "VII. EXPERIMENTAL", "G. Game-Logic", "TABLE VI"
-
-
-def sentences(text: str) -> list[str]:
-    """Split at sentence ends and before section headings."""
-    return [s for s in re.split(rf"(?<=[.!?])\s+(?=[A-Z(\[])|\s+(?={HEADING})", text) if s]
-
-
-PAPER = "Vision-Based-Connect-4-Robot.pdf"
-
-
 def alnum(text: str) -> list[str]:
     """Letters and digits as lowercase words, so LaTeX and PDF text compare despite layout."""
     return re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKC", text).lower())
 
 
-def paper_passages() -> list[dict]:
-    """The paper's passages from its LaTeX source (scripts/paper_latex.py), each
+def latex_passages(doc: str, title: str, tex: str) -> list[dict]:
+    """A document's passages from its LaTeX source (scripts/paper_latex.py), each
     placed on the PDF page where it starts and checked against that page's text.
 
     A passage must show 90% of its three-word runs and every number on its page
     or the next, and a table every cell, or the build stops.
     """
-    pdf = ROOT / "docs" / PAPER
+    pdf = ROOT / "docs" / doc
     raw = [
         subprocess.run(
             ["pdftotext", "-f", str(n), "-l", str(n), "-enc", "UTF-8", str(pdf), "-"],
@@ -119,20 +61,27 @@ def paper_passages() -> list[dict]:
     joined = ["".join(alnum(t)) for t in raw]
     words = [set(alnum(t)) for t in raw]
     out, at, problems = [], 0, []
-    for p in paper_latex.passages():
+    for p in paper_latex.passages((ROOT / "paper" / tex).read_text(encoding="utf-8")):
         cells = p.get("cells")
-        key = "".join(alnum(" ".join(cells[:5]) if cells else p["text"]))[:40]  # a table: its header row
-        where = next((k for k in range(at, len(raw)) if key in joined[k]), None)
+        # A table is found by its header row; the PDF may store the first header cell apart.
+        heads = [cells[:3], cells[1:3]] if cells else [[p["text"]]]
+        # Text runs forward through the pages; a table is a float and may land on a later page.
+        start = 0 if cells else at
+        where, head = next(
+            ((k, h) for h in heads for k in range(start, len(raw)) if "".join(alnum(" ".join(h)))[:40] in joined[k]),
+            (None, None),
+        )
         if where is None:
             raise ValueError(f"not found in the PDF: [{p['section']}] {p['text'][:80]}")
-        at = where
+        if not cells:
+            at = where
         text, seen = (
             joined[where] + joined[min(where + 1, len(raw) - 1)],
             words[where] | words[min(where + 1, len(raw) - 1)],
         )
         if cells:
             problems += [f"[{p['section']}] cell {c!r}" for c in cells if "".join(alnum(c)) not in text]
-            find = " ".join(cells[:5])  # the header row: the PDF stores the rest column by column
+            find = " ".join(head)  # the header row: the PDF stores the rest column by column
         else:
             tokens = alnum(p["text"])
             shingles = ["".join(tokens[k : k + 3]) for k in range(max(1, len(tokens) - 2))]
@@ -141,57 +90,18 @@ def paper_passages() -> list[dict]:
             if found < 0.9 * len(shingles) or numbers:
                 problems.append(f"[{p['section']}] {found}/{len(shingles)} runs, numbers {numbers}: {p['text'][:70]}")
             find = None
-        item = {"doc": PAPER, "title": "Paper", "section": p["section"], "page": where + 1, "text": p["text"]}
+        item = {"doc": doc, "title": title, "section": p["section"], "page": where + 1, "text": p["text"]}
         if find:
             item["find"] = find
         out.append(item)
     if problems:
-        raise ValueError("paper passages differ from the PDF:\n" + "\n".join(problems))
+        raise ValueError(f"{doc} passages differ from the PDF:\n" + "\n".join(problems))
     return out
 
 
 def passages() -> list[dict]:
-    """Each document read as one text, cut at sentence ends into passages of about
-    PASSAGE_WORDS words; a passage carries the page it starts on. The paper
-    comes from its LaTeX source instead (paper_passages)."""
-    items = []
-    for file, title in DOCS:
-        if file == PAPER:
-            items += paper_passages()
-            continue
-        pdf = ROOT / "docs" / file
-        tagged = []  # (page, sentence) in reading order; a sentence crossing a page break stays whole
-        carry, carry_page = None, None
-        for page in range(1, page_count(pdf) + 1):
-            parts = sentences(page_text(pdf, page))
-            if not parts:
-                continue
-            first_page = page
-            if carry:
-                parts[0] = f"{carry} {parts[0]}"
-                first_page = carry_page
-            pages = [first_page] + [page] * (len(parts) - 1)
-            tagged += list(zip(pages[:-1], parts[:-1], strict=True))
-            carry, carry_page = parts[-1], pages[-1]
-        if carry:
-            tagged.append((carry_page, carry))
-        current, start = [], None
-        for page, sentence in tagged:
-            if is_table_run(sentence):
-                continue
-            if re.match(HEADING, sentence) and len(current) >= MIN_TAIL_WORDS:
-                items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
-                current, start = [], None
-            start = start or page
-            current += sentence.split()
-            if len(current) >= PASSAGE_WORDS:
-                items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
-                current, start = [], None
-        if current and len(current) >= MIN_TAIL_WORDS:
-            items.append({"doc": file, "title": title, "page": start, "text": " ".join(current)})
-    if not items:
-        raise SystemExit("no text extracted from docs/*.pdf")
-    return items
+    """Every document's passages, in DOCS order."""
+    return [p for doc, title, tex in DOCS for p in latex_passages(doc, title, tex)]
 
 
 class Embedder:

@@ -75,7 +75,7 @@ def inline(text: str, labels: dict[str, str], cites: dict[str, int]) -> str:
         return s.replace("{", "").replace("}", "")
 
     text = re.sub(r"\$([^$]+)\$", math, text)
-    text = re.sub(r"\\(?:textbf|emph|textit)\{([^}]*)\}", r"\1", text)
+    text = re.sub(r"\\(?:textbf|emph|textit|texttt)\{([^}]*)\}", r"\1", text)
     text = text.replace(r"\%", "%").replace("~", " ").replace("--", "–")
     if re.search(r"\\[A-Za-z]", text):
         raise ValueError(f"unhandled LaTeX command in: {text[:120]}")
@@ -89,7 +89,10 @@ def table_text(env: str, labels: dict[str, str], cites: dict[str, int]) -> tuple
     top, mid, bottom = env.index(r"\toprule") + len(r"\toprule"), env.index(r"\midrule"), env.index(r"\bottomrule")
     head = [inline(c, labels, cites) for c in env[top:mid].split(r"\\")[0].split("&")]
     rows, cells = [], [*head]
-    for line in env[mid + len(r"\midrule") : bottom].split(r"\\"):
+    for raw in env[mid + len(r"\midrule") : bottom].split(r"\\"):
+        line = raw.replace(r"\midrule", "")
+        if r"\multicolumn" in line:  # a group label row, not data
+            continue
         row = [inline(c, labels, cites) for c in line.split("&")]
         if len(row) < 2:
             continue

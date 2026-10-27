@@ -78,9 +78,11 @@
           <span class="motor" id="motor-mag" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Magazine motor <b>off</b></span>
           <span class="motor" id="motor-car" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Carriage motor <b>off</b></span>
         </div>
-        <!-- The dispenser from the robot's side: the storage, motor disk, and chute
-             over column 1, and the rail along the board with the carriage, a
-             rod, inside it. One unit is a hundredth of a board hole. -->
+        <!-- The dispenser as the camera sees the board: the storage, motor disk,
+             and chute over column 7, and the rail along the board with the
+             carriage, a rod, inside it. At rest the rod covers every hole but
+             column 1; it slides toward the storage to open the target. One
+             unit is a hundredth of a board hole. -->
         <svg class="mech" id="mech" viewBox="0 0 828 250" data-phase="">
           <defs>
             <pattern id="mx-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="#59627f"/><rect width="3.5" height="9" fill="#8b93b3"/></pattern>
@@ -93,8 +95,9 @@
             <g id="mx-slots"></g>
             <text class="mx-tag" x="812" y="220" text-anchor="end">Rail, open along the board</text>
           </g>
-          <g class="part p-rod" clip-path="url(#mx-chan)"><rect id="mx-rod" x="-812" y="226" width="828" height="16" fill="url(#mx-hatch)"/></g>
+          <g class="part p-rod" clip-path="url(#mx-chan)"><rect id="mx-rod" x="132" y="226" width="828" height="16" fill="url(#mx-hatch)"/></g>
           <rect id="mx-roll" x="0" y="226" width="828" height="1" fill="none"/>
+          <g transform="translate(828 0) scale(-1 1)"><!-- the storage end, drawn once and mirrored to the right -->
           <g class="part p-rod"><rect x="134" y="150" width="56" height="40" rx="7" fill="#ffc61a" stroke="#d99a00" stroke-width="3"/><circle cx="152" cy="170" r="6" fill="#d99a00"/></g>
           <g class="part p-store">
             <rect x="128" y="84" width="48" height="56" rx="7" fill="url(#mx-steel)"/>
@@ -104,11 +107,12 @@
             <g id="mx-disk" transform="translate(152 112)"><circle r="24" fill="#59627f" stroke="#3a4263" stroke-width="3"/><rect x="-3.5" y="-27" width="7" height="15" rx="3" fill="#ffc61a"/><circle r="4.5" fill="#3a4263"/></g>
           </g>
           <path class="part p-chute" d="M10 126 H122 L94 170 V192 H38 V170 Z" fill="#e0283a"/>
+          </g>
           <g class="mx-labels">
-            <path d="M124 36 H232 M182 100 H232 M112 152 L130 138 H232" fill="none"/>
-            <text x="240" y="42">Storage: the robot's tokens</text>
-            <text x="240" y="106">Motor disk: 430 encoder pulses, one token</text>
-            <text x="240" y="144">Chute: turns the token upright</text>
+            <path d="M704 36 H596 M646 100 H596 M716 152 L698 138 H596" fill="none"/>
+            <text x="588" y="42" text-anchor="end">Storage: the robot's tokens</text>
+            <text x="588" y="106" text-anchor="end">Motor disk: 430 encoder pulses, one token</text>
+            <text x="588" y="144" text-anchor="end">Chute: turns the token upright</text>
           </g>
         </svg>
       </div>
