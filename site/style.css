@@ -214,7 +214,6 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .token { position: absolute; inset: 7%; border-radius: 50%; }
 .token.red, .falling.red { background: radial-gradient(circle at 35% 30%, #ff7483, var(--red) 55%, var(--red-deep)); }
 .token.yellow, .falling.yellow { background: radial-gradient(circle at 35% 30%, #ffe27a, var(--yellow) 55%, var(--yellow-deep)); }
-.token.ghost { opacity: 0.55; outline: 3px dashed var(--on-blue); outline-offset: -3px; }
 .falling { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; }
 .cell.win .token { box-shadow: 0 0 0 4px var(--on-blue), 0 0 0 7px var(--yellow); animation: pulse 900ms ease-in-out 3; }
 @keyframes pulse { 50% { transform: scale(0.9); } }
@@ -228,19 +227,14 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 .status { min-height: 3em; margin: 0; text-align: center; max-width: 34rem; font-weight: 600; }
 .controls { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; align-items: center; width: min(100%, 36rem); }
-.btn-small, .cheat summary, .cheat-menu button {
+.btn-small {
   appearance: none; font: inherit; font-weight: 700; font-size: 0.92rem;
   min-height: 2.6rem; padding: 0 1rem; border-radius: 999px; cursor: pointer;
   color: var(--on-blue); background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.45);
 }
-.btn-small:hover, .cheat summary:hover, .cheat-menu button:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+.btn-small:hover { background: rgba(255,255,255,0.2); }
 .btn-next { background: var(--yellow); border-color: var(--yellow); color: var(--blue-ink); }
 .btn-next:hover { background: #ffd34d !important; }
-.cheat { position: relative; }
-.cheat summary { list-style: none; display: inline-flex; align-items: center; background: var(--red); border-color: var(--red); }
-.cheat summary::-webkit-details-marker { display: none; }
-.cheat-menu { position: absolute; z-index: 7; bottom: calc(100% + 0.5rem); left: 0; display: grid; gap: 0.4rem; padding: 0.6rem; background: var(--blue-ink); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.35); width: max-content; }
-.cheat-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
 .toggle { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.4rem; font-size: 0.9rem; color: var(--on-blue-soft); cursor: pointer; }
 /* A switch in the board's own parts: a recessed slot, an empty hole that slides into a yellow token. */
 .toggle input {
@@ -292,8 +286,6 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .cam-views figcaption { color: var(--on-blue-soft); font-size: 0.78rem; margin-top: 0.3rem; line-height: 1.3; }
 .pane .mini { padding: 5px; gap: 3px; background: var(--blue); }
 .pane-note { margin: 0; font-size: 0.82rem; color: var(--on-blue-soft); }
-.link-btn { appearance: none; border: 0; padding: 0; background: none; font: inherit; font-weight: 700; color: var(--on-blue); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
-.link-btn:disabled { opacity: 0.6; cursor: progress; }
 .ard-live { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.7rem; }
 .serial {
   margin: 0; height: calc(6 * 1.35em + 1rem); overflow: auto; padding: 0 0.7rem; border-block: 0.5rem solid #050f33; border-radius: 8px;

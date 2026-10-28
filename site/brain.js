@@ -80,15 +80,11 @@ def reset_json():
 async function bootVision() {
   await py.loadPackage(["numpy", "opencv-python"]);
   await install(VISION_MODULES);
-  const photo = await fetch("img/board-sample.png");
-  if (!photo.ok) throw new Error(`could not load the board photo (${photo.status})`);
-  py.FS.writeFile("/home/pyodide/board-sample.png", new Uint8Array(await photo.arrayBuffer()));
   py.runPython(`
 import base64
 import cv2
-from connect4_robot.vision import CellClassifier, VisionPipeline, encode_jpeg, load_corners, warp_and_condition
+from connect4_robot.vision import CellClassifier, VisionPipeline, encode_jpeg
 
-PHOTO = cv2.imread("/home/pyodide/board-sample.png")
 b64 = lambda img, q: base64.b64encode(encode_jpeg(img, q)).decode()
 
 # One pipeline per game, like the robot's camera thread: corner smoothing carries over.
@@ -111,27 +107,11 @@ def camera_reset_json():
     global camera
     camera = None
     return "null"
-
-def vision_json(mode):
-    vp = VisionPipeline(CellClassifier())
-    if mode == "auto":
-        warped = vp.preprocess(PHOTO)  # what the robot does with every frame
-    else:
-        vp._src = load_corners(PHOTO.shape)  # the grid's own corners
-        warped = warp_and_condition(PHOTO, vp._src)
-    board, debug = vp.detect_board(warped)
-    overlay = vp.draw_detection_overlay(PHOTO)
-    return json.dumps({
-        "board": board,
-        "detected": bool(vp.board_detected),
-        "overlay": b64(cv2.resize(overlay, None, fx=0.5, fy=0.5), 80),
-        "grid": b64(cv2.resize(debug, None, fx=0.6, fy=0.6), 80),
-    })
 `);
 }
 
 const ready = boot();
-const VISION_OPS = new Set(["vision", "vision_load", "frame", "camera_reset"]);
+const VISION_OPS = new Set(["vision_load", "frame", "camera_reset"]);
 
 self.onmessage = async (event) => {
   const { id, op, args } = event.data;

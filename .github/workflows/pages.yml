@@ -7,7 +7,6 @@ on:
       - "site/**"
       - "src/connect4_robot/**"
       - "arduino/dispenser/**"
-      - "notebooks/board_sample.png"
       - "docs/*.pdf"
       - "docs/diagrams/**"
       - ".github/workflows/pages.yml"
@@ -49,7 +48,6 @@ jobs:
           cp -r site/. _site/
           cp src/connect4_robot/{__init__,board,minimax,game_state,vision}.py _site/py/
           cp build/dispenser/dispenser.ino.hex _site/firmware/dispenser.hex
-          cp notebooks/board_sample.png _site/img/board-sample.png
           cp docs/*.pdf _site/docs/
           mkdir -p _site/diagrams
           cp docs/diagrams/closed-loop.svg docs/diagrams/robot-states.svg _site/diagrams/

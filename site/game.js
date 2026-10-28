@@ -37,7 +37,6 @@ const dispenser = $(".dispenser");
 const motorMag = $("#motor-mag");
 const motorCar = $("#motor-car");
 const nextBtn = $("#next");
-const cheat = $("#cheat");
 const resultEl = $("#result");
 const serialEl = $("#serial");
 const frame = $("#frame");
@@ -59,9 +58,9 @@ let you = RED;
 let busy = true;
 let epoch = 0; // bumped by New game; a flow that sees a newer epoch stops
 let lastCol = 3;
+let keyboardPlay = false; // focus follows the board only for keyboard players
 let visionOn = false;
 let stepMode = false;
-let ghost = null;
 let tilt = 0;
 
 class Stale extends Error {}
@@ -259,10 +258,16 @@ function dropToken(mv) {
   mv.dropped = true;
   const r = lowest(physical, mv.col);
   if (mv.e !== epoch || r < 0) return;
+  // The chip runs ahead of the drawing at full speed: hold it while the token
+  // rolls and drops, so the rod never closes over a token still on the rail.
+  // Its clock pauses too, so the timings it prints stay the sketch's own.
+  avr.postMessage({ op: "idle" });
   fall(r, mv.col, mv.robot, { roll: true }).then(() => {
-    if (mv.e !== epoch) return;
-    physical[r][mv.col] = mv.robot;
-    draw();
+    if (mv.e === epoch) {
+      physical[r][mv.col] = mv.robot;
+      draw();
+    }
+    avr.postMessage({ op: "resume" });
   });
 }
 
@@ -292,7 +297,7 @@ function drawTraces() {
     const g = traces.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const left = 46;
-    const top = 34;
+    const top = 46;
     const rowH = (H - top - 6) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
     g.font = "11px ui-monospace, Menlo, monospace";
@@ -318,7 +323,7 @@ function drawTraces() {
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = "#d6e0ff";
-      g.fillText(text, lx, 6 + lane * 10);
+      g.fillText(text, lx, 10 + lane * 12);
     }
     const s = ard.samples;
     if (!s.length) return;
@@ -362,7 +367,9 @@ for (let c = 0; c < COLS; c++) {
   colsEl.append(b);
   colButtons.push(b);
 }
+colsEl.addEventListener("pointerdown", () => { keyboardPlay = false; });
 colsEl.addEventListener("keydown", (e) => {
+  keyboardPlay = true;
   const i = colButtons.indexOf(document.activeElement);
   if (i < 0) return;
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
@@ -390,7 +397,6 @@ function draw() {
       if (!v) continue;
       const t = document.createElement("span");
       t.className = "token " + NAMES[v];
-      if (ghost && ghost[0] === r && ghost[1] === c) t.classList.add("ghost");
       cell.append(t);
     }
   }
@@ -582,9 +588,8 @@ function lock(on) {
     b.disabled = on || over || !legal.includes(c);
     b.setAttribute("aria-label", `Drop your ${NAMES[you]} token in column ${c + 1}`);
   });
-  cheat.querySelectorAll("button").forEach((b) => { b.disabled = on || over; });
   $("#depth").disabled = on; // the scores must come from the depth the robot searched
-  if (!on && document.activeElement === document.body) {
+  if (!on && keyboardPlay && document.activeElement === document.body) {
     const target = colButtons[lastCol]?.disabled ? colButtons.find((b) => !b.disabled) : colButtons[lastCol];
     target?.focus({ preventScroll: true });
   }
@@ -633,7 +638,6 @@ function userDrop(col) {
   if (!state || state.whose_turn !== "user") return;
   lastCol = col;
   flow(async (e) => {
-    cheat.open = false;
     const r = lowest(physical, col);
     if (r < 0) {
       say("That column is full.");
@@ -709,7 +713,7 @@ async function robotTurn(e, nodes) {
     await untilLine("DONE", e);
     ard.move = null;
     avr.postMessage({ op: "idle" });
-    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token, or try to cheat.`);
+    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
     return;
   }
   // As on the robot: no matching board in time puts the controller in its error state until Reset.
@@ -814,70 +818,12 @@ function finished() {
   return false;
 }
 
-// ── cheats: impossible boards, read by the camera and judged by the real validator
-cheat.addEventListener("click", (ev) => {
-  const kind = ev.target.dataset?.cheat;
-  if (!kind || !state || state.whose_turn !== "user") return;
-  flow(async (e) => {
-    cheat.open = false;
-    resetStages();
-    clearScores();
-    const legal = state.legal_cols;
-    const board = copy(state.trusted);
-    const put = (c, p) => {
-      const r = lowest(board, c);
-      if (r >= 0) board[r][c] = p;
-    };
-    if (kind === "two") {
-      const [a, b] = legal.slice().sort(() => Math.random() - 0.5);
-      put(a, you);
-      put(b ?? a, you);
-    } else if (kind === "vanish") {
-      const chips = [];
-      board.forEach((row, r) => row.forEach((v, c) => v && chips.push([r, c])));
-      if (!chips.length) {
-        say("No chips to make vanish yet. Play a move first.");
-        return;
-      }
-      const [r, c] = chips[Math.floor(Math.random() * chips.length)];
-      board[r][c] = 0;
-    } else if (kind === "float") {
-      // Deliberately impossible: a chip one cell above the lowest empty cell.
-      const options = legal.filter((c) => lowest(board, c) >= 1);
-      if (!options.length) {
-        say("No column has room to float a chip.");
-        return;
-      }
-      const c = options[Math.floor(Math.random() * options.length)];
-      const r = lowest(board, c) - 1;
-      board[r][c] = you;
-      ghost = [r, c];
-    } else if (kind === "robot") {
-      if (state.robot_color === "None") {
-        say("Play one move first, so the robot knows its colour.");
-        return;
-      }
-      put(legal[Math.floor(Math.random() * legal.length)], 3 - you);
-    }
-    physical = board;
-    draw();
-    const res = await cameraThenGate1(e);
-    say(res.ok ? "That one got through." : `Rejected by the robot's validator: ${human(res.reason)}.`);
-    await wait(1400);
-    guard(e);
-    ghost = null;
-    physical = copy(state.trusted);
-    draw();
-  });
-});
-
 // ── new game and settings ─────────────────────────────────────────────────
 async function newGame() {
   epoch++;
   lock(true);
   wake();
   nextAction = null;
-  ghost = null;
   Object.assign(ard, { move: null, cycleStart: null, samples: [], marks: [] });
   nextBtn.hidden = true;
   resultEl.hidden = true;
@@ -916,35 +862,6 @@ $("#step").addEventListener("change", (ev) => {
   if (!stepMode && nextAction) nextBtn.click();
 });
 
-// The real photo: the same code on a frame from our demo video.
-const PHOTO_TRUTH = [
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 0, 0, 0],
-  [0, 0, 1, 2, 2, 0, 0],
-  [0, 0, 2, 1, 2, 0, 0],
-  [0, 2, 1, 1, 2, 2, 0],
-].flat();
-$("#photo").addEventListener("click", async (ev) => {
-  const btn = ev.target;
-  btn.disabled = true;
-  const out = $("#photo-out");
-  out.textContent = "Running the camera code on the photo";
-  try {
-    const auto = (await call("vision", "auto")).value;
-    const grid = (await call("vision", "grid")).value;
-    const right = (b) => b.flat().filter((v, i) => v === PHOTO_TRUTH[i]).length;
-    await showOverlay(auto.overlay);
-    $("#cam-grid").replaceChildren(picture(auto.grid, "The warped photo with a dot on each hole showing how it was read"));
-    miniBoard($("#cam-board"), auto.board.flat(), PHOTO_TRUTH, `Photo as read: ${right(auto.board)} of 42 holes right`);
-    $("#frame-cap").textContent = "A frame from our demo video, with the corners the code found";
-    $("#cam-read").textContent = `${right(auto.board)} of 42 right (wrong ones ringed)`;
-    out.textContent = `Automatic detection reads ${right(auto.board)} of 42: the photo shows the board's blue legs, which join the frame. With the grid's own corners, ${right(grid.board)} of 42.`;
-  } catch (err) {
-    out.textContent = `The camera code could not run (${err.message}).`;
-  }
-  btn.disabled = false;
-});
 
 // ── Watch it play: muted, it plays while on screen, unless the visitor asked for
 // reduced motion or paused it; a visitor's pause sticks.
