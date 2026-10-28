@@ -72,6 +72,7 @@ let nextId = 1;
 const waiting = new Map();
 const ready = new Promise((resolve, reject) => waiting.set(0, { resolve, reject }));
 brain.onmessage = ({ data }) => {
+  if (data.progress) return document.dispatchEvent(new CustomEvent("brain-progress", { detail: data }));
   const w = waiting.get(data.id);
   if (!w) return;
   waiting.delete(data.id);
@@ -289,8 +290,8 @@ function drawTraces() {
     // Draw at the canvas's on-screen size, so the labels stay readable on a phone.
     const dpr = devicePixelRatio || 1;
     const W = traces.clientWidth || 720;
-    const H = 210;
-    if (traces.width !== Math.round(W * dpr)) {
+    const H = traces.clientHeight || 210;
+    if (traces.width !== Math.round(W * dpr) || traces.height !== Math.round(H * dpr)) {
       traces.width = Math.round(W * dpr);
       traces.height = Math.round(H * dpr);
     }

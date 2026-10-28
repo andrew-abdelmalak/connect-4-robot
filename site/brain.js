@@ -18,9 +18,39 @@ async function install(names) {
   }
 }
 
+// The runtime's two large files and their sizes in the pinned version. They are
+// fetched first, so the page can show real download progress; Pyodide then reads
+// them from the browser cache (the CDN serves them with a one-year max-age).
+const RUNTIME_FILES = { "pyodide.asm.wasm": 9598218, "python_stdlib.zip": 2545637 };
+
+async function fetchRuntime() {
+  const total = Object.values(RUNTIME_FILES).reduce((a, b) => a + b);
+  let done = 0;
+  let shown = -1;
+  await Promise.all(
+    Object.keys(RUNTIME_FILES).map(async (name) => {
+      const res = await fetch(PYODIDE + name);
+      if (!res.ok) throw new Error(`could not load ${name} (${res.status})`);
+      const reader = res.body.getReader();
+      for (let r = await reader.read(); !r.done; r = await reader.read()) {
+        done += r.value.length;
+        const pct = Math.floor((done / total) * 100);
+        if (pct !== shown) {
+          shown = pct;
+          postMessage({ progress: "download", done, total });
+        }
+      }
+    }),
+  );
+}
+
 async function boot() {
-  const { loadPyodide } = await import(PYODIDE + "pyodide.mjs");
+  const pyodideModule = import(PYODIDE + "pyodide.mjs");
+  await fetchRuntime();
+  postMessage({ progress: "start" });
+  const { loadPyodide } = await pyodideModule;
   py = await loadPyodide({ indexURL: PYODIDE });
+  postMessage({ progress: "code" });
   py.FS.mkdirTree("/home/pyodide/connect4_robot");
   await install(GAME_MODULES);
   py.runPython(`
