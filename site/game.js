@@ -403,8 +403,9 @@ function draw() {
   }
 }
 
-// A token falls from the funnel's height into its cell; fromCol is where it starts.
-// A token falls into its cell; the robot's first rolls along the rail from under the chute, over column 7.
+// A token falls into its cell. The robot's first rolls along the rail from under
+// the chute, over column 7; a person's goes straight into the board's top slot,
+// below the rail, so it never passes through the rod.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -412,7 +413,7 @@ async function fall(row, col, colour, { roll = false } = {}) {
   const size = cr.width * 0.86;
   const endX = cr.left - host.left + cr.width * 0.07;
   const endY = cr.top - host.top + cr.width * 0.07;
-  const startY = rollLine.getBoundingClientRect().top - host.top - size;
+  const startY = roll ? rollLine.getBoundingClientRect().top - host.top - size : cells[col].getBoundingClientRect().top - host.top + cr.width * 0.07;
   const el = document.createElement("span");
   el.className = "falling " + NAMES[colour];
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
@@ -429,6 +430,10 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
+  if (!roll) {
+    down[0].opacity = 0; // a hand puts it in the top slot: it fades in there, then drops
+    down.splice(1, 0, { opacity: 1, offset: at(Math.min(140, fallMs * 0.3)) });
+  }
   // from under the chute, over column 7, rolling left one turn per 3.14 token widths
   const turn = Math.round(((rollCols * pitch) / (Math.PI * size)) * 360);
   const frames = rollMs ? [{ transform: `translate(${rollCols * pitch}px, ${startY}px) rotate(${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
