@@ -34,8 +34,6 @@ const mech = $("#mech");
 const rod = $("#mx-rod");
 const rollLine = $("#mx-roll"); // the rod's top, where the token rolls
 const dispenser = $(".dispenser");
-const motorMag = $("#motor-mag");
-const motorCar = $("#motor-car");
 const nextBtn = $("#next");
 const resultEl = $("#result");
 const serialEl = $("#serial");
@@ -72,7 +70,7 @@ let nextId = 1;
 const waiting = new Map();
 const ready = new Promise((resolve, reject) => waiting.set(0, { resolve, reject }));
 brain.onmessage = ({ data }) => {
-  if (data.progress) return document.dispatchEvent(new CustomEvent("brain-progress", { detail: data }));
+  if (data.progress) return bootProgress(data);
   const w = waiting.get(data.id);
   if (!w) return;
   waiting.delete(data.id);
@@ -146,12 +144,12 @@ avr.onmessage = ({ data: m }) => {
     $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
-    $("#ard-speed").textContent = `Uno, running the compiled sketch at ${m.realtime.toFixed(1)}x real time`;
+    $("#ard-speed").textContent = `Uno, sketch at ${m.realtime.toFixed(1)}x real time`;
     if (ard.cycleStart !== null) ard.samples.push(...m.samples);
     const last = m.samples.at(-1); // [t, IN1, IN2, ENA, IN3, IN4, ENB, pulses]
     if (last) {
-      motorMag.querySelector("b").textContent = motorMag.dataset.on === "true" ? `PWM ${Math.round(last[6] * 100)}%, ${last[7]} pulses` : "off";
-      motorCar.querySelector("b").textContent = motorCar.dataset.on === "true" ? `PWM ${Math.round(last[3] * 100)}%, ${motorCar.dataset.dir}` : "off";
+      if (ard.magOn) $("#mag").textContent = `turning, PWM ${Math.round(last[6] * 100)}%`;
+      if (ard.dir) $("#car").textContent = `driving ${ard.dir > 0 ? "out" : "home"}, PWM ${Math.round(last[3] * 100)}%`;
     }
     drawTraces();
     wake();
@@ -163,6 +161,10 @@ avr.onmessage = ({ data: m }) => {
     onLine(m.text);
     // Between moves the sketch only waits for a byte: pause it to save the visitor's CPU.
     if (m.text === "READY" && !ard.move) avr.postMessage({ op: "idle" });
+    if (m.text === "READY" && !ard.booted) {
+      ard.booted = true;
+      bootLog("Arduino Uno: the sketch printed READY", "ok");
+    }
     wake(m.text);
   } else if (m.type === "sent") {
     serialPrint(`Pi sends "${String.fromCharCode(m.byte)}"`, "tx");
@@ -182,6 +184,7 @@ avr.onmessage = ({ data: m }) => {
     mech.dataset.phase = "";
     serialEl.replaceChildren();
     serialPrint("Arduino powered on", "tx");
+    if (!ard.booted) bootLog("Arduino Uno: dispenser.hex on an emulated ATmega328P, 16 MHz");
   } else if (m.type === "error") {
     arduinoFailed(m.error);
   }
@@ -241,16 +244,12 @@ async function releaseToken(mv) {
 function onMotor(m) {
   if (m.motor === "magazine") {
     $("#mag").textContent = m.on ? "turning" : "off";
-    motorMag.dataset.on = m.on;
+    ard.magOn = m.on;
     if (ard.move) mech.dataset.phase = m.on ? "release" : "roll";
-    if (!m.on) motorMag.querySelector("b").textContent = "off";
     if (!m.on && ard.move && m.pulses > 0) releaseToken(ard.move);
     return;
   }
   if (ard.move) mech.dataset.phase = m.dir > 0 ? "cover" : m.dir < 0 ? "back" : ard.dir > 0 ? "hold" : "";
-  motorCar.dataset.on = m.dir !== 0;
-  motorCar.dataset.dir = m.dir > 0 ? "out" : "home";
-  if (m.dir === 0) motorCar.querySelector("b").textContent = "off";
   $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : m.pos > 1 ? `stopped over column ${Math.round(columnAt(m.pos)) + 1}` : "stopped at home";
   ard.dir = m.dir;
 }
@@ -298,7 +297,7 @@ function drawTraces() {
     const g = traces.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     const left = 46;
-    const top = 46;
+    const top = 40;
     const rowH = (H - top - 6) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
     g.font = "11px ui-monospace, Menlo, monospace";
@@ -324,7 +323,7 @@ function drawTraces() {
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = "#d6e0ff";
-      g.fillText(text, lx, 10 + lane * 12);
+      g.fillText(text, lx, 8 + lane * 11);
     }
     const s = ard.samples;
     if (!s.length) return;
@@ -544,6 +543,7 @@ function setStage(name, s, msg, code = false) {
   } else {
     m.textContent = msg;
   }
+  follow();
 }
 function resetStages() {
   setStage("camera", "idle", visionOn ? "Waiting for a move" : visionLoading || !lowData ? "Loading the vision code (OpenCV, about 14 MB)" : "The vision code (about 14 MB) loads after your first move");
@@ -586,7 +586,7 @@ function lock(on) {
   const over = state && (state.winner || state.is_draw);
   const legal = state ? state.legal_cols : [];
   colButtons.forEach((b, c) => {
-    b.disabled = on || over || !legal.includes(c);
+    b.disabled = !booting && (on || over || !legal.includes(c));
     b.setAttribute("aria-label", `Drop your ${NAMES[you]} token in column ${c + 1}`);
   });
   $("#depth").disabled = on; // the scores must come from the depth the robot searched
@@ -636,6 +636,7 @@ async function cameraThenGate1(e) {
 }
 
 function userDrop(col) {
+  if (booting) return queueMove(col);
   if (!state || state.whose_turn !== "user") return;
   lastCol = col;
   flow(async (e) => {
@@ -896,14 +897,17 @@ const lowData = Boolean(net && (net.saveData || /(^|-)[23]g$/.test(net.effective
 let visionLoading = null;
 let visionFailed = false; // a failed load is not retried on every camera frame
 function loadVision() {
+  if (!visionLoading) bootLog("Camera: load NumPy and OpenCV, about 14 MB");
   visionLoading ??= call("vision_load")
     .then(() => {
       visionOn = true;
+      bootLog("Camera: OpenCV ready, every frame is read with the robot's vision code", "ok");
       if (stages.camera.dataset.state === "idle") setStage("camera", "idle", "Waiting for a move");
     })
     .catch((err) => {
       visionLoading = null;
       visionFailed = true;
+      bootLog(`Camera: the vision code could not load (${err.message})`);
       setStage("camera", "fail", `The vision code could not load (${err.message}). The page passes boards on as drawn.`);
     });
   return visionLoading;
@@ -921,17 +925,136 @@ async function prefetchReading() {
   }
 }
 
+// ── the step in focus and the instrument it needs ─────────────────────────
+// While steps overlap (the camera keeps reading frames as the carriage moves),
+// the most telling busy step keeps the focus. Once nothing is busy, a failed
+// step takes it, so a rejected board stays on screen, else the furthest one done.
+const PRIORITY = ["arduino", "gate2", "serial", "think", "gate1", "camera"];
+const TAB_FOR = { camera: "camera", gate2: "camera", serial: "arduino", arduino: "arduino" };
+const tabs = [...document.querySelectorAll("[data-tab]")];
+const focusCap = $("#focus-cap");
+let focused = null;
+let tabPicked = false; // a tab the visitor picked holds until their next move
+function showTab(name, { focus = false } = {}) {
+  for (const t of tabs) {
+    const on = t.dataset.tab === name;
+    t.setAttribute("aria-selected", String(on));
+    t.tabIndex = on ? 0 : -1;
+    if (on) {
+      delete t.dataset.live;
+      if (focus) t.focus();
+    }
+  }
+  document.querySelectorAll("[data-panel]").forEach((p) => p.toggleAttribute("data-off", p.dataset.panel !== name));
+  if (name === "arduino") drawTraces(); // the canvas may have changed size while hidden
+}
+tabs.forEach((t, i) => {
+  t.addEventListener("click", () => {
+    tabPicked = true;
+    showTab(t.dataset.tab);
+  });
+  t.addEventListener("keydown", (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: tabs.length - 1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    tabPicked = true;
+    showTab(tabs[(i + step) % tabs.length].dataset.tab, { focus: true });
+  });
+});
+function follow() {
+  const all = Object.values(stages);
+  const busyNow = all.filter((s) => s.dataset.state === "busy");
+  if (stages.camera.dataset.state === "busy" && busyNow.length === 1) tabPicked = false; // a new move
+  const done = all.filter((s) => s.dataset.state !== "idle");
+  const next = PRIORITY.map((k) => busyNow.find((s) => s.dataset.stage === k)).find(Boolean) ?? done.find((s) => s.dataset.state === "fail") ?? done.at(-1) ?? focused ?? stages.camera;
+  focused?.removeAttribute("data-focus");
+  focused = next;
+  next.setAttribute("data-focus", "");
+  focusCap.querySelector("b").textContent = next.dataset.long;
+  focusCap.querySelector("span").replaceChildren(...next.querySelector(".stage-msg").cloneNode(true).childNodes);
+  focusCap.dataset.state = next.dataset.state;
+  const tab = TAB_FOR[next.dataset.stage];
+  if (!tab || next.dataset.state === "idle" || booting) return;
+  if (!tabPicked) showTab(tab);
+  else if (next.dataset.state === "busy") tabs.find((t) => t.dataset.tab === tab && t.getAttribute("aria-selected") !== "true")?.setAttribute("data-live", "");
+}
+
+// ── powering on: Python downloads, the holes light, a move can wait ───────
+// The holes light from the bottom row up as the runtime's bytes arrive; the
+// last few wait for Python to start and the robot's code to load.
+let booting = true;
+let queued = null;
+const bootStart = performance.now();
+const bootLogEl = $("#boot-log");
+const power = $("#power");
+const LIT_ORDER = Array.from({ length: ROWS * COLS }, (_, k) => (ROWS - 1 - Math.floor(k / COLS)) * COLS + (k % COLS));
+const MB = (b) => (b / 1e6).toFixed(1);
+function bootLog(text, cls) {
+  const line = document.createElement("span");
+  if (cls) line.className = cls;
+  line.textContent = `${((performance.now() - bootStart) / 1000).toFixed(2).padStart(6)} s  ${text}\n`;
+  bootLogEl.append(line);
+  bootLogEl.scrollTop = bootLogEl.scrollHeight;
+}
+function lightHoles(n) {
+  LIT_ORDER.forEach((i, k) => cells[i].classList.toggle("lit", k < n));
+}
+let logged = 0;
+function bootProgress(d) {
+  if (d.progress === "download") {
+    const pct = Math.floor((d.done / d.total) * 100);
+    lightHoles(Math.floor((d.done / d.total) * 36));
+    $("#power-pct").textContent = `Powering on: ${pct}%`;
+    $("#power-step").textContent = `Downloading Python for the browser: ${MB(d.done)} of ${MB(d.total)} MB`;
+    if (pct >= logged + 25) {
+      logged = pct - (pct % 25);
+      bootLog(`Brain: downloaded ${MB(d.done)} of ${MB(d.total)} MB`);
+    }
+  } else if (d.progress === "start") {
+    lightHoles(39);
+    $("#power-step").textContent = "Starting Python";
+    bootLog("Brain: start Python (Pyodide, WebAssembly) in a background worker");
+  } else if (d.progress === "code") {
+    lightHoles(41);
+    $("#power-step").textContent = "Loading the robot's code";
+    bootLog("Brain: import connect4_robot (board, minimax, game_state), the files the robot ran");
+  }
+}
+function queueMove(col) {
+  queued = col;
+  draw(); // clears an earlier pick
+  const t = document.createElement("span");
+  t.className = `token queued ${NAMES[Number($('[name="colour"]:checked').value)]}`; // the colour picked so far
+  cells[col].append(t); // over the column, in its top hole
+  say(`Column ${col + 1} picked. Your token drops as soon as the robot is ready.`);
+}
+
 // ── boot ──────────────────────────────────────────────────────────────────
 draw();
 drawFrame(physical);
 lock(true);
 resetStages();
+bootLog("Brain: fetch pyodide.asm.wasm and python_stdlib.zip, 12.1 MB");
+avr.postMessage({ op: "boot" }); // the Arduino powers on while Python downloads
 ready
-  .then(newGame) // also picks up settings the browser restored or the visitor changed while loading
+  .then(() => {
+    booting = false;
+    bootLog("Brain: GameState() ready", "ok");
+    return newGame(); // also picks up settings the browser restored or the visitor changed while loading
+  })
   .then((ok) => {
     if (!ok) return;
-    say("Ready. You go first: tap a column.");
+    lightHoles(ROWS * COLS);
+    delete boardEl.dataset.boot;
+    power.hidden = true;
+    showTab("camera");
+    if (queued !== null) userDrop(queued);
+    else say("Ready. You go first: tap a column.");
     if (lowData) setStage("camera", "idle", "On a slow or metered connection, the vision code (about 14 MB) loads after your first move");
     else loadVision().then(prefetchReading);
   })
-  .catch((err) => say(`The robot's brain could not load (${err.message}). Reload to try again.`));
+  .catch((err) => {
+    $("#power-step").textContent = "The robot's brain could not load";
+    bootLog(`Brain: could not load (${err.message})`);
+    say(`The robot's brain could not load (${err.message}). Reload to try again.`);
+  });
