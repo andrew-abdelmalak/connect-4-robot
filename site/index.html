@@ -96,6 +96,11 @@
         <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your token"></div>
         <div class="board" id="board" aria-hidden="true" data-boot></div>
         <div class="result" id="result" hidden><p id="result-text"></p><button type="button" class="btn btn-yellow" id="again">Play again</button></div>
+        <div class="result confirm" id="confirm" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-text" hidden>
+          <p id="confirm-title">Start over?</p>
+          <span class="confirm-text" id="confirm-text">The game on the board will be cleared.</span>
+          <span class="confirm-actions"><button type="button" class="btn btn-yellow" id="confirm-yes">Start over</button><button type="button" class="btn btn-line" id="confirm-no">Keep playing</button></span>
+        </div>
         <div class="power" id="power" aria-hidden="true"><p class="power-pill"><span class="lamp"></span><span id="power-pct">Powering on</span></p><p class="power-step" id="power-step">Downloading Python for the browser</p></div>
       </div>
       <p class="status" id="status" role="status" aria-live="polite">The robot is powering on. Pick a column any time: your move waits for it.</p>
@@ -112,7 +117,7 @@
               <option value="5" selected>5, the robot's</option>
             </select>
           </label>
-          <button type="button" class="info" aria-controls="info-depth" aria-expanded="false" aria-label="About moves ahead">i</button>
+          <button type="button" class="info" aria-controls="info-depth" aria-expanded="false" aria-label="About moves ahead"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
           <span class="info-pop" id="info-depth" popover>
             <b class="info-title">Moves ahead</b>
             <span class="info-lead">Minimax plays out every line this many moves deep, yours and its own in turn, then picks the best column.</span>
@@ -123,7 +128,7 @@
           <label class="pick">Arduino
             <select id="speed"><option value="0" selected>Full speed</option><option value="1">Real time</option></select>
           </label>
-          <button type="button" class="info" aria-controls="info-speed" aria-expanded="false" aria-label="About the Arduino speed">i</button>
+          <button type="button" class="info" aria-controls="info-speed" aria-expanded="false" aria-label="About the Arduino speed"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
           <span class="info-pop" id="info-speed" popover>
             <b class="info-title">Arduino speed</b>
             <span class="info-lead">The compiled sketch runs on an emulated Arduino Uno.</span>
@@ -132,7 +137,7 @@
         </span>
         <span class="setting">
           <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
-          <button type="button" class="info" aria-controls="info-step" aria-expanded="false" aria-label="About step by step">i</button>
+          <button type="button" class="info" aria-controls="info-step" aria-expanded="false" aria-label="About step by step"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
           <span class="info-pop" id="info-step" popover>
             <b class="info-title">Step by step</b>
             <span class="info-lead">Pauses before each step of a move, so you can follow the camera, the brain, and the Arduino one at a time.</span>
@@ -141,7 +146,6 @@
         </span>
         <button type="button" class="btn-small btn-next" id="next" hidden>Next step</button>
         <button type="button" class="btn-small" id="reset">New game</button>
-        <button type="button" class="btn-small" id="keep" hidden>Keep playing</button>
       </div>
     </div>
 

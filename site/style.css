@@ -116,8 +116,9 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .info {
   appearance: none; flex: none; width: 1.35rem; height: 1.35rem; padding: 0; border-radius: 50%; cursor: pointer;
   border: 2px solid rgba(255, 255, 255, 0.45); background: transparent; color: var(--on-blue-soft);
-  font: 800 0.72rem/1 var(--display); display: grid; place-items: center;
+  display: grid; place-items: center;
 }
+.info svg { width: 0.85rem; height: 0.85rem; fill: currentColor; }
 .info:hover, .info:focus-visible { border-color: var(--yellow); color: var(--yellow); }
 .info:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 .info-pop {
@@ -143,6 +144,8 @@ a { color: inherit; text-underline-offset: 0.2em; }
   #info-depth { position-anchor: --info-depth; }
   #info-speed { position-anchor: --info-speed; }
   #info-step { position-anchor: --info-step; }
+  /* on a phone the note spans the screen above its "i", with a margin each side */
+  @media (max-width: 600px) { .info-pop { position-area: top span-all; justify-self: center; } }
 }
 .dock { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center; justify-content: center; font-size: 0.86rem; color: var(--on-blue-soft); }
 .seg { border: 0; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.35rem; }
@@ -222,7 +225,8 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .scores span:empty { background: transparent; }
 .scores .best { background: var(--yellow); color: var(--blue-ink); font-weight: 700; }
 
-.cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 var(--gap); z-index: 3; }
+/* each column's hit area is one hole plus one gap wide, so its highlight centres on the holes */
+.cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 calc(var(--gap) / 2); z-index: 3; }
 .col-btn { appearance: none; border: 0; background: transparent; cursor: pointer; padding: 0; border-radius: 999px; }
 .col-btn:hover:not(:disabled), .col-btn:focus-visible { background: rgba(255, 198, 26, 0.18); }
 .col-btn:disabled { cursor: not-allowed; }
@@ -258,7 +262,11 @@ a { color: inherit; text-underline-offset: 0.2em; }
   color: var(--on-blue); background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.45);
 }
 .btn-small:hover { background: rgba(255,255,255,0.2); }
-.btn-confirm, .btn-confirm:hover { background: var(--red); border-color: var(--red); color: var(--on-blue); }
+.btn-line { background: transparent; color: var(--on-blue); border-color: rgba(255, 255, 255, 0.6); }
+.btn-line:hover { border-color: var(--on-blue); background: rgba(255, 255, 255, 0.1); }
+.confirm { gap: 0.6rem; }
+.confirm-text { color: var(--on-blue-soft); font-size: 0.95rem; }
+.confirm-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin-top: 0.4rem; }
 .btn-next { background: var(--yellow); border-color: var(--yellow); color: var(--blue-ink); }
 .btn-next:hover { background: #ffd34d !important; }
 .toggle { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.4rem; font-size: 0.9rem; color: var(--on-blue-soft); cursor: pointer; }
@@ -309,7 +317,10 @@ a { color: inherit; text-underline-offset: 0.2em; }
 }
 .stage[data-state="pass"]::after { background: var(--yellow); }
 .stage strong { font-size: 0.78rem; line-height: 1.15; max-width: 7.5em; color: var(--on-blue-soft); }
-.stage[data-focus] strong { color: var(--on-blue); text-decoration: underline 2px var(--yellow); text-underline-offset: 4px; }
+.stage[data-focus] strong { color: var(--on-blue); }
+/* the step in focus: a short bar under its whole name, however many lines it takes */
+.stage strong::after { content: ""; display: block; width: 1.6rem; height: 3px; margin: 0.35rem auto 0; border-radius: 2px; } /* every step keeps the room, so the bar never shifts */
+.stage[data-focus] strong::after { background: var(--yellow); }
 .stage[data-state="busy"] strong { color: var(--yellow); }
 .stage-msg { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* read out, shown in the caption */
 .stage-msg code, .focus-cap code { font-family: var(--mono); font-size: 0.76rem; }
@@ -378,6 +389,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .serial {
   margin: 0; height: calc(4 * 1.35em + 1rem); overflow: auto; padding: 0 0.7rem; border-block: 0.5rem solid #050f33; border-radius: 8px;
   background: #050f33; color: #b9f3c8; font-family: var(--mono); font-size: 0.74rem; line-height: 1.35; white-space: pre-wrap;
+  scrollbar-width: thin; scrollbar-color: #34417a transparent;
 }
 .serial .tx { color: var(--yellow); }
 .pins { margin: 0; display: grid; gap: 0.45rem; align-content: start; font-size: 0.82rem; }
@@ -386,7 +398,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .pins dt { color: var(--on-blue-soft); }
 .pins dd { margin: 0; font-family: var(--mono); font-size: 0.78rem; display: flex; align-items: center; gap: 0.4rem; }
 .gear { width: 1rem; height: 1rem; border-radius: 50%; border: 3px dotted var(--on-blue); transform: rotate(var(--turn, 0deg)); }
-.traces { width: 100%; height: 160px; border-radius: 8px; background: #050f33; }
+.traces { width: 100%; height: 152px; border-radius: 8px; background: #050f33; }
 
 /* reading sections on the table */
 section:not(.hero) {
@@ -553,7 +565,6 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
   .rig { row-gap: 0.7rem; }
   .stepper { padding: 1.9rem 1rem 0.75rem; }
   .instrument { padding-bottom: 0.8rem; }
-  .instrument .traces { height: 136px; }
   .instrument .serial:not(.boot-log) { height: calc(3 * 1.35em + 1rem); }
 }
 @media (max-width: 959px) {
@@ -563,6 +574,7 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (max-width: 880px) {
   .tabs button small { display: none; }
   .stage strong { font-size: 0.7rem; }
+  .stepper { padding-inline: 0.6rem; }
   .menu-btn { display: inline-flex; align-items: center; }
   .top nav { display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0;
     background: var(--blue-ink); padding: 0.5rem clamp(1rem, 4vw, 3rem) 1rem; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3); }

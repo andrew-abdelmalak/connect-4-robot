@@ -301,7 +301,7 @@ function drawTraces() {
     const top = pad + 36; // three lanes of event labels above the plot
     const rowH = (H - top - pad) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
-    g.font = "11px ui-monospace, Menlo, monospace";
+    g.font = `${Math.min(11, Math.floor(rowH) - 1)}px ui-monospace, Menlo, monospace`; // the lane names never touch
     g.textBaseline = "middle";
     const t0 = ard.cycleStart ?? ard.t;
     const span = Math.max(6000, ard.t - t0);
@@ -829,6 +829,7 @@ function finished() {
 // ── new game and settings ─────────────────────────────────────────────────
 async function newGame() {
   epoch++;
+  closeConfirm();
   lock(true);
   wake();
   nextAction = null;
@@ -859,34 +860,34 @@ async function newGame() {
   lock(false);
   return true;
 }
-// New game in the middle of a game asks once: the button turns into the
-// confirmation, with Keep playing beside it, and goes back after six seconds.
-const resetBtn = $("#reset");
-const keepBtn = $("#keep");
-let confirmTimer = null;
-function unarm() {
-  clearTimeout(confirmTimer);
-  confirmTimer = null;
-  resetBtn.textContent = "New game";
-  resetBtn.classList.remove("btn-confirm");
-  keepBtn.hidden = true;
+// Starting over in the middle of a game asks first, on the board itself:
+// New game, or a new colour, opens the question; Keep playing (or Esc) closes it.
+const confirmEl = $("#confirm");
+let onConfirm = null;
+let confirmBack = null; // where the focus goes back to
+const midGame = () => physical.some((row) => row.some(Boolean)) && !(state && (state.winner || state.is_draw));
+function askStartOver(then, back = $("#reset")) {
+  if (!midGame()) return then();
+  onConfirm = then;
+  confirmEl.hidden = false;
+  confirmBack = back;
+  $("#confirm-no").focus(); // the safe answer has the focus
 }
-resetBtn.addEventListener("click", () => {
-  const midGame = physical.some((row) => row.some(Boolean)) && !(state && (state.winner || state.is_draw));
-  if (confirmTimer || !midGame) {
-    unarm();
-    newGame();
-    return;
-  }
-  resetBtn.textContent = "Yes, start over";
-  resetBtn.classList.add("btn-confirm");
-  keepBtn.hidden = false;
-  confirmTimer = setTimeout(unarm, 6000);
+function closeConfirm() {
+  confirmEl.hidden = true;
+  onConfirm = null;
+}
+$("#confirm-yes").addEventListener("click", () => {
+  const then = onConfirm;
+  closeConfirm();
+  then?.();
 });
-keepBtn.addEventListener("click", () => {
-  unarm();
-  resetBtn.focus();
+$("#confirm-no").addEventListener("click", () => {
+  closeConfirm();
+  confirmBack?.focus();
 });
+confirmEl.addEventListener("keydown", (e) => e.key === "Escape" && $("#confirm-no").click());
+$("#reset").addEventListener("click", () => askStartOver(newGame));
 
 // ── setting notes: open on hover or focus, stay open on click or tap ──────
 // Esc or a click outside closes a note (the browser's own popover behaviour).
@@ -919,7 +920,20 @@ for (const btn of document.querySelectorAll(".info")) {
   });
 }
 $("#again").addEventListener("click", newGame);
-document.querySelectorAll('[name="colour"]').forEach((r) => r.addEventListener("change", () => { if (state) newGame(); }));
+// A new colour starts a new game: mid-game the radio waits for the answer.
+let colourShown = $('[name="colour"]:checked').value;
+document.querySelectorAll('[name="colour"]').forEach((r) =>
+  r.addEventListener("change", () => {
+    if (!state) return (colourShown = r.value);
+    const picked = r;
+    document.querySelector(`[name="colour"][value="${colourShown}"]`).checked = true;
+    askStartOver(() => {
+      picked.checked = true;
+      colourShown = picked.value;
+      newGame();
+    }, picked);
+  }),
+);
 $("#depth").addEventListener("change", (ev) => call("depth", Number(ev.target.value)).catch(() => {}));
 $("#speed").addEventListener("change", (ev) => avr.postMessage({ op: "speed", value: Number(ev.target.value) }));
 $("#step").addEventListener("change", (ev) => {
