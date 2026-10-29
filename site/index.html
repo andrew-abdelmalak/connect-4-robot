@@ -105,16 +105,28 @@
           <label><input type="radio" name="colour" value="1" checked><span class="swatch red"></span>Red</label>
           <label><input type="radio" name="colour" value="2"><span class="swatch yellow"></span>Yellow</label>
         </fieldset>
-        <label class="pick"><span class="sr-only">How far the robot looks ahead</span>
-          <select id="depth">
-            <option value="1">1 move ahead</option><option value="2">2 moves ahead</option><option value="3">3 moves ahead</option><option value="4">4 moves ahead</option>
-            <option value="5" selected>5 moves ahead, as on the robot</option>
-          </select>
-        </label>
-        <label class="pick"><span class="sr-only">Arduino speed</span>
-          <select id="speed"><option value="0" selected>Arduino at full speed</option><option value="1">Arduino in real time</option></select>
-        </label>
-        <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
+        <span class="setting">
+          <label class="pick">Looks ahead
+            <select id="depth">
+              <option value="1">1 move</option><option value="2">2 moves</option><option value="3">3 moves</option><option value="4">4 moves</option>
+              <option value="5" selected>5 moves, the robot's</option>
+            </select>
+          </label>
+          <button type="button" class="info" popovertarget="info-depth" aria-label="What looks ahead means">i</button>
+          <span class="info-pop" id="info-depth" popover>How many moves ahead minimax searches, counting yours and the robot's in turn. The robot played at 5. Fewer moves make it answer sooner and play weaker.</span>
+        </span>
+        <span class="setting">
+          <label class="pick">Arduino
+            <select id="speed"><option value="0" selected>Full speed</option><option value="1">Real time</option></select>
+          </label>
+          <button type="button" class="info" popovertarget="info-speed" aria-label="What the Arduino speeds mean">i</button>
+          <span class="info-pop" id="info-speed" popover>Full speed runs the compiled sketch as fast as your browser can; the Arduino tab shows how many times real time that is. Real time runs it at the Uno's own pace, so the carriage and the magazine take as long as on the robot.</span>
+        </span>
+        <span class="setting">
+          <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
+          <button type="button" class="info" popovertarget="info-step" aria-label="What step by step does">i</button>
+          <span class="info-pop" id="info-step" popover>Pauses before each step of a move, so you can follow the camera, the brain, and the Arduino one at a time. Press Next to go on.</span>
+        </span>
         <button type="button" class="btn-small btn-next" id="next" hidden>Next step</button>
         <button type="button" class="btn-small" id="reset">New game</button>
       </div>

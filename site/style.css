@@ -111,6 +111,30 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .rig-play { --rig-gap: 0.55rem; grid-area: play; position: relative; display: grid; gap: var(--rig-gap); justify-items: center; }
 .rig-panel { grid-area: panel; display: grid; gap: 0.8rem; min-width: 0; }
 /* settings and controls in one row under the board */
+.setting { display: inline-flex; align-items: center; gap: 0.3rem; }
+/* a small round "i" beside each setting opens a short note about it */
+.info {
+  appearance: none; flex: none; width: 1.35rem; height: 1.35rem; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.45); background: transparent; color: var(--on-blue-soft);
+  font: 800 0.72rem/1 var(--display); display: grid; place-items: center;
+}
+.info:hover, .info:focus-visible { border-color: var(--yellow); color: var(--yellow); }
+.info:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.info-pop {
+  max-width: min(22rem, calc(100vw - 2rem)); margin: 0; padding: 0.75rem 0.9rem; border-radius: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.35); background: var(--blue-ink); color: var(--on-blue);
+  font-size: 0.86rem; line-height: 1.45; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+}
+/* where the browser can anchor it, the note opens above its "i"; elsewhere it opens centred */
+@supports (position-area: top) {
+  .info-pop { position-area: top; position-try-fallbacks: flip-block; margin-bottom: 0.5rem; }
+  .setting:nth-of-type(1) .info { anchor-name: --info-depth; }
+  .setting:nth-of-type(2) .info { anchor-name: --info-speed; }
+  .setting:nth-of-type(3) .info { anchor-name: --info-step; }
+  #info-depth { position-anchor: --info-depth; }
+  #info-speed { position-anchor: --info-speed; }
+  #info-step { position-anchor: --info-step; }
+}
 .dock { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center; justify-content: center; font-size: 0.86rem; color: var(--on-blue-soft); }
 .seg { border: 0; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.35rem; }
 .seg legend { float: left; margin-right: 0.35rem; padding: 0; }
@@ -257,11 +281,11 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 /* the six steps of each move, grouped by the part that does them; the step
    in focus speaks in the caption under them */
-.stepper { background: #0b2672; border-radius: 18px; padding: 1.4rem 0.6rem 0.6rem; }
+.stepper { background: #0b2672; border-radius: 18px; padding: 2.1rem 1rem 0.9rem; }
 .steps { counter-reset: step; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .stage { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; position: relative; text-align: center; }
 .stage::before {
-  content: attr(data-device); position: absolute; top: -1.2rem; left: 50%; translate: -50% 0; white-space: nowrap;
+  content: attr(data-device); position: absolute; top: -1.45rem; left: 50%; translate: -50% 0; white-space: nowrap;
   font: 0.62rem var(--mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--on-blue-soft);
 }
 /* a part's label sits centred over all of its steps */
@@ -282,7 +306,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .steps .lamp { width: 1.5rem; height: 1.5rem; margin: 0; display: grid; place-items: center; }
 .steps .lamp::before { counter-increment: step; content: counter(step); font: 800 0.78rem var(--display); color: var(--on-blue-soft); }
 .stage[data-state="pass"] .lamp::before, .stage[data-state="fail"] .lamp::before { color: var(--blue-ink); }
-.focus-cap { margin: 0.6rem 0.3rem 0; padding: 0.55rem 0.8rem; min-height: 3.1em; border-radius: 12px; background: rgba(5, 15, 51, 0.55); font-size: 0.88rem; color: var(--on-blue-soft); }
+.focus-cap { margin: 0.8rem 0 0; padding: 0.6rem 0.9rem; min-height: 2.9em; border-radius: 12px; background: rgba(5, 15, 51, 0.55); font-size: 0.88rem; color: var(--on-blue-soft); }
 .focus-cap b { color: var(--on-blue); }
 /* a small lamp before the step's name, lit like the step lamps */
 .focus-cap b::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.45rem; border-radius: 50%; background: var(--lamp, #34417a); vertical-align: 0.05em; }
@@ -291,7 +315,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .focus-cap[data-state="fail"] { --lamp: var(--red); }
 
 /* one instrument window, switched to the part at work */
-.instrument { background: #0b2672; border-radius: 18px; padding: 0.25rem 0.9rem 0.9rem; }
+.instrument { background: #0b2672; border-radius: 18px; padding: 0.35rem 1rem 1rem; }
 .tabs { display: flex; flex-wrap: wrap; gap: 0 0.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.14); margin-bottom: 0.75rem; }
 .tabs button {
   appearance: none; background: transparent; border: 0; margin-bottom: -1px; padding: 0.6rem 0.5rem 0.5rem; position: relative;
@@ -346,11 +370,13 @@ a { color: inherit; text-underline-offset: 0.2em; }
   background: #050f33; color: #b9f3c8; font-family: var(--mono); font-size: 0.74rem; line-height: 1.35; white-space: pre-wrap;
 }
 .serial .tx { color: var(--yellow); }
-.pins { margin: 0; display: grid; gap: 0.4rem; font-size: 0.82rem; }
+.pins { margin: 0; display: grid; gap: 0.45rem; align-content: start; font-size: 0.82rem; }
+/* each motor's name and state on one line, wrapping only when narrow */
+.pins div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.1rem 0.6rem; }
 .pins dt { color: var(--on-blue-soft); }
 .pins dd { margin: 0; font-family: var(--mono); font-size: 0.78rem; display: flex; align-items: center; gap: 0.4rem; }
 .gear { width: 1rem; height: 1rem; border-radius: 50%; border: 3px dotted var(--on-blue); transform: rotate(var(--turn, 0deg)); }
-.traces { width: 100%; height: 140px; border-radius: 8px; background: #050f33; }
+.traces { width: 100%; height: 160px; border-radius: 8px; background: #050f33; }
 
 /* reading sections on the table */
 section:not(.hero) {
@@ -510,10 +536,15 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 /* narrower columns wrap the dock to three or four rows */
 @media (min-width: 960px) and (max-width: 1179px) { :root { --chrome: 22rem; } }
 @media (min-width: 960px) and (max-width: 1250px) { .tabs button small { display: none; } }
-/* short screens: a smaller headline keeps the instrument in view */
+/* short screens: a smaller headline and tighter panels keep the instrument in view */
 @media (min-width: 960px) and (max-height: 820px) {
   .hero h1 { font-size: clamp(2rem, 3vw, 2.5rem); }
   .lede { font-size: 0.98rem; }
+  .rig { row-gap: 0.7rem; }
+  .stepper { padding: 1.9rem 1rem 0.75rem; }
+  .instrument { padding-bottom: 0.8rem; }
+  .instrument .traces { height: 136px; }
+  .instrument .serial:not(.boot-log) { height: calc(3 * 1.35em + 1rem); }
 }
 @media (max-width: 959px) {
   .rig { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "play" "panel"; }

@@ -296,22 +296,23 @@ function drawTraces() {
     }
     const g = traces.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const left = 46;
-    const top = 40;
-    const rowH = (H - top - 6) / TRACE_ROWS.length;
+    const pad = 12; // margin on every side, so no label touches the edge
+    const left = pad + 36;
+    const top = pad + 36; // three lanes of event labels above the plot
+    const rowH = (H - top - pad) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
     g.font = "11px ui-monospace, Menlo, monospace";
     g.textBaseline = "middle";
     const t0 = ard.cycleStart ?? ard.t;
     const span = Math.max(6000, ard.t - t0);
-    const x = (t) => left + ((t - t0) / span) * (W - left - 8);
+    const x = (t) => left + ((t - t0) / span) * (W - left - pad);
     TRACE_ROWS.forEach(([name], i) => {
       g.fillStyle = "#8ea4dc";
-      g.fillText(name, 6, top + rowH * (i + 0.5));
+      g.fillText(name, pad, top + rowH * (i + 0.5));
     });
     const laneEnd = [-Infinity, -Infinity, -Infinity]; // labels close together take one of three heights
     for (const [t, text] of ard.marks) {
-      const lx = Math.min(x(t) + 3, W - g.measureText(text).width - 2);
+      const lx = Math.min(x(t) + 4, W - g.measureText(text).width - pad);
       let lane = laneEnd.findIndex((end) => lx > end);
       if (lane < 0) lane = 0;
       laneEnd[lane] = lx + g.measureText(text).width + 6;
@@ -319,11 +320,11 @@ function drawTraces() {
       g.setLineDash([3, 3]);
       g.beginPath();
       g.moveTo(x(t), top - 4);
-      g.lineTo(x(t), H);
+      g.lineTo(x(t), H - pad / 2);
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = "#d6e0ff";
-      g.fillText(text, lx, 8 + lane * 11);
+      g.fillText(text, lx, pad + 2 + lane * 12);
     }
     const s = ard.samples;
     if (!s.length) return;
@@ -929,6 +930,8 @@ async function prefetchReading() {
 // While steps overlap (the camera keeps reading frames as the carriage moves),
 // the most telling busy step keeps the focus. Once nothing is busy, a failed
 // step takes it, so a rejected board stays on screen, else the furthest one done.
+// Only a busy or failed step moves the window: the camera check often passes
+// while the carriage is still driving home, and the window stays on the Arduino.
 const PRIORITY = ["arduino", "gate2", "serial", "think", "gate1", "camera"];
 const TAB_FOR = { camera: "camera", gate2: "camera", serial: "arduino", arduino: "arduino" };
 const tabs = [...document.querySelectorAll("[data-tab]")];
@@ -974,7 +977,7 @@ function follow() {
   focusCap.querySelector("span").replaceChildren(...next.querySelector(".stage-msg").cloneNode(true).childNodes);
   focusCap.dataset.state = next.dataset.state;
   const tab = TAB_FOR[next.dataset.stage];
-  if (!tab || next.dataset.state === "idle" || booting) return;
+  if (!tab || booting || !["busy", "fail"].includes(next.dataset.state)) return;
   if (!tabPicked) showTab(tab);
   else if (next.dataset.state === "busy") tabs.find((t) => t.dataset.tab === tab && t.getAttribute("aria-selected") !== "true")?.setAttribute("data-live", "");
 }
