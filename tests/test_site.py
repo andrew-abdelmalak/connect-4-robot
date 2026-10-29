@@ -76,3 +76,10 @@ def test_page_constants_match_the_robot_code():
     from connect4_robot.minimax import WIN_SCORE
 
     assert int(_js_const(game, "WIN_SCORE").replace("_", "")) == WIN_SCORE
+
+
+def test_step_bar_class_is_not_shared():
+    """The hero's step bar styles `.steps` as a 6-column grid; a list that reused the class broke."""
+    html = (SITE / "index.html").read_text()
+    classes = [c for attr in re.findall(r'class="([^"]+)"', html) for c in attr.split()]
+    assert classes.count("steps") == 1
