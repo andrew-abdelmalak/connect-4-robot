@@ -175,8 +175,15 @@ avr.onmessage = ({ data: m }) => {
   } else if (m.type === "paused") {
     if (stepMode && m.reason === "line" && ard.move) {
       // After DONE the camera check may still be waiting on robot time: keep the clock running.
-      if (ard.lines.at(-1)?.startsWith("DONE")) avr.postMessage({ op: "resume" });
-      else offerNext("let the Arduino continue", () => avr.postMessage({ op: "resume" }));
+      if (ard.lines.at(-1)?.startsWith("DONE")) {
+        if (!holds) avr.postMessage({ op: "resume" });
+      } else {
+        ard.stepWait = true;
+        offerNext("let the Arduino continue", () => {
+          ard.stepWait = false;
+          if (!holds) avr.postMessage({ op: "resume" });
+        });
+      }
     }
   } else if (m.type === "reset") {
     ard.failed = null;
@@ -220,9 +227,14 @@ const MAGAZINE_SHOWN = 5;
 let magazineLeft = 21;
 const SVG_NS = "http://www.w3.org/2000/svg";
 for (let c = 0; c < COLS; c++) {
+  const x = 828 - (MECH_X0 + c * MECH_PITCH + 7) - 86; // column 1 at the right
   const slot = document.createElementNS(SVG_NS, "rect");
-  for (const [k, v] of Object.entries({ x: 828 - (MECH_X0 + c * MECH_PITCH + 7) - 86, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v); // column 1 at the right
+  for (const [k, v] of Object.entries({ x, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v);
   $("#mx-slots").append(slot);
+  const num = document.createElementNS(SVG_NS, "text");
+  for (const [k, v] of Object.entries({ x: x + 43, y: 224 })) num.setAttribute(k, v);
+  num.textContent = c + 1;
+  $("#mx-nums").append(num);
 }
 function drawMagazine() {
   magazineEl.replaceChildren(...Array.from({ length: Math.min(MAGAZINE_SHOWN, magazineLeft) }, (_, i) => {
@@ -266,14 +278,26 @@ function dropToken(mv) {
   // The chip runs ahead of the drawing at full speed: hold it while the token
   // rolls and drops, so the rod never closes over a token still on the rail.
   // Its clock pauses too, so the timings it prints stay the sketch's own.
-  avr.postMessage({ op: "idle" });
+  holdAvr();
   fall(r, mv.col, mv.robot, { roll: true }).then(() => {
     if (mv.e === epoch) {
       physical[r][mv.col] = mv.robot;
       draw();
     }
-    avr.postMessage({ op: "resume" });
+    releaseAvr();
   });
+}
+// While the page draws a falling token or reads a camera frame, the emulated
+// Uno waits, so its clock keeps the robot's timing on a slow device. A step-mode
+// pause holds it too, until the visitor presses Next.
+let holds = 0;
+function holdAvr() {
+  holds++;
+  avr.postMessage({ op: "idle" });
+}
+function releaseAvr() {
+  holds = Math.max(0, holds - 1);
+  if (!holds && ard.move && !ard.stepWait) avr.postMessage({ op: "resume" });
 }
 
 // ── signal traces ─────────────────────────────────────────────────────────
@@ -406,6 +430,16 @@ function draw() {
       cell.append(t);
     }
   }
+  labelColumns();
+}
+// The board is hidden from screen readers, so each column's button says what it holds.
+function labelColumns() {
+  colButtons.forEach((b, c) => {
+    const stack = [];
+    for (let r = ROWS - 1; r >= 0 && physical[r][c]; r--) stack.push(NAMES[physical[r][c]]);
+    const held = stack.length === ROWS ? "full" : stack.length ? `${stack.length} of ${ROWS} filled, from the bottom: ${stack.join(", ")}` : "empty";
+    b.setAttribute("aria-label", `Column ${c + 1}, ${held}. Drop your ${NAMES[you]} token`);
+  });
 }
 
 // A token falls into its cell through an open hole in the rail. The robot's
@@ -503,6 +537,15 @@ function miniBoard(el, board, truth, label) {
   }));
   el.setAttribute("aria-label", label);
 }
+// A fresh board in every camera view, so nothing from the last game stays on screen.
+function clearCamera() {
+  drawFrame(physical);
+  $("#cam-grid").replaceChildren();
+  const blank = physical.flat();
+  miniBoard($("#cam-board"), blank, blank, "Board as read: no frame read yet");
+  $("#cam-read").textContent = "Board as read";
+  $("#frame-cap").textContent = "Camera picture, drawn by the page";
+}
 function picture(b64, alt = "") {
   const img = new Image();
   img.src = "data:image/jpeg;base64," + b64;
@@ -594,8 +637,8 @@ function lock(on) {
   const legal = state ? state.legal_cols : [];
   colButtons.forEach((b, c) => {
     b.disabled = !booting && (on || over || !legal.includes(c));
-    b.setAttribute("aria-label", `Drop your ${NAMES[you]} token in column ${c + 1}`);
   });
+  labelColumns();
   $("#depth").disabled = on; // the scores must come from the depth the robot searched
   if (!on && keyboardPlay && document.activeElement === document.body) {
     const target = colButtons[lastCol]?.disabled ? colButtons.find((b) => !b.disabled) : colButtons[lastCol];
@@ -691,11 +734,14 @@ async function robotTurn(e, nodes) {
     s.textContent = t.scores ? (c in t.scores ? scoreText(t.scores[c]) : "") : c === col ? "here" : "";
     s.className = c === col ? "best" : "";
   });
-  $("#scores-cap").hidden = !t.scores;
+  const cap = $("#scores-cap");
+  cap.hidden = false;
   if (t.scores) {
+    cap.textContent = "The robot's score for each column. The highlighted one is its pick.";
     setStage("think", "pass", `Looked ${t.depth} moves ahead: ${nodes.toLocaleString("en")} positions in ${t.time.toFixed(2)} s. Column ${col + 1} scored highest (${scoreText(t.scores[col])}).`);
   } else {
-    setStage("think", "pass", `${human(t.reason)}: no search needed.`);
+    cap.textContent = `${human(t.reason)}: no search needed.`; // a win or a forced block, checked before minimax
+    setStage("think", "pass", cap.textContent);
   }
   say(`The robot chose column ${col + 1}. Watch the Arduino drop the token.`);
   await stepGate(`send "${col + 1}" to the Arduino`);
@@ -745,7 +791,9 @@ async function verify(e, sentAt, expected) {
       await untilSim(sentAt + k * ANALYSIS_INTERVAL * 1000, e);
       if (done) return;
       setStage("camera", "busy", `Analysing one frame every ${ANALYSIS_INTERVAL} s`);
-      inflight = readBoard(e);
+      // On the robot a frame takes about 50 ms; a slow browser takes longer, so the Uno waits for it.
+      holdAvr();
+      inflight = readBoard(e).finally(releaseAvr);
       latest = (await inflight).board;
       inflight = null;
       if (!done) setStage("camera", "pass", `Frame read ${((ard.t - sentAt) / 1000).toFixed(1)} s after the command`);
@@ -753,19 +801,21 @@ async function verify(e, sentAt, expected) {
   })().catch((err) => {
     if (!(err instanceof Stale)) setStage("camera", "fail", `The vision code failed (${err.message})`);
   });
+  // The check is over: a frame still being read must not leave step 1 looking busy.
+  const finish = (verdict) => {
+    done = true;
+    if (stages.camera.dataset.state === "busy") setStage("camera", "pass", `Frames read every ${ANALYSIS_INTERVAL} s until the check ended`);
+    return verdict;
+  };
   for (let t = ROBOT_SETTLE_SEC; t <= VERIFY_TIMEOUT + 1e-9; t += VERIFY_POLL_SEC) {
     await untilSim(sentAt + t * 1000, e);
     // The emulator can outrun the browser's vision code; wait for the frame it is reading.
     if (inflight) await inflight.catch(() => {});
     guard(e);
     setStage("gate2", "busy", `Waiting for the expected board: ${t.toFixed(1)} of ${VERIFY_TIMEOUT} s`);
-    if (latest && same(latest, expected)) {
-      done = true;
-      return { ok: true, board: latest, at: ard.t };
-    }
+    if (latest && same(latest, expected)) return finish({ ok: true, board: latest, at: sentAt + t * 1000 }); // the poll that matched
   }
-  done = true;
-  return { ok: false };
+  return finish({ ok: false });
 }
 
 const DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
@@ -780,12 +830,23 @@ function winLine(b, p) {
   }
   return [];
 }
+// Where the four in a row is, in words, for the status line: columns 1 to 7, rows from the bottom.
+function describeLine(line) {
+  const [[r0, c0], [r1, c1]] = [line[0], line.at(-1)];
+  const row = (r) => ROWS - r;
+  if (r0 === r1) return `across row ${row(r0)}, columns ${Math.min(c0, c1) + 1} to ${Math.max(c0, c1) + 1}`;
+  if (c0 === c1) return `up column ${c0 + 1}, rows ${row(r1)} to ${row(r0)}`;
+  return `diagonally from column ${c0 + 1}, row ${row(r0)} to column ${c1 + 1}, row ${row(r1)}`;
+}
 function celebrate(colour, text) {
   draw();
-  for (const [r, c] of winLine(physical, colour)) cells[r * COLS + c].classList.add("win");
+  const line = winLine(physical, colour);
+  for (const [r, c] of line) cells[r * COLS + c].classList.add("win");
   $("#result-text").textContent = text;
+  resultEl.toggleAttribute("data-after-win", !reduceMotion);
   resultEl.hidden = false;
-  if (reduceMotion) return;
+  if (keyboardPlay) $("#again").focus({ preventScroll: true });
+  if (reduceMotion) return line;
   const host = rigPlay.getBoundingClientRect();
   for (let i = 0; i < 40; i++) {
     const s = document.createElement("span");
@@ -802,17 +863,18 @@ function celebrate(colour, text) {
       { duration: 1400 + Math.random() * 1400, delay: Math.random() * 400, easing: "cubic-bezier(0.2, 0.6, 0.4, 1)", fill: "backwards" },
     ).finished.then(() => s.remove());
   }
+  return line;
 }
 function finished() {
   if (!state) return false;
   if (state.winner) {
     const depth = $("#depth").value;
     if (state.winner === "Robot") {
-      say("The robot wins this one. Press Play again for a rematch.");
-      celebrate(3 - you, "Four in a row for the robot.");
+      const line = celebrate(3 - you, "Four in a row for the robot.");
+      say(`The robot wins this one, ${describeLine(line)}. Press Play again for a rematch.`);
     } else {
-      say(`You win! You beat minimax looking ${depth} moves ahead.`);
-      celebrate(you, depth === "5" ? "You beat the robot at full strength!" : "You win!");
+      const line = celebrate(you, depth === "5" ? "You beat the robot at full strength!" : "You win!");
+      say(`You win, ${describeLine(line)}! You beat minimax looking ${depth} move${depth === "1" ? "" : "s"} ahead.`);
     }
     lock(true);
     return true;
@@ -820,6 +882,7 @@ function finished() {
   if (state.is_draw) {
     say("Draw: the board is full.");
     $("#result-text").textContent = "A draw.";
+    resultEl.removeAttribute("data-after-win");
     resultEl.hidden = false;
     lock(true);
     return true;
@@ -834,7 +897,8 @@ async function newGame() {
   lock(true);
   wake();
   nextAction = null;
-  Object.assign(ard, { move: null, cycleStart: null, samples: [], marks: [] });
+  Object.assign(ard, { move: null, cycleStart: null, samples: [], marks: [], stepWait: false });
+  holds = 0;
   nextBtn.hidden = true;
   resultEl.hidden = true;
   you = Number(document.querySelector('[name="colour"]:checked').value);
@@ -856,7 +920,7 @@ async function newGame() {
     return false;
   }
   resetStages();
-  drawFrame(physical);
+  clearCamera();
   say(`New game. You play ${NAMES[you]} and go first, as on the robot.`);
   lock(false);
   return true;
@@ -1113,7 +1177,7 @@ function queueMove(col) {
 // ── boot ──────────────────────────────────────────────────────────────────
 draw();
 drawMagazine(); // the robot's tokens wait in the storage from the start
-drawFrame(physical);
+clearCamera();
 lock(true);
 resetStages();
 bootLog("Brain: fetch pyodide.asm.wasm and python_stdlib.zip, 12.1 MB");
