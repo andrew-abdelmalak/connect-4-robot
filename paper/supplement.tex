@@ -159,7 +159,7 @@ Gaussian blur $5\times5$ & 0.757 & 0.097 \\
 \section{Detailed Results}
 
 \subsection{Token Drops by Column}
-Each column received 20 drop trials; a drop succeeded when the token landed in the commanded column (Table~\ref{tab:drops}). The misses on the outer columns come from drift in the time-based carriage positioning.
+Each column received 20 drop trials; a drop succeeded when the token landed in the commanded column (Table~\ref{tab:drops}). The misses on the far columns, toward column~7, come from drift in the time-based carriage positioning.
 
 \begin{table}[t]
 \caption{Drop success by column}
@@ -184,7 +184,7 @@ All & 140 & 95\% \\
 \end{table}
 
 \subsection{End-to-End Time}
-End-to-end time runs from the moment the column command is issued to the moment the camera verifies the new token in the commanded column. It ranged from 3.0~s at best to 15.0~s at worst, with an average of 7.5~s. The average case breaks down roughly as: 0.05~s vision, 0.01~s validation, 0.95~s minimax, 0.9~s carriage stroke out (middle columns), 2.0~s carriage pause, 0.7~s magazine release, 0.5~s settle, 0.9~s carriage stroke back, and 1.5~s verification. Moves to the home column skip both carriage strokes and finish in about 3~s; the slowest moves combine a far-column stroke with a verification retry after a borderline detection.
+End-to-end time runs from an accepted board to the moment the camera verifies the new token in the commanded column. It ranged from 3.0~s at best to 15.0~s at worst, with an average of 7.5~s. The average case breaks down roughly as: 0.05~s vision, 0.01~s validation, 0.95~s minimax, 0.9~s carriage stroke out (middle columns), 2.0~s carriage pause, 0.7~s magazine release, 0.5~s settle, 0.9~s carriage stroke back, and 1.5~s verification. Moves to the home column skip both carriage strokes and finish in about 3~s; the slowest moves combine a far-column stroke with a verification retry after a borderline detection.
 
 \subsection{Closed-Loop Scenarios}
 \begin{itemize}
