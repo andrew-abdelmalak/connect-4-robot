@@ -220,6 +220,10 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 .scores-cap[hidden] { display: block; visibility: hidden; } /* keeps the board still when the scores appear */
 .scores-cap { margin: 0; font-size: 0.8rem; color: var(--on-blue-soft); text-align: center; }
+/* The board is drawn from the player's side: column 1, under the storage and
+   chute, is at the right, so the board, its columns, and the scores run right
+   to left. The camera's own picture (the Camera tab) stays as it sees it. */
+.board, .cols, .scores { direction: rtl; }
 .scores { display: grid; grid-template-columns: repeat(7, var(--cell)); gap: var(--gap); padding: 0 var(--gap); min-height: 1.5rem; }
 .scores span { text-align: center; font-family: var(--mono); font-size: clamp(0.6rem, 1.6vw, 0.75rem); line-height: 1.5rem; border-radius: 999px; color: var(--on-blue-soft); background: rgba(11, 38, 114, 0.6); }
 .scores span:empty { background: transparent; }
@@ -384,6 +388,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .cam-img { aspect-ratio: 1; border-radius: 8px; background: #071a52; }
 .cam-views figcaption { color: var(--on-blue-soft); font-size: 0.78rem; margin-top: 0.3rem; line-height: 1.3; }
 .instrument .mini { padding: 5px; gap: 3px; background: var(--blue); }
+.cam-note { margin: 0; font-size: 0.78rem; color: var(--on-blue-soft); }
 .cam-views .mini:empty { aspect-ratio: 7 / 6; }
 .ard-live { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.7rem; }
 .serial {

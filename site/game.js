@@ -22,7 +22,7 @@ const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls alon
 const COUNTS_PER_TURN = 400; // supplement: encoder counts per turn of the motor disk
 // The dispenser drawing is on the board's grid: 100 units a hole, 16 a gap.
 const MECH_X0 = 16;
-const ROD_LENGTH = 828; // the rod's drawn length: its tip is the only part over the board
+const MECH_REST_X = 820; // the rod's tip at rest: the rail's right end, past column 1
 const MECH_PITCH = 116;
 
 const $ = (sel) => document.querySelector(sel);
@@ -140,9 +140,9 @@ function columnAt(pos) {
 avr.onmessage = ({ data: m }) => {
   if (m.type === "tick") {
     ard.t = m.t;
-    // At rest the rod waits out of the board, past the storage end, and every hole
-    // is open. Driving it out slides its tip over columns 1, 2, ... in turn.
-    rod.setAttribute("x", (MECH_X0 + columnAt(m.pos) * MECH_PITCH - ROD_LENGTH).toFixed(1));
+    // At rest the rod waits out of the board, past the storage end at the right,
+    // and every hole is open. Driving it slides its tip over columns 1, 2, ... in turn.
+    rod.setAttribute("x", (MECH_REST_X - columnAt(m.pos) * MECH_PITCH).toFixed(1));
     $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
@@ -221,7 +221,7 @@ let magazineLeft = 21;
 const SVG_NS = "http://www.w3.org/2000/svg";
 for (let c = 0; c < COLS; c++) {
   const slot = document.createElementNS(SVG_NS, "rect");
-  for (const [k, v] of Object.entries({ x: MECH_X0 + c * MECH_PITCH + 7, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v);
+  for (const [k, v] of Object.entries({ x: 828 - (MECH_X0 + c * MECH_PITCH + 7) - 86, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v); // column 1 at the right
   $("#mx-slots").append(slot);
 }
 function drawMagazine() {
@@ -380,7 +380,7 @@ colsEl.addEventListener("keydown", (e) => {
   if (i < 0) return;
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     e.preventDefault();
-    const step = e.key === "ArrowRight" ? 1 : COLS - 1;
+    const step = e.key === "ArrowLeft" ? 1 : COLS - 1; // column 1 is at the right
     for (let k = 1, j = (i + step) % COLS; k < COLS; k++, j = (j + step) % COLS) {
       if (!colButtons[j].disabled) {
         colButtons[j].focus();
@@ -409,7 +409,7 @@ function draw() {
 }
 
 // A token falls into its cell through an open hole in the rail. The robot's
-// first rolls along the rod from under the chute, over column 1.
+// first rolls along the rod from under the chute, over column 1 at the right.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -434,7 +434,8 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
-  // from under the chute, over column 1, rolling right one turn per 3.14 token widths
+  // from under the chute, over column 1, one turn per 3.14 token widths (the pitch
+  // is negative on the board drawn right to left, so the roll goes leftward)
   const turn = Math.round(((rollCols * pitch) / (Math.PI * size)) * 360);
   const frames = rollMs ? [{ transform: `translate(${-rollCols * pitch}px, ${startY}px) rotate(${-turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
   const anim = el.animate(frames, { duration: rollMs + fallMs });
