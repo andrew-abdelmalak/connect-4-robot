@@ -56,7 +56,7 @@ Cairo, Egypt\\
 \maketitle
 
 \begin{abstract}
-This paper presents a full vision-guided Connect-4 robot that couples board-state extraction, trusted-state validation, minimax move planning, physical token dispensing, and post-move camera verification. An overhead Raspberry Pi camera module observes the board while a Raspberry Pi~4~\cite{RaspberryPi2024} runs a Python/OpenCV~\cite{OpenCV2024} pipeline that localizes the blue frame, warps the board to an $800\times800$ view, conditions the image, and classifies each cell in one of three modes: HSV, Auto, or ML. The accepted state is passed through a six-rule validator before a depth-5 minimax solver selects the robot move. The target column is then sent at 9600 baud to an Arduino-controlled carriage and magazine mechanism, and the camera re-reads the board to confirm that the expected token actually appeared. Across approximately 200 labeled cell ROIs in the final evaluation set, HSV achieved 98\% per-cell accuracy, Auto achieved 96\%, and ML achieved 91\%, making HSV the strongest practical mode under the tested indoor setup. The drop mechanism achieved 95\% overall success, with 100\% success in columns 1--3 and 85\% in column~7, showing that open-loop carriage travel, not segmentation, was the dominant physical bottleneck. The reported end-to-end cycle averaged 7.5~s, and the final course test suite recorded 31/31 passed core logic checks. These results document representative end-to-end closed-loop demonstrations backed by separate logic-layer validation, while remaining limited by lighting shift, domain shift, and dispenser mechanics.
+This paper presents a full vision-guided Connect-4 robot that couples board-state extraction, trusted-state validation, minimax move planning, physical token dispensing, and post-move camera verification. A Raspberry Pi camera module in front of the board observes it while a Raspberry Pi~4~\cite{RaspberryPi2024} runs a Python/OpenCV~\cite{OpenCV2024} pipeline that localizes the blue frame, warps the board to an $800\times800$ view, conditions the image, and classifies each cell in one of three modes: HSV, Auto, or ML. The accepted state is passed through a six-rule validator before a depth-5 minimax solver selects the robot move. The target column is then sent at 9600 baud to an Arduino-controlled carriage and magazine mechanism, and the camera re-reads the board to confirm that the expected token actually appeared. Across approximately 200 labeled cell ROIs in the final evaluation set, HSV achieved 98\% per-cell accuracy, Auto achieved 96\%, and ML achieved 91\%, making HSV the strongest practical mode under the tested indoor setup. The drop mechanism achieved 95\% overall success, with 100\% success in columns 1--3 and 85\% in column~7, showing that open-loop carriage travel, not segmentation, was the dominant physical bottleneck. The reported end-to-end cycle averaged 7.5~s, and the logic layer was checked separately by automated tests. These results document representative end-to-end closed-loop demonstrations backed by separate logic-layer validation, while remaining limited by lighting shift, domain shift, and dispenser mechanics.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -75,8 +75,8 @@ This paper makes four concrete contributions.
 \begin{enumerate}
 \item It documents a complete vision-guided Connect-4 robot in which a trusted-state validator gates the board before action and a camera re-check gates the board after action.
 \item It benchmarks three perception modes -- HSV, Auto, and ML -- and shows that HSV is the strongest practical operating mode under the tested indoor conditions.
-\item It shows that the dominant real-world bottleneck is mechanical drop reliability, especially for long carriage travel toward the edge columns, rather than image segmentation accuracy.
-\item It reports representative end-to-end demonstrations with honest limits: the integrated robot closes the loop in the archived demos, while the separate 31/31 logic checks show that the state machine remained stable before hardware uncertainty entered the loop.
+\item It shows that the dominant real-world bottleneck is mechanical drop reliability, especially for long carriage travel toward the far columns, rather than image segmentation accuracy.
+\item It reports representative end-to-end demonstrations with honest limits: the integrated robot closes the loop in the archived demos, while separate logic checks show that the state machine remained stable before hardware uncertainty entered the loop.
 \end{enumerate}
 
 The remainder of the paper is organized as follows. Section~II reviews the most relevant literature and motivates the system boundary used here. Section~III summarizes the integrated architecture and the final physical setup. Section~IV explains the vision and state-estimation pipeline and compares the three classifier modes. Section~V describes trusted-state validation, move planning, and post-drop verification. Section~VI interprets the final experimental results. Section~VII discusses the main lessons and limitations. Section~VIII concludes.
@@ -120,7 +120,7 @@ Figure~\ref{fig:architecture} summarizes the system as a closed loop with two st
 \label{fig:architecture}
 \end{figure*}
 
-The final setup used a Raspberry Pi~4~\cite{RaspberryPi2024} for perception and planning, an Arduino Uno~\cite{Arduino2024} for motor control, an overhead Raspberry Pi camera module, a time-based lateral carriage, and an encoder-coupled magazine release. The final as-built hardware cost reported in the course materials was 6100~EGP. The operator dashboard ran on the Pi and exposed the raw feed, the warped feed, board-state views, classifier mode selection, and robot status.
+The final setup used a Raspberry Pi~4~\cite{RaspberryPi2024} for perception and planning, an Arduino Uno~\cite{Arduino2024} for motor control, a Raspberry Pi camera module facing the board, a time-based lateral carriage, and an encoder-coupled magazine release. The final as-built hardware cost reported in the course materials was 6100~EGP. The operator dashboard ran on the Pi and exposed the raw feed, the warped feed, board-state views, classifier mode selection, and robot status.
 
 \begin{figure}[t]
 \centering
@@ -130,7 +130,7 @@ The final setup used a Raspberry Pi~4~\cite{RaspberryPi2024} for perception and 
 \end{figure}
 
 \section{Vision and State Estimation}
-The perception stack starts from a single overhead board image and converts it into a board state that the robot can trust enough to plan from. The board is first localized from the blue frame, then rectified to a canonical top-down view using the homography in \eqref{eq:homography}
+The perception stack starts from a single front-facing image of the board and converts it into a board state that the robot can trust enough to plan from. The board is first localized from the blue frame, then rectified to a canonical top-down view using the homography in \eqref{eq:homography}
 
 \begin{equation}
 \lambda
@@ -228,11 +228,11 @@ Figure~\ref{fig:drops} reports the final token-drop success rates over 20 trials
 \addplot[fill=blue!55] coordinates {(1,100) (2,100) (3,100) (4,95) (5,95) (6,90) (7,85)};
 \end{axis}
 \end{tikzpicture}
-\caption{Token-drop success by column. The monotonic falloff with travel distance shows that the dominant integrated failure mode is carriage positioning at the board edges, not token recognition.}
+\caption{Token-drop success by column. The monotonic falloff with travel distance shows that the dominant integrated failure mode is carriage positioning at the far columns, not token recognition.}
 \label{fig:drops}
 \end{figure}
 
-These numbers matter because they change the diagnosis of the system. The robot already sees the board well enough for play; what it does not yet do equally well is deliver the physical token to every column with the same repeatability. The reason is the time-based carriage. Travel error accumulates as the commanded distance grows, so the edge columns are more exposed than the center columns. Once the carriage is correctly aligned, the encoder-coupled magazine release is much more repeatable than the carriage itself. That is why the main reliability curve is indexed by column distance rather than by token color or board occupancy.
+These numbers matter because they change the diagnosis of the system. The robot already sees the board well enough for play; what it does not yet do equally well is deliver the physical token to every column with the same repeatability. The reason is the time-based carriage. Travel error accumulates as the commanded distance grows, so the far columns are more exposed than the near ones. Once the carriage is correctly aligned, the encoder-coupled magazine release is much more repeatable than the carriage itself. That is why the main reliability curve is indexed by column distance rather than by token color or board occupancy.
 
 \subsection{Integrated End-to-End Behavior}
 The final materials reported an end-to-end cycle time from accepted board state to verified robot move ranging from 3 to 15~s, with a 7.5~s average. That number matters because it reflects what the user experiences, not just what the image-processing notebook can do in isolation. The reason for the gap between millisecond-scale perception and multi-second gameplay is that the full loop includes motion, settling time, and post-drop verification. Earlier benchmarking on the same project reported only 8.47~ms for rotation, 3.60~ms for perspective warp, and 0.76~ms for the deployed $5\times5$ Gaussian stage on the Pi, so the visible latency is dominated by mechanics and confirmation rather than by image processing itself.
@@ -246,7 +246,7 @@ Figure~\ref{fig:closedloop} shows the system-level proof sequence used in the fi
 \label{fig:closedloop}
 \end{figure*}
 
-The same final course materials also recorded 31/31 passed core checks spanning win detection, gravity-correct updates, validator rules, minimax edge cases, and simulator progressions. That result matters because it isolates the logic layer from the hardware layer. The reason it strengthens the overall project is that it shows the state machine and planner were stable before mechanical uncertainty entered the loop, even though it should not be read as a counted benchmark of full physical games.
+The same final course materials also recorded 31 of 31 passed core checks spanning win detection, gravity-correct updates, validator rules, minimax edge cases, and simulator progressions. That test file was not kept; the repository carries its own automated suite over the same logic. That result matters because it isolates the logic layer from the hardware layer. The reason it strengthens the overall project is that it shows the state machine and planner were stable before mechanical uncertainty entered the loop, even though it should not be read as a counted benchmark of full physical games.
 
 \section{Discussion and Limitations}
 The strongest outcome of this project is not any one classifier score or any one demo video. It is the fact that the robot treats both perception and actuation as potentially fallible and therefore refuses to advance its internal state without evidence. The trusted-state validator protects the planner from impossible boards, and the post-drop re-check protects the planner from believing a move happened when the hardware actually missed. In a physical robot, that distinction is more valuable than a marginal gain in standalone classifier accuracy.

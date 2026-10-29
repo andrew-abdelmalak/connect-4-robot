@@ -21,7 +21,7 @@ A camera can misread a frame, and a dispenser can miss a column. This robot assu
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/closed-loop-dark.svg">
-  <img alt="Closed loop: overhead camera, vision pipeline, state validator (gate 1), minimax move planner, Arduino, dispenser, physical board, and back to the camera; after a robot move the post-drop check (gate 2) compares the camera's board with the expected board before the validator accepts it" src="docs/diagrams/closed-loop.svg">
+  <img alt="Closed loop: Pi camera, vision pipeline, state validator (gate 1), minimax move planner, Arduino, dispenser, physical board, and back to the camera; after a robot move the post-drop check (gate 2) compares the camera's board with the expected board before the validator accepts it" src="docs/diagrams/closed-loop.svg">
 </picture>
 
 ## Results
@@ -35,7 +35,7 @@ From the paper and its [supplement](https://andrew-abdelmalak.github.io/connect-
 | Cells read correctly, machine learning only (RandomForest) | 91% |
 | Tokens that landed in the commanded column | 95% of 140 drops (20 per column) |
 | Columns 1 to 3 / column 7 | 100% / 85% |
-| Time from command to verified move | 3 to 15 s, 7.5 s on average |
+| Time from accepted board to verified robot move | 3 to 15 s, 7.5 s on average |
 
 Two findings stand out. The plain HSV thresholds beat the learned model, because the board is blue and the tokens are red and yellow under steady light, while the model had little training data. The weak point was the mechanism: misses grow with carriage travel toward the far columns, because the carriage is positioned by timing, not by an encoder.
 
