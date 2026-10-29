@@ -22,6 +22,7 @@ const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls alon
 const COUNTS_PER_TURN = 400; // supplement: encoder counts per turn of the motor disk
 // The dispenser drawing is on the board's grid: 100 units a hole, 16 a gap.
 const MECH_X0 = 16;
+const MECH_REST_X = 820; // the rod's tip at rest: the rail's right end, past column 1
 const MECH_PITCH = 116;
 
 const $ = (sel) => document.querySelector(sel);
@@ -34,10 +35,7 @@ const mech = $("#mech");
 const rod = $("#mx-rod");
 const rollLine = $("#mx-roll"); // the rod's top, where the token rolls
 const dispenser = $(".dispenser");
-const motorMag = $("#motor-mag");
-const motorCar = $("#motor-car");
 const nextBtn = $("#next");
-const cheat = $("#cheat");
 const resultEl = $("#result");
 const serialEl = $("#serial");
 const frame = $("#frame");
@@ -59,9 +57,9 @@ let you = RED;
 let busy = true;
 let epoch = 0; // bumped by New game; a flow that sees a newer epoch stops
 let lastCol = 3;
+let keyboardPlay = false; // focus follows the board only for keyboard players
 let visionOn = false;
 let stepMode = false;
-let ghost = null;
 let tilt = 0;
 
 class Stale extends Error {}
@@ -73,6 +71,7 @@ let nextId = 1;
 const waiting = new Map();
 const ready = new Promise((resolve, reject) => waiting.set(0, { resolve, reject }));
 brain.onmessage = ({ data }) => {
+  if (data.progress) return bootProgress(data);
   const w = waiting.get(data.id);
   if (!w) return;
   waiting.delete(data.id);
@@ -141,17 +140,18 @@ function columnAt(pos) {
 avr.onmessage = ({ data: m }) => {
   if (m.type === "tick") {
     ard.t = m.t;
-    // At rest the rod covers columns 2 to 7; driving it opens one more column toward the storage.
-    rod.setAttribute("x", (MECH_X0 + (1 + columnAt(m.pos)) * MECH_PITCH).toFixed(1));
+    // At rest the rod waits out of the board, past the storage end at the right,
+    // and every hole is open. Driving it slides its tip over columns 1, 2, ... in turn.
+    rod.setAttribute("x", (MECH_REST_X - columnAt(m.pos) * MECH_PITCH).toFixed(1));
     $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
-    $("#ard-speed").textContent = `Uno, running the compiled sketch at ${m.realtime.toFixed(1)}x real time`;
+    $("#ard-speed").textContent = `Uno, sketch at ${m.realtime.toFixed(1)}x real time`;
     if (ard.cycleStart !== null) ard.samples.push(...m.samples);
     const last = m.samples.at(-1); // [t, IN1, IN2, ENA, IN3, IN4, ENB, pulses]
     if (last) {
-      motorMag.querySelector("b").textContent = motorMag.dataset.on === "true" ? `PWM ${Math.round(last[6] * 100)}%, ${last[7]} pulses` : "off";
-      motorCar.querySelector("b").textContent = motorCar.dataset.on === "true" ? `PWM ${Math.round(last[3] * 100)}%, ${motorCar.dataset.dir}` : "off";
+      if (ard.magOn) $("#mag").textContent = `turning, PWM ${Math.round(last[6] * 100)}%`;
+      if (ard.dir) $("#car").textContent = `driving ${ard.dir > 0 ? "out" : "home"}, PWM ${Math.round(last[3] * 100)}%`;
     }
     drawTraces();
     wake();
@@ -163,6 +163,10 @@ avr.onmessage = ({ data: m }) => {
     onLine(m.text);
     // Between moves the sketch only waits for a byte: pause it to save the visitor's CPU.
     if (m.text === "READY" && !ard.move) avr.postMessage({ op: "idle" });
+    if (m.text === "READY" && !ard.booted) {
+      ard.booted = true;
+      bootLog("Arduino Uno: the sketch printed READY", "ok");
+    }
     wake(m.text);
   } else if (m.type === "sent") {
     serialPrint(`Pi sends "${String.fromCharCode(m.byte)}"`, "tx");
@@ -182,6 +186,7 @@ avr.onmessage = ({ data: m }) => {
     mech.dataset.phase = "";
     serialEl.replaceChildren();
     serialPrint("Arduino powered on", "tx");
+    if (!ard.booted) bootLog("Arduino Uno: dispenser.hex on an emulated ATmega328P, 16 MHz");
   } else if (m.type === "error") {
     arduinoFailed(m.error);
   }
@@ -199,9 +204,11 @@ function onLine(text) {
   if (!mv) return;
   const [word, arg] = text.split(" ");
   const msg = {
-    BUSY: `BUSY ${arg}: column ${arg} received. The carriage slides toward the storage for ${COLUMN_MS[arg - 1]} ms to open column ${arg}, then holds 2 s`,
-    MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls to the first open hole`,
-    DONE: `DONE ${arg}: carriage back home`,
+    BUSY: arg === "1"
+      ? "BUSY 1: column 1 received. Column 1 sits under the chute, so the rod stays out; it holds 2 s"
+      : `BUSY ${arg}: column ${arg} received. The rod slides out for ${COLUMN_MS[arg - 1]} ms to cover column${arg === "2" ? " 1" : `s 1 to ${arg - 1}`}, then holds 2 s`,
+    MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls over the rod to the first open hole`,
+    DONE: `DONE ${arg}: the rod is back out of the board, every hole open`,
   }[word];
   if (msg) setStage("arduino", word === "DONE" ? "pass" : "busy", msg);
   if (word === "DONE") mech.dataset.phase = "";
@@ -214,7 +221,7 @@ let magazineLeft = 21;
 const SVG_NS = "http://www.w3.org/2000/svg";
 for (let c = 0; c < COLS; c++) {
   const slot = document.createElementNS(SVG_NS, "rect");
-  for (const [k, v] of Object.entries({ x: MECH_X0 + c * MECH_PITCH + 7, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v);
+  for (const [k, v] of Object.entries({ x: 828 - (MECH_X0 + c * MECH_PITCH + 7) - 86, y: 230, width: 86, height: 16, fill: "#9db2ec" })) slot.setAttribute(k, v); // column 1 at the right
   $("#mx-slots").append(slot);
 }
 function drawMagazine() {
@@ -225,8 +232,8 @@ function drawMagazine() {
   }));
 }
 const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
-// The carriage has already opened the column: the released token rolls along
-// the rail from the storage end and drops through the first open hole.
+// The rod already covers the columns before the target: the released token
+// rolls along it from the storage end and drops through the first open hole.
 async function releaseToken(mv) {
   dropToken(mv);
   magazineLeft = Math.max(0, magazineLeft - 1);
@@ -241,17 +248,14 @@ async function releaseToken(mv) {
 function onMotor(m) {
   if (m.motor === "magazine") {
     $("#mag").textContent = m.on ? "turning" : "off";
-    motorMag.dataset.on = m.on;
+    ard.magOn = m.on;
     if (ard.move) mech.dataset.phase = m.on ? "release" : "roll";
-    if (!m.on) motorMag.querySelector("b").textContent = "off";
     if (!m.on && ard.move && m.pulses > 0) releaseToken(ard.move);
     return;
   }
   if (ard.move) mech.dataset.phase = m.dir > 0 ? "cover" : m.dir < 0 ? "back" : ard.dir > 0 ? "hold" : "";
-  motorCar.dataset.on = m.dir !== 0;
-  motorCar.dataset.dir = m.dir > 0 ? "out" : "home";
-  if (m.dir === 0) motorCar.querySelector("b").textContent = "off";
-  $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : m.pos > 1 ? `stopped over column ${Math.round(columnAt(m.pos)) + 1}` : "stopped at home";
+  const covered = Math.round(columnAt(m.pos)); // columns 1 to this one are under the rod
+  $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : covered > 0 ? `stopped over column${covered > 1 ? `s 1 to ${covered}` : " 1"}` : "stopped at home";
   ard.dir = m.dir;
 }
 function dropToken(mv) {
@@ -259,10 +263,16 @@ function dropToken(mv) {
   mv.dropped = true;
   const r = lowest(physical, mv.col);
   if (mv.e !== epoch || r < 0) return;
+  // The chip runs ahead of the drawing at full speed: hold it while the token
+  // rolls and drops, so the rod never closes over a token still on the rail.
+  // Its clock pauses too, so the timings it prints stay the sketch's own.
+  avr.postMessage({ op: "idle" });
   fall(r, mv.col, mv.robot, { roll: true }).then(() => {
-    if (mv.e !== epoch) return;
-    physical[r][mv.col] = mv.robot;
-    draw();
+    if (mv.e === epoch) {
+      physical[r][mv.col] = mv.robot;
+      draw();
+    }
+    avr.postMessage({ op: "resume" });
   });
 }
 
@@ -284,29 +294,30 @@ function drawTraces() {
     // Draw at the canvas's on-screen size, so the labels stay readable on a phone.
     const dpr = devicePixelRatio || 1;
     const W = traces.clientWidth || 720;
-    const H = 210;
-    if (traces.width !== Math.round(W * dpr)) {
+    const H = traces.clientHeight || 210;
+    if (traces.width !== Math.round(W * dpr) || traces.height !== Math.round(H * dpr)) {
       traces.width = Math.round(W * dpr);
       traces.height = Math.round(H * dpr);
     }
     const g = traces.getContext("2d");
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const left = 46;
-    const top = 34;
-    const rowH = (H - top - 6) / TRACE_ROWS.length;
+    const pad = 12; // margin on every side, so no label touches the edge
+    const left = pad + 36;
+    const top = pad + 36; // three lanes of event labels above the plot
+    const rowH = (H - top - pad) / TRACE_ROWS.length;
     g.clearRect(0, 0, W, H);
-    g.font = "11px ui-monospace, Menlo, monospace";
+    g.font = `${Math.min(11, Math.floor(rowH) - 1)}px ui-monospace, Menlo, monospace`; // the lane names never touch
     g.textBaseline = "middle";
     const t0 = ard.cycleStart ?? ard.t;
     const span = Math.max(6000, ard.t - t0);
-    const x = (t) => left + ((t - t0) / span) * (W - left - 8);
+    const x = (t) => left + ((t - t0) / span) * (W - left - pad);
     TRACE_ROWS.forEach(([name], i) => {
       g.fillStyle = "#8ea4dc";
-      g.fillText(name, 6, top + rowH * (i + 0.5));
+      g.fillText(name, pad, top + rowH * (i + 0.5));
     });
     const laneEnd = [-Infinity, -Infinity, -Infinity]; // labels close together take one of three heights
     for (const [t, text] of ard.marks) {
-      const lx = Math.min(x(t) + 3, W - g.measureText(text).width - 2);
+      const lx = Math.min(x(t) + 4, W - g.measureText(text).width - pad);
       let lane = laneEnd.findIndex((end) => lx > end);
       if (lane < 0) lane = 0;
       laneEnd[lane] = lx + g.measureText(text).width + 6;
@@ -314,11 +325,11 @@ function drawTraces() {
       g.setLineDash([3, 3]);
       g.beginPath();
       g.moveTo(x(t), top - 4);
-      g.lineTo(x(t), H);
+      g.lineTo(x(t), H - pad / 2);
       g.stroke();
       g.setLineDash([]);
       g.fillStyle = "#d6e0ff";
-      g.fillText(text, lx, 6 + lane * 10);
+      g.fillText(text, lx, pad + 2 + lane * 12);
     }
     const s = ard.samples;
     if (!s.length) return;
@@ -362,12 +373,14 @@ for (let c = 0; c < COLS; c++) {
   colsEl.append(b);
   colButtons.push(b);
 }
+colsEl.addEventListener("pointerdown", () => { keyboardPlay = false; });
 colsEl.addEventListener("keydown", (e) => {
+  keyboardPlay = true;
   const i = colButtons.indexOf(document.activeElement);
   if (i < 0) return;
   if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
     e.preventDefault();
-    const step = e.key === "ArrowRight" ? 1 : COLS - 1;
+    const step = e.key === "ArrowLeft" ? 1 : COLS - 1; // column 1 is at the right
     for (let k = 1, j = (i + step) % COLS; k < COLS; k++, j = (j + step) % COLS) {
       if (!colButtons[j].disabled) {
         colButtons[j].focus();
@@ -390,14 +403,13 @@ function draw() {
       if (!v) continue;
       const t = document.createElement("span");
       t.className = "token " + NAMES[v];
-      if (ghost && ghost[0] === r && ghost[1] === c) t.classList.add("ghost");
       cell.append(t);
     }
   }
 }
 
-// A token falls from the funnel's height into its cell; fromCol is where it starts.
-// A token falls into its cell; the robot's first rolls along the rail from under the chute, over column 7.
+// A token falls into its cell through an open hole in the rail. The robot's
+// first rolls along the rod from under the chute, over column 1 at the right.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -411,7 +423,7 @@ async function fall(row, col, colour, { roll = false } = {}) {
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
   rigPlay.append(el);
   const fallMs = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
-  const rollCols = COLS - 1 - col; // from the storage end to the target
+  const rollCols = col; // from the storage end, over column 1, to the target
   const rollMs = roll ? (rollCols / ROLL_COLS_PER_S) * 1000 : 0;
   const pitch = cells[1].getBoundingClientRect().left - cells[0].getBoundingClientRect().left;
   const at = (ms) => (rollMs + ms) / (rollMs + fallMs);
@@ -422,9 +434,10 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
-  // from under the chute, over column 7, rolling left one turn per 3.14 token widths
+  // from under the chute, over column 1, one turn per 3.14 token widths (the pitch
+  // is negative on the board drawn right to left, so the roll goes leftward)
   const turn = Math.round(((rollCols * pitch) / (Math.PI * size)) * 360);
-  const frames = rollMs ? [{ transform: `translate(${rollCols * pitch}px, ${startY}px) rotate(${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
+  const frames = rollMs ? [{ transform: `translate(${-rollCols * pitch}px, ${startY}px) rotate(${-turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
   const anim = el.animate(frames, { duration: rollMs + fallMs });
   // A hidden tab freezes animations; the game goes on without waiting for this one.
   await Promise.race([anim.finished, new Promise((r) => setTimeout(r, rollMs + fallMs + 300))]);
@@ -537,6 +550,7 @@ function setStage(name, s, msg, code = false) {
   } else {
     m.textContent = msg;
   }
+  follow();
 }
 function resetStages() {
   setStage("camera", "idle", visionOn ? "Waiting for a move" : visionLoading || !lowData ? "Loading the vision code (OpenCV, about 14 MB)" : "The vision code (about 14 MB) loads after your first move");
@@ -579,12 +593,11 @@ function lock(on) {
   const over = state && (state.winner || state.is_draw);
   const legal = state ? state.legal_cols : [];
   colButtons.forEach((b, c) => {
-    b.disabled = on || over || !legal.includes(c);
+    b.disabled = !booting && (on || over || !legal.includes(c));
     b.setAttribute("aria-label", `Drop your ${NAMES[you]} token in column ${c + 1}`);
   });
-  cheat.querySelectorAll("button").forEach((b) => { b.disabled = on || over; });
   $("#depth").disabled = on; // the scores must come from the depth the robot searched
-  if (!on && document.activeElement === document.body) {
+  if (!on && keyboardPlay && document.activeElement === document.body) {
     const target = colButtons[lastCol]?.disabled ? colButtons.find((b) => !b.disabled) : colButtons[lastCol];
     target?.focus({ preventScroll: true });
   }
@@ -630,10 +643,10 @@ async function cameraThenGate1(e) {
 }
 
 function userDrop(col) {
+  if (booting) return queueMove(col);
   if (!state || state.whose_turn !== "user") return;
   lastCol = col;
   flow(async (e) => {
-    cheat.open = false;
     const r = lowest(physical, col);
     if (r < 0) {
       say("That column is full.");
@@ -709,7 +722,7 @@ async function robotTurn(e, nodes) {
     await untilLine("DONE", e);
     ard.move = null;
     avr.postMessage({ op: "idle" });
-    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token, or try to cheat.`);
+    if (!state.winner && !state.is_draw) say(`Your turn. Drop a ${NAMES[you]} token.`);
     return;
   }
   // As on the robot: no matching board in time puts the controller in its error state until Reset.
@@ -814,70 +827,13 @@ function finished() {
   return false;
 }
 
-// ── cheats: impossible boards, read by the camera and judged by the real validator
-cheat.addEventListener("click", (ev) => {
-  const kind = ev.target.dataset?.cheat;
-  if (!kind || !state || state.whose_turn !== "user") return;
-  flow(async (e) => {
-    cheat.open = false;
-    resetStages();
-    clearScores();
-    const legal = state.legal_cols;
-    const board = copy(state.trusted);
-    const put = (c, p) => {
-      const r = lowest(board, c);
-      if (r >= 0) board[r][c] = p;
-    };
-    if (kind === "two") {
-      const [a, b] = legal.slice().sort(() => Math.random() - 0.5);
-      put(a, you);
-      put(b ?? a, you);
-    } else if (kind === "vanish") {
-      const chips = [];
-      board.forEach((row, r) => row.forEach((v, c) => v && chips.push([r, c])));
-      if (!chips.length) {
-        say("No chips to make vanish yet. Play a move first.");
-        return;
-      }
-      const [r, c] = chips[Math.floor(Math.random() * chips.length)];
-      board[r][c] = 0;
-    } else if (kind === "float") {
-      // Deliberately impossible: a chip one cell above the lowest empty cell.
-      const options = legal.filter((c) => lowest(board, c) >= 1);
-      if (!options.length) {
-        say("No column has room to float a chip.");
-        return;
-      }
-      const c = options[Math.floor(Math.random() * options.length)];
-      const r = lowest(board, c) - 1;
-      board[r][c] = you;
-      ghost = [r, c];
-    } else if (kind === "robot") {
-      if (state.robot_color === "None") {
-        say("Play one move first, so the robot knows its colour.");
-        return;
-      }
-      put(legal[Math.floor(Math.random() * legal.length)], 3 - you);
-    }
-    physical = board;
-    draw();
-    const res = await cameraThenGate1(e);
-    say(res.ok ? "That one got through." : `Rejected by the robot's validator: ${human(res.reason)}.`);
-    await wait(1400);
-    guard(e);
-    ghost = null;
-    physical = copy(state.trusted);
-    draw();
-  });
-});
-
 // ── new game and settings ─────────────────────────────────────────────────
 async function newGame() {
   epoch++;
+  closeConfirm();
   lock(true);
   wake();
   nextAction = null;
-  ghost = null;
   Object.assign(ard, { move: null, cycleStart: null, samples: [], marks: [] });
   nextBtn.hidden = true;
   resultEl.hidden = true;
@@ -905,9 +861,80 @@ async function newGame() {
   lock(false);
   return true;
 }
-$("#reset").addEventListener("click", newGame);
+// Starting over in the middle of a game asks first, on the board itself:
+// New game, or a new colour, opens the question; Keep playing (or Esc) closes it.
+const confirmEl = $("#confirm");
+let onConfirm = null;
+let confirmBack = null; // where the focus goes back to
+const midGame = () => physical.some((row) => row.some(Boolean)) && !(state && (state.winner || state.is_draw));
+function askStartOver(then, back = $("#reset")) {
+  if (!midGame()) return then();
+  onConfirm = then;
+  confirmEl.hidden = false;
+  confirmBack = back;
+  $("#confirm-no").focus(); // the safe answer has the focus
+}
+function closeConfirm() {
+  confirmEl.hidden = true;
+  onConfirm = null;
+}
+$("#confirm-yes").addEventListener("click", () => {
+  const then = onConfirm;
+  closeConfirm();
+  then?.();
+});
+$("#confirm-no").addEventListener("click", () => {
+  closeConfirm();
+  confirmBack?.focus();
+});
+confirmEl.addEventListener("keydown", (e) => e.key === "Escape" && $("#confirm-no").click());
+$("#reset").addEventListener("click", () => askStartOver(newGame));
+
+// ── setting notes: open on hover or focus, stay open on click or tap ──────
+// Esc or a click outside closes a note (the browser's own popover behaviour).
+for (const btn of document.querySelectorAll(".info")) {
+  const note = document.getElementById(btn.getAttribute("aria-controls"));
+  let pinned = false;
+  let timer = 0;
+  const show = () => {
+    clearTimeout(timer);
+    if (!note.matches(":popover-open")) note.showPopover();
+  };
+  const hideSoon = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => !pinned && note.matches(":popover-open") && note.hidePopover(), 160);
+  };
+  btn.addEventListener("click", () => {
+    pinned = !(pinned && note.matches(":popover-open"));
+    if (pinned) show();
+    else note.hidePopover();
+  });
+  btn.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && show());
+  btn.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && hideSoon());
+  note.addEventListener("pointerenter", () => clearTimeout(timer));
+  note.addEventListener("pointerleave", hideSoon);
+  btn.addEventListener("focus", show);
+  btn.addEventListener("blur", hideSoon);
+  note.addEventListener("toggle", (e) => {
+    btn.setAttribute("aria-expanded", String(e.newState === "open"));
+    if (e.newState === "closed") pinned = false;
+  });
+}
 $("#again").addEventListener("click", newGame);
-document.querySelectorAll('[name="colour"]').forEach((r) => r.addEventListener("change", () => { if (state) newGame(); }));
+// A new colour starts a new game: mid-game the radio waits for the answer.
+let colourShown = $('[name="colour"]:checked').value;
+document.querySelectorAll('[name="colour"]').forEach((r) =>
+  r.addEventListener("change", () => {
+    if (!state) return (colourShown = r.value);
+    const picked = r;
+    document.querySelector(`[name="colour"][value="${colourShown}"]`).checked = true;
+    askStartOver(() => {
+      picked.checked = true;
+      colourShown = picked.value;
+      newGame();
+    }, picked);
+  }),
+);
 $("#depth").addEventListener("change", (ev) => call("depth", Number(ev.target.value)).catch(() => {}));
 $("#speed").addEventListener("change", (ev) => avr.postMessage({ op: "speed", value: Number(ev.target.value) }));
 $("#step").addEventListener("change", (ev) => {
@@ -916,35 +943,6 @@ $("#step").addEventListener("change", (ev) => {
   if (!stepMode && nextAction) nextBtn.click();
 });
 
-// The real photo: the same code on a frame from our demo video.
-const PHOTO_TRUTH = [
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 0, 0, 0, 0],
-  [0, 0, 0, 1, 0, 0, 0],
-  [0, 0, 1, 2, 2, 0, 0],
-  [0, 0, 2, 1, 2, 0, 0],
-  [0, 2, 1, 1, 2, 2, 0],
-].flat();
-$("#photo").addEventListener("click", async (ev) => {
-  const btn = ev.target;
-  btn.disabled = true;
-  const out = $("#photo-out");
-  out.textContent = "Running the camera code on the photo";
-  try {
-    const auto = (await call("vision", "auto")).value;
-    const grid = (await call("vision", "grid")).value;
-    const right = (b) => b.flat().filter((v, i) => v === PHOTO_TRUTH[i]).length;
-    await showOverlay(auto.overlay);
-    $("#cam-grid").replaceChildren(picture(auto.grid, "The warped photo with a dot on each hole showing how it was read"));
-    miniBoard($("#cam-board"), auto.board.flat(), PHOTO_TRUTH, `Photo as read: ${right(auto.board)} of 42 holes right`);
-    $("#frame-cap").textContent = "A frame from our demo video, with the corners the code found";
-    $("#cam-read").textContent = `${right(auto.board)} of 42 right (wrong ones ringed)`;
-    out.textContent = `Automatic detection reads ${right(auto.board)} of 42: the photo shows the board's blue legs, which join the frame. With the grid's own corners, ${right(grid.board)} of 42.`;
-  } catch (err) {
-    out.textContent = `The camera code could not run (${err.message}).`;
-  }
-  btn.disabled = false;
-});
 
 // ── Watch it play: muted, it plays while on screen, unless the visitor asked for
 // reduced motion or paused it; a visitor's pause sticks.
@@ -978,14 +976,17 @@ const lowData = Boolean(net && (net.saveData || /(^|-)[23]g$/.test(net.effective
 let visionLoading = null;
 let visionFailed = false; // a failed load is not retried on every camera frame
 function loadVision() {
+  if (!visionLoading) bootLog("Camera: load NumPy and OpenCV, about 14 MB");
   visionLoading ??= call("vision_load")
     .then(() => {
       visionOn = true;
+      bootLog("Camera: OpenCV ready, every frame is read with the robot's vision code", "ok");
       if (stages.camera.dataset.state === "idle") setStage("camera", "idle", "Waiting for a move");
     })
     .catch((err) => {
       visionLoading = null;
       visionFailed = true;
+      bootLog(`Camera: the vision code could not load (${err.message})`);
       setStage("camera", "fail", `The vision code could not load (${err.message}). The page passes boards on as drawn.`);
     });
   return visionLoading;
@@ -1003,17 +1004,139 @@ async function prefetchReading() {
   }
 }
 
+// ── the step in focus and the instrument it needs ─────────────────────────
+// While steps overlap (the camera keeps reading frames as the carriage moves),
+// the most telling busy step keeps the focus. Once nothing is busy, a failed
+// step takes it, so a rejected board stays on screen, else the furthest one done.
+// Only a busy or failed step moves the window: the camera check often passes
+// while the carriage is still driving home, and the window stays on the Arduino.
+const PRIORITY = ["arduino", "gate2", "serial", "think", "gate1", "camera"];
+const TAB_FOR = { camera: "camera", gate2: "camera", serial: "arduino", arduino: "arduino" };
+const tabs = [...document.querySelectorAll("[data-tab]")];
+const focusCap = $("#focus-cap");
+let focused = null;
+let tabPicked = false; // a tab the visitor picked holds until their next move
+function showTab(name, { focus = false } = {}) {
+  for (const t of tabs) {
+    const on = t.dataset.tab === name;
+    t.setAttribute("aria-selected", String(on));
+    t.tabIndex = on ? 0 : -1;
+    if (on) {
+      delete t.dataset.live;
+      if (focus) t.focus();
+    }
+  }
+  document.querySelectorAll("[data-panel]").forEach((p) => p.toggleAttribute("data-off", p.dataset.panel !== name));
+  if (name === "arduino") drawTraces(); // the canvas may have changed size while hidden
+}
+tabs.forEach((t, i) => {
+  t.addEventListener("click", () => {
+    tabPicked = true;
+    showTab(t.dataset.tab);
+  });
+  t.addEventListener("keydown", (e) => {
+    const step = { ArrowRight: 1, ArrowLeft: tabs.length - 1 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    tabPicked = true;
+    showTab(tabs[(i + step) % tabs.length].dataset.tab, { focus: true });
+  });
+});
+function follow() {
+  const all = Object.values(stages);
+  const busyNow = all.filter((s) => s.dataset.state === "busy");
+  if (stages.camera.dataset.state === "busy" && busyNow.length === 1) tabPicked = false; // a new move
+  const done = all.filter((s) => s.dataset.state !== "idle");
+  const next = PRIORITY.map((k) => busyNow.find((s) => s.dataset.stage === k)).find(Boolean) ?? done.find((s) => s.dataset.state === "fail") ?? done.at(-1) ?? stages.camera; // a fresh board starts at step 1
+  focused?.removeAttribute("data-focus");
+  focused = next;
+  next.setAttribute("data-focus", "");
+  focusCap.querySelector("b").textContent = next.dataset.long;
+  focusCap.querySelector("span").replaceChildren(...next.querySelector(".stage-msg").cloneNode(true).childNodes);
+  focusCap.dataset.state = next.dataset.state;
+  const tab = TAB_FOR[next.dataset.stage];
+  if (!tab || booting || !["busy", "fail"].includes(next.dataset.state)) return;
+  if (!tabPicked) showTab(tab);
+  else if (next.dataset.state === "busy") tabs.find((t) => t.dataset.tab === tab && t.getAttribute("aria-selected") !== "true")?.setAttribute("data-live", "");
+}
+
+// ── powering on: Python downloads, the holes light, a move can wait ───────
+// The holes light from the bottom row up as the runtime's bytes arrive; the
+// last few wait for Python to start and the robot's code to load.
+let booting = true;
+let queued = null;
+const bootStart = performance.now();
+const bootLogEl = $("#boot-log");
+const power = $("#power");
+const LIT_ORDER = Array.from({ length: ROWS * COLS }, (_, k) => (ROWS - 1 - Math.floor(k / COLS)) * COLS + (k % COLS));
+const MB = (b) => (b / 1e6).toFixed(1);
+function bootLog(text, cls) {
+  const line = document.createElement("span");
+  if (cls) line.className = cls;
+  line.textContent = `${((performance.now() - bootStart) / 1000).toFixed(2).padStart(6)} s  ${text}\n`;
+  bootLogEl.append(line);
+  bootLogEl.scrollTop = bootLogEl.scrollHeight;
+}
+function lightHoles(n) {
+  LIT_ORDER.forEach((i, k) => cells[i].classList.toggle("lit", k < n));
+}
+let logged = 0;
+function bootProgress(d) {
+  if (d.progress === "download") {
+    const pct = Math.floor((d.done / d.total) * 100);
+    lightHoles(Math.floor((d.done / d.total) * 36));
+    $("#power-pct").textContent = `Powering on: ${pct}%`;
+    $("#power-step").textContent = `Downloading Python for the browser: ${MB(d.done)} of ${MB(d.total)} MB`;
+    if (pct >= logged + 25) {
+      logged = pct - (pct % 25);
+      bootLog(`Brain: downloaded ${MB(d.done)} of ${MB(d.total)} MB`);
+    }
+  } else if (d.progress === "start") {
+    lightHoles(39);
+    $("#power-step").textContent = "Starting Python";
+    bootLog("Brain: start Python (Pyodide, WebAssembly) in a background worker");
+  } else if (d.progress === "code") {
+    lightHoles(41);
+    $("#power-step").textContent = "Loading the robot's code";
+    bootLog("Brain: import connect4_robot (board, minimax, game_state), the files the robot ran");
+  }
+}
+function queueMove(col) {
+  queued = col;
+  draw(); // clears an earlier pick
+  const t = document.createElement("span");
+  t.className = `token queued ${NAMES[Number($('[name="colour"]:checked').value)]}`; // the colour picked so far
+  cells[col].append(t); // over the column, in its top hole
+  say(`Column ${col + 1} picked. Your token drops as soon as the robot is ready.`);
+}
+
 // ── boot ──────────────────────────────────────────────────────────────────
 draw();
+drawMagazine(); // the robot's tokens wait in the storage from the start
 drawFrame(physical);
 lock(true);
 resetStages();
+bootLog("Brain: fetch pyodide.asm.wasm and python_stdlib.zip, 12.1 MB");
+avr.postMessage({ op: "boot" }); // the Arduino powers on while Python downloads
 ready
-  .then(newGame) // also picks up settings the browser restored or the visitor changed while loading
+  .then(() => {
+    booting = false;
+    bootLog("Brain: GameState() ready", "ok");
+    return newGame(); // also picks up settings the browser restored or the visitor changed while loading
+  })
   .then((ok) => {
     if (!ok) return;
-    say("Ready. You go first: tap a column.");
+    lightHoles(ROWS * COLS);
+    delete boardEl.dataset.boot;
+    power.hidden = true;
+    showTab("camera");
+    if (queued !== null) userDrop(queued);
+    else say("Ready. You go first: tap a column.");
     if (lowData) setStage("camera", "idle", "On a slow or metered connection, the vision code (about 14 MB) loads after your first move");
     else loadVision().then(prefetchReading);
   })
-  .catch((err) => say(`The robot's brain could not load (${err.message}). Reload to try again.`));
+  .catch((err) => {
+    $("#power-step").textContent = "The robot's brain could not load";
+    bootLog(`Brain: could not load (${err.message})`);
+    say(`The robot's brain could not load (${err.message}). Reload to try again.`);
+  });

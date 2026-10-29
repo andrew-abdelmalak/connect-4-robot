@@ -9,13 +9,14 @@
 //
 // Serial input from the Pi: one ASCII digit '1'..'7' per move. Per move:
 //   1. Drive the carriage (the moving rod) for the column's time. At rest the
-//      rod covers every hole except column 1, the one farthest from the
-//      storage; driving it slides it toward the storage and opens column N.
-//      Hard-brake, then hold 2 s.
+//      rod waits out of the board, past the storage end, so every hole is
+//      open for the player. Column 1 sits under the chute and needs no move;
+//      for column N the rod slides out over columns 1 to N-1. Hard-brake,
+//      then hold 2 s.
 //   2. Turn the magazine motor 430 encoder pulses, fast and then slow for the
 //      last 40, to push out one token. Nothing holds the token: it rolls along
-//      the rail by gravity and drops through the first open hole.
-//   3. Wait 0.5 s, then drive the carriage back home.
+//      the rod by gravity and drops through the first open hole, column N.
+//   3. Wait 0.5 s, then drive the carriage back home, out of the board.
 
 // ── Carriage / moving rod (TT motor on L298N OUT1/OUT2) ──────────────────────
 const int ENA = 9;

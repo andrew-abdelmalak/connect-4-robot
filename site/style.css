@@ -41,6 +41,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 
 .skip { position: absolute; left: -999px; top: 0; background: var(--yellow); color: var(--blue-ink); padding: 0.6rem 1rem; z-index: 10; font-weight: 700; }
 .skip:focus { left: 1rem; top: 1rem; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* top bar sits on the blue field */
 .top {
@@ -78,16 +79,13 @@ a { color: inherit; text-underline-offset: 0.2em; }
 /* hero: the whole region is board blue */
 .hero {
   background: var(--field); color: var(--on-blue);
-  padding: clamp(1.25rem, 3vw, 2.5rem) clamp(1rem, 4vw, 3rem) clamp(2.5rem, 6vw, 4.5rem);
+  padding: 1.9rem clamp(1rem, 4vw, 3rem) clamp(2rem, 5vw, 3.5rem);
 }
-.hero-copy {
-  max-width: 82rem; margin: 0 auto clamp(1.25rem, 2.5vw, 2rem);
-  display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: clamp(1rem, 4vw, 4rem); align-items: end;
-}
+.hero-copy { grid-area: copy; }
 .hero h1 {
   font-family: var(--display); font-weight: 800;
-  font-size: clamp(2.4rem, 4.4vw, 4rem); line-height: 0.98;
-  letter-spacing: -0.02em; margin: 0; text-wrap: balance;
+  font-size: clamp(2.2rem, 3.4vw, 3.1rem); line-height: 0.98;
+  letter-spacing: -0.02em; margin: 0 0 0.6rem; text-wrap: balance;
 }
 .lede { font-size: clamp(1.05rem, 1.4vw, 1.15rem); color: var(--on-blue-soft); max-width: 36rem; margin: 0 0 0.75rem; }
 .btn {
@@ -107,10 +105,49 @@ a { color: inherit; text-underline-offset: 0.2em; }
 /* the rig: the game on the left, what the robot is doing on the right */
 .rig {
   max-width: 82rem; margin: 0 auto;
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.92fr); gap: clamp(1.25rem, 3vw, 2.5rem); align-items: start;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto 1fr;
+  grid-template-areas: "play copy" "play panel"; gap: 0.9rem clamp(1.25rem, 3vw, 2.5rem); align-items: start;
 }
-.rig-play { --rig-gap: 0.8rem; position: sticky; top: 1rem; display: grid; gap: var(--rig-gap); justify-items: center; }
-.settings { display: flex; flex-wrap: wrap; gap: 0.6rem 1.1rem; align-items: center; justify-content: center; font-size: 0.9rem; color: var(--on-blue-soft); }
+.rig-play { --rig-gap: 0.55rem; grid-area: play; position: relative; display: grid; gap: var(--rig-gap); justify-items: center; }
+.rig-panel { grid-area: panel; display: grid; gap: 0.8rem; min-width: 0; }
+/* settings and controls in one row under the board */
+.setting { display: inline-flex; align-items: center; gap: 0.3rem; }
+/* a small round "i" beside each setting opens a short note about it */
+.info {
+  appearance: none; flex: none; width: 1.35rem; height: 1.35rem; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 0.45); background: transparent; color: var(--on-blue-soft);
+  display: grid; place-items: center;
+}
+.info svg { width: 0.85rem; height: 0.85rem; fill: currentColor; }
+.info:hover, .info:focus-visible { border-color: var(--yellow); color: var(--yellow); }
+.info:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.info-pop {
+  width: min(21rem, calc(100vw - 2rem)); margin: 0; padding: 0.9rem 1rem 1rem; border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3); background: var(--blue-ink); color: var(--on-blue-soft);
+  font-size: 0.86rem; line-height: 1.45; box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
+}
+.info-pop:popover-open { display: grid; gap: 0.55rem; }
+.info-title { font: 800 1.02rem var(--display); color: var(--on-blue); }
+/* each option on its own row: the option in yellow, what it does beside it */
+.info-rows {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 0.8rem; padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.info-rows b { font-weight: 700; color: var(--yellow); }
+.info-rows span { color: var(--on-blue); }
+/* where the browser can anchor it, the note opens above its "i"; elsewhere it opens centred */
+@supports (position-area: top) {
+  .info-pop { position-area: top; position-try-fallbacks: flip-block; margin-bottom: 0.5rem; }
+  .setting:nth-of-type(1) .info { anchor-name: --info-depth; }
+  .setting:nth-of-type(2) .info { anchor-name: --info-speed; }
+  .setting:nth-of-type(3) .info { anchor-name: --info-step; }
+  #info-depth { position-anchor: --info-depth; }
+  #info-speed { position-anchor: --info-speed; }
+  #info-step { position-anchor: --info-step; }
+  /* on a phone the note spans the screen above its "i", with a margin each side */
+  @media (max-width: 600px) { .info-pop { position-area: top span-all; justify-self: center; } }
+}
+.dock { display: flex; flex-wrap: wrap; gap: 0.5rem 0.9rem; align-items: center; justify-content: center; font-size: 0.86rem; color: var(--on-blue-soft); }
 .seg { border: 0; margin: 0; padding: 0; display: inline-flex; align-items: center; gap: 0.35rem; }
 .seg legend { float: left; margin-right: 0.35rem; padding: 0; }
 .seg label { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 2.4rem; padding: 0 0.8rem; border-radius: 999px; border: 2px solid rgba(255,255,255,0.35); cursor: pointer; font-weight: 700; color: var(--on-blue); }
@@ -180,23 +217,20 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .mx-labels path { stroke: rgba(214, 224, 255, 0.5); stroke-width: 2; }
 .mx-tag { font-family: var(--body); font-size: 15px; fill: #59627f; }
 @media (max-width: 880px) { .mx-labels, .mx-tag { display: none; } }
-.motors { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1.2rem; font-size: 0.78rem; color: var(--on-blue-soft); }
-.motor { display: inline-flex; align-items: center; gap: 0.4rem; }
-.motor b { font-family: var(--mono); font-weight: 400; font-size: 0.72rem; color: var(--on-blue-soft); min-width: 7.5em; }
-.motor-gear { width: 1.15rem; height: 1.15rem; flex: none; color: rgba(214, 224, 255, 0.55); transition: color 160ms var(--ease); }
-.motor[data-on="true"] { color: var(--on-blue); }
-.motor[data-on="true"] b { color: var(--yellow); }
-.motor[data-on="true"] .motor-gear { color: var(--yellow); animation: spin 700ms linear infinite; }
-.motor[data-dir="home"] .motor-gear { animation-direction: reverse; }
-@keyframes spin { to { transform: rotate(360deg); } }
 
+.scores-cap[hidden] { display: block; visibility: hidden; } /* keeps the board still when the scores appear */
 .scores-cap { margin: 0; font-size: 0.8rem; color: var(--on-blue-soft); text-align: center; }
+/* The board is drawn from the player's side: column 1, under the storage and
+   chute, is at the right, so the board, its columns, and the scores run right
+   to left. The camera's own picture (the Camera tab) stays as it sees it. */
+.board, .cols, .scores { direction: rtl; }
 .scores { display: grid; grid-template-columns: repeat(7, var(--cell)); gap: var(--gap); padding: 0 var(--gap); min-height: 1.5rem; }
 .scores span { text-align: center; font-family: var(--mono); font-size: clamp(0.6rem, 1.6vw, 0.75rem); line-height: 1.5rem; border-radius: 999px; color: var(--on-blue-soft); background: rgba(11, 38, 114, 0.6); }
 .scores span:empty { background: transparent; }
 .scores .best { background: var(--yellow); color: var(--blue-ink); font-weight: 700; }
 
-.cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 var(--gap); z-index: 3; }
+/* each column's hit area is one hole plus one gap wide, so its highlight centres on the holes */
+.cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(7, 1fr); padding: 0 calc(var(--gap) / 2); z-index: 3; }
 .col-btn { appearance: none; border: 0; background: transparent; cursor: pointer; padding: 0; border-radius: 999px; }
 .col-btn:hover:not(:disabled), .col-btn:focus-visible { background: rgba(255, 198, 26, 0.18); }
 .col-btn:disabled { cursor: not-allowed; }
@@ -214,7 +248,6 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .token { position: absolute; inset: 7%; border-radius: 50%; }
 .token.red, .falling.red { background: radial-gradient(circle at 35% 30%, #ff7483, var(--red) 55%, var(--red-deep)); }
 .token.yellow, .falling.yellow { background: radial-gradient(circle at 35% 30%, #ffe27a, var(--yellow) 55%, var(--yellow-deep)); }
-.token.ghost { opacity: 0.55; outline: 3px dashed var(--on-blue); outline-offset: -3px; }
 .falling { position: absolute; z-index: 4; border-radius: 50%; pointer-events: none; }
 .cell.win .token { box-shadow: 0 0 0 4px var(--on-blue), 0 0 0 7px var(--yellow); animation: pulse 900ms ease-in-out 3; }
 @keyframes pulse { 50% { transform: scale(0.9); } }
@@ -226,21 +259,20 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .result p { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(1.6rem, 4vw, 2.6rem); line-height: 1.05; max-width: 16ch; }
 .confetti { position: absolute; z-index: 6; width: 0.9rem; height: 0.9rem; border-radius: 50%; pointer-events: none; }
 
-.status { min-height: 3em; margin: 0; text-align: center; max-width: 34rem; font-weight: 600; }
-.controls { display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: center; align-items: center; width: min(100%, 36rem); }
-.btn-small, .cheat summary, .cheat-menu button {
+.status { min-height: 2.7em; margin: 0; display: grid; place-items: center; text-align: center; max-width: 34rem; font-weight: 600; }
+.btn-small {
   appearance: none; font: inherit; font-weight: 700; font-size: 0.92rem;
   min-height: 2.6rem; padding: 0 1rem; border-radius: 999px; cursor: pointer;
   color: var(--on-blue); background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.45);
 }
-.btn-small:hover, .cheat summary:hover, .cheat-menu button:hover:not(:disabled) { background: rgba(255,255,255,0.2); }
+.btn-small:hover { background: rgba(255,255,255,0.2); }
+.btn-line { background: transparent; color: var(--on-blue); border-color: rgba(255, 255, 255, 0.6); }
+.btn-line:hover { border-color: var(--on-blue); background: rgba(255, 255, 255, 0.1); }
+.confirm { gap: 0.6rem; }
+.confirm-text { color: var(--on-blue-soft); font-size: 0.95rem; }
+.confirm-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin-top: 0.4rem; }
 .btn-next { background: var(--yellow); border-color: var(--yellow); color: var(--blue-ink); }
 .btn-next:hover { background: #ffd34d !important; }
-.cheat { position: relative; }
-.cheat summary { list-style: none; display: inline-flex; align-items: center; background: var(--red); border-color: var(--red); }
-.cheat summary::-webkit-details-marker { display: none; }
-.cheat-menu { position: absolute; z-index: 7; bottom: calc(100% + 0.5rem); left: 0; display: grid; gap: 0.4rem; padding: 0.6rem; background: var(--blue-ink); border-radius: 14px; box-shadow: 0 12px 30px rgba(0,0,0,0.35); width: max-content; }
-.cheat-menu button:disabled { opacity: 0.45; cursor: not-allowed; }
 .toggle { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.4rem; font-size: 0.9rem; color: var(--on-blue-soft); cursor: pointer; }
 /* A switch in the board's own parts: a recessed slot, an empty hole that slides into a yellow token. */
 .toggle input {
@@ -269,16 +301,81 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .toggle:hover input:not(:checked) { box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.45), inset 0 0 0 2px rgba(255, 255, 255, 0.5); }
 .toggle:has(:checked) { color: var(--on-blue); }
 
-/* the three panes: camera, brain, Arduino */
-.rig-panel { display: grid; gap: 0.9rem; }
-.pane { background: #0b2672; border-radius: 18px; padding: 0.9rem 1rem 1rem; display: grid; gap: 0.7rem; }
-.pane-title { margin: 0; color: var(--on-blue); font-size: 1.2rem; display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-.pane-title small { font-family: var(--body); font-weight: 600; font-size: 0.8rem; color: var(--on-blue-soft); }
-.stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
-.stage { display: flex; gap: 0.65rem; align-items: flex-start; }
-.stage strong { display: block; font-size: 0.95rem; }
-.stage-msg { display: block; font-size: 0.86rem; color: var(--on-blue-soft); line-height: 1.35; }
-.stage-msg code { font-family: var(--mono); font-size: 0.76rem; }
+/* the six steps of each move, grouped by the part that does them; the step
+   in focus speaks in the caption under them */
+.stepper { background: #0b2672; border-radius: 18px; padding: 2.1rem 1rem 0.9rem; }
+.steps { counter-reset: step; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.stage { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; position: relative; text-align: center; }
+.stage::before {
+  content: attr(data-device); position: absolute; top: -1.45rem; left: 50%; translate: -50% 0; white-space: nowrap;
+  font: 0.62rem var(--mono); text-transform: uppercase; letter-spacing: 0.04em; color: var(--on-blue-soft);
+}
+/* a part's label sits centred over all of its steps */
+.stage[data-device="Brain"]:has(+ [data-device="Brain"])::before,
+.stage[data-device="Arduino"]:has(+ [data-device="Arduino"])::before { left: 100%; }
+.stage[data-device="Brain"] + [data-device="Brain"]::before,
+.stage[data-device="Arduino"] + [data-device="Arduino"]::before { content: none; }
+.stage:not(:last-child)::after {
+  content: ""; position: absolute; top: 0.75rem; left: calc(50% + 0.95rem); right: calc(-50% + 0.95rem); height: 2px;
+  background: rgba(214, 224, 255, 0.25);
+}
+.stage[data-state="pass"]::after { background: var(--yellow); }
+.stage strong { font-size: 0.78rem; line-height: 1.15; max-width: 7.5em; color: var(--on-blue-soft); }
+.stage[data-focus] strong { color: var(--on-blue); }
+/* the step in focus: a short bar under its whole name, however many lines it takes */
+.stage strong::after { content: ""; display: block; width: 1.6rem; height: 3px; margin: 0.35rem auto 0; border-radius: 2px; } /* every step keeps the room, so the bar never shifts */
+.stage[data-focus] strong::after { background: var(--yellow); }
+.stage[data-state="busy"] strong { color: var(--yellow); }
+.stage-msg { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* read out, shown in the caption */
+.stage-msg code, .focus-cap code { font-family: var(--mono); font-size: 0.76rem; }
+.steps .lamp { width: 1.5rem; height: 1.5rem; margin: 0; display: grid; place-items: center; }
+.steps .lamp::before { counter-increment: step; content: counter(step); font: 800 0.78rem var(--display); color: var(--on-blue-soft); }
+.stage[data-state="pass"] .lamp::before, .stage[data-state="fail"] .lamp::before { color: var(--blue-ink); }
+.focus-cap { margin: 0.8rem 0 0; padding: 0.6rem 0.9rem; min-height: 2.9em; border-radius: 12px; background: rgba(5, 15, 51, 0.55); font-size: 0.88rem; color: var(--on-blue-soft); }
+.focus-cap b { color: var(--on-blue); }
+/* a small lamp before the step's name, lit like the step lamps */
+.focus-cap b::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.45rem; border-radius: 50%; background: var(--lamp, #34417a); vertical-align: 0.05em; }
+.focus-cap[data-state="busy"] { --lamp: var(--on-blue-soft); }
+.focus-cap[data-state="pass"] { --lamp: var(--yellow); }
+.focus-cap[data-state="fail"] { --lamp: var(--red); }
+
+/* one instrument window, switched to the part at work */
+.instrument { background: #0b2672; border-radius: 18px; padding: 0.35rem 1rem 1rem; }
+.tabs { display: flex; flex-wrap: wrap; gap: 0 0.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.14); margin-bottom: 0.75rem; }
+.tabs button {
+  appearance: none; background: transparent; border: 0; margin-bottom: -1px; padding: 0.6rem 0.5rem 0.5rem; position: relative;
+  color: var(--on-blue-soft); font: 800 1.05rem var(--display); text-align: left; cursor: pointer;
+}
+.tabs button small { font: 600 0.74rem var(--body); margin-left: 0.3rem; }
+.tabs button[aria-selected="true"] { color: var(--on-blue); box-shadow: inset 0 -3px 0 var(--yellow); }
+.tabs button:hover { color: var(--on-blue); }
+.tabs button:focus-visible { outline: 3px solid var(--yellow); outline-offset: -3px; }
+.tabs button[data-live]::after { content: ""; position: absolute; top: 0.55rem; right: -0.1rem; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: var(--yellow); animation: blink 900ms steps(2, start) infinite; }
+.tabs #tab-boot { margin-left: auto; font-size: 0.9rem; }
+.panels { display: grid; }
+.tab-panel { grid-area: 1 / 1; display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
+.tab-panel[data-off] { visibility: hidden; }
+#panel-boot { align-content: stretch; }
+.serial.boot-log { height: auto; min-height: 9rem; }
+.boot-log .ok { color: var(--yellow); }
+
+/* while Python loads, the board's holes light one by one with the bytes received */
+.board[data-boot] .cell { background: #2346ad; transition: background-color 300ms var(--ease); }
+.board[data-boot] .cell.lit { background: var(--hole); }
+.power {
+  position: absolute; inset: 0; z-index: 4; display: grid; place-content: center; justify-items: center; gap: 0.45rem;
+  pointer-events: none; transition: opacity 400ms var(--ease); text-align: center;
+}
+.power[hidden] { display: grid; opacity: 0; }
+.power p { margin: 0; }
+.power-pill {
+  display: inline-flex; align-items: center; gap: 0.6rem; padding: 0.55rem 1.1rem; border-radius: 999px;
+  background: #050f33; font: 700 1rem var(--mono); font-variant-numeric: tabular-nums; box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.power-pill .lamp { margin: 0; background: var(--yellow); animation: blink 900ms steps(2, start) infinite; }
+.power-step { padding: 0.3rem 0.8rem; border-radius: 999px; background: rgba(5, 15, 51, 0.85); font-size: 0.84rem; font-variant-numeric: tabular-nums; }
+.token.queued { opacity: 0.7; animation: hover 1.4s ease-in-out infinite; }
+@keyframes hover { 50% { transform: translateY(-10%); } }
 .lamp { flex: none; width: 1.2rem; height: 1.2rem; margin-top: 0.12rem; border-radius: 50%; background: #34417a; box-shadow: inset 0 2px 3px rgba(0,0,0,0.4); }
 .stage[data-state="pass"] .lamp { background: var(--yellow); box-shadow: inset 0 -2px 0 var(--yellow-deep); }
 .stage[data-state="fail"] .lamp { background: var(--red); box-shadow: inset 0 -2px 0 var(--red-deep); }
@@ -290,21 +387,23 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .cam-views canvas, .cam-img img { display: block; width: 100%; height: auto; border-radius: 8px; background: #071a52; }
 .cam-img { aspect-ratio: 1; border-radius: 8px; background: #071a52; }
 .cam-views figcaption { color: var(--on-blue-soft); font-size: 0.78rem; margin-top: 0.3rem; line-height: 1.3; }
-.pane .mini { padding: 5px; gap: 3px; background: var(--blue); }
-.pane-note { margin: 0; font-size: 0.82rem; color: var(--on-blue-soft); }
-.link-btn { appearance: none; border: 0; padding: 0; background: none; font: inherit; font-weight: 700; color: var(--on-blue); text-decoration: underline; text-underline-offset: 0.2em; cursor: pointer; }
-.link-btn:disabled { opacity: 0.6; cursor: progress; }
+.instrument .mini { padding: 5px; gap: 3px; background: var(--blue); }
+.cam-note { margin: 0; font-size: 0.78rem; color: var(--on-blue-soft); }
+.cam-views .mini:empty { aspect-ratio: 7 / 6; }
 .ard-live { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0.7rem; }
 .serial {
-  margin: 0; height: calc(6 * 1.35em + 1rem); overflow: auto; padding: 0 0.7rem; border-block: 0.5rem solid #050f33; border-radius: 8px;
+  margin: 0; height: calc(4 * 1.35em + 1rem); overflow: auto; padding: 0 0.7rem; border-block: 0.5rem solid #050f33; border-radius: 8px;
   background: #050f33; color: #b9f3c8; font-family: var(--mono); font-size: 0.74rem; line-height: 1.35; white-space: pre-wrap;
+  scrollbar-width: thin; scrollbar-color: #34417a transparent;
 }
 .serial .tx { color: var(--yellow); }
-.pins { margin: 0; display: grid; gap: 0.4rem; font-size: 0.82rem; }
+.pins { margin: 0; display: grid; gap: 0.45rem; align-content: start; font-size: 0.82rem; }
+/* each motor's name and state on one line, wrapping only when narrow */
+.pins div { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 0.1rem 0.6rem; }
 .pins dt { color: var(--on-blue-soft); }
 .pins dd { margin: 0; font-family: var(--mono); font-size: 0.78rem; display: flex; align-items: center; gap: 0.4rem; }
 .gear { width: 1rem; height: 1rem; border-radius: 50%; border: 3px dotted var(--on-blue); transform: rotate(var(--turn, 0deg)); }
-.traces { width: 100%; height: 210px; border-radius: 8px; background: #050f33; }
+.traces { width: 100%; height: 152px; border-radius: 8px; background: #050f33; }
 
 /* reading sections on the table */
 section:not(.hero) {
@@ -454,20 +553,33 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 .ask-results a { font-weight: 700; color: var(--blue); }
 .ask-quality { font-size: 0.9rem; color: var(--ink-soft); border-top: 2px solid #e1e6f4; padding-top: 0.75rem; margin-top: 1rem; }
 
-/* Keep the whole sticky board column, controls included, inside a short laptop screen. */
-@media (min-width: 1081px) {
-  :root { --cell: max(2.4rem, min(clamp(2.4rem, 6.2vw, 4.1rem), calc((100svh - 30.5rem) / 9))); }
-  .rig-play { --rig-gap: 0.55rem; }
+/* Keep the whole game column (scores, dispenser, board, status, and dock) inside
+   one laptop screen: the board follows the screen's height as well as its width.
+   16.9rem and the 56px header are everything in that column but the dispenser
+   (2.5 cells) and the board (7.12 cells). */
+@media (min-width: 960px) {
+  :root { --chrome: 16.9rem; --cell: max(2.2rem, min(clamp(2.4rem, 6.2vw, 4.1rem), calc((100svh - 56px - var(--chrome)) / 9.62))); }
 }
-@media (max-width: 1080px) {
-  .rig { grid-template-columns: 1fr; }
-  .rig-play { position: relative; top: auto; }
+/* narrower columns wrap the dock to three or four rows */
+@media (min-width: 960px) and (max-width: 1179px) { :root { --chrome: 22.9rem; } }
+@media (min-width: 960px) and (max-width: 1250px) { .tabs button small { display: none; } }
+/* short screens: a smaller headline and tighter panels keep the instrument in view */
+@media (min-width: 960px) and (max-height: 820px) {
+  .hero h1 { font-size: clamp(2rem, 3vw, 2.5rem); }
+  .lede { font-size: 0.98rem; }
+  .rig { row-gap: 0.7rem; }
+  .stepper { padding: 1.9rem 1rem 0.75rem; }
+  .instrument { padding-bottom: 0.8rem; }
+  .instrument .serial:not(.boot-log) { height: calc(3 * 1.35em + 1rem); }
+}
+@media (max-width: 959px) {
+  .rig { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "play" "panel"; }
   .rig-panel { max-width: 44rem; width: 100%; margin: 0 auto; }
 }
 @media (max-width: 880px) {
-  .hero-copy { grid-template-columns: 1fr; }
-  /* Phone: the board comes first, settings after the controls. */
-  .rig-play > .settings { order: 2; }
+  .tabs button small { display: none; }
+  .stage strong { font-size: 0.7rem; }
+  .stepper { padding-inline: 0.6rem; }
   .menu-btn { display: inline-flex; align-items: center; }
   .top nav { display: none; position: absolute; top: 100%; left: 0; right: 0; margin: 0;
     background: var(--blue-ink); padding: 0.5rem clamp(1rem, 4vw, 3rem) 1rem; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.3); }
@@ -489,7 +601,8 @@ figcaption { font-size: 0.92rem; color: var(--ink-soft); margin-top: 0.6rem; }
 @media (prefers-reduced-motion: reduce) {
   .stage[data-state="busy"] .lamp, .cell.win .token { animation: none; }
   .toggle input, .toggle input::before { transition: none; }
-  .motor[data-on="true"] .motor-gear { animation: none; }
+  .power-pill .lamp, .tabs button[data-live]::after, .token.queued { animation: none; }
+  .board[data-boot] .cell, .power { transition: none; }
   .mech .part { transition: none; }
   .pick select::picker(select), .pick select::picker-icon { transition: none; }
 }

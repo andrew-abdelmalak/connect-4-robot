@@ -52,7 +52,7 @@ We then connected the stages into one loop: the Raspberry Pi reads the board, pl
 \end{figure}
 
 \subsection{Final Build}
-Closed-loop testing showed that a simpler split was more repeatable: a time-based carriage driven by a TT geared DC motor, and an encoder-coupled DC motor that releases exactly one token per turn of its disk. The carriage is a rod inside an open rail along the top of the board. At rest it covers every hole except column~1, the one farthest from the storage; for column~$N$ it slides toward the storage by $N-1$ holes, so the released token rolls along the rail by gravity and drops through column~$N$, the first open hole. The servo and the steppers were removed. The final build cost 6,100~EGP (Table~\ref{tab:cost}).
+Closed-loop testing showed that a simpler split was more repeatable: a time-based carriage driven by a TT geared DC motor, and an encoder-coupled DC motor that releases exactly one token per turn of its disk. The carriage is a rod inside an open rail along the top of the board. At rest it waits out of the board, past the storage end, so every hole is open for the player. Column~1 sits under the chute and needs no move; for column~$N$ the rod slides out over columns~1 to $N-1$, so the released token rolls along it by gravity and drops through column~$N$, the first open hole. The rod then returns out of the board. The servo and the steppers were removed. The final build cost 6,100~EGP (Table~\ref{tab:cost}).
 
 \begin{table}[t]
 \caption{Parts and cost of the earlier and final designs (EGP)}

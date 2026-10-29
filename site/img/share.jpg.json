@@ -1,4 +1,4 @@
 {
-  "prompt": "origin: not generated; the frame at 85 s of our final demo video (linked by QR code in our final course report), scaled to 1200 wide and cropped to 1200x630 for link previews",
-  "createdAt": "2026-10-24T22:46:09.000Z"
+  "prompt": "origin: not generated; 1200x630 link preview drawn in HTML from the site's fonts and colours (brag-output/work/preview/preview.html), with the frame at 85 s of our final demo video showing the robot's token on the rail",
+  "createdAt": "2026-10-28T22:38:51.345Z"
 }

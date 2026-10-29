@@ -15,7 +15,7 @@
 <meta property="og:image" content="https://andrew-abdelmalak.github.io/connect-4-robot/img/share.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="The robot during our final demo: the Connect-4 board, the token dispenser above it, and the dashboard on a laptop">
+<meta property="og:image:alt" content="A robot that checks its own moves: the project title beside a frame from our final demo, the robot's red token rolling along the rail above the Connect-4 board">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/baloo-2.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts/fonts.css">
@@ -44,45 +44,22 @@
 
 <main>
 <section class="hero" aria-labelledby="hero-title">
-  <div class="hero-copy">
-    <h1 id="hero-title">A robot that checks its own moves.</h1>
-    <div>
-      <p class="lede">Our camera-guided robot plays Connect-4 against a person. It refuses boards that cannot happen, picks its move with minimax, drops a real token, and only believes the move once its camera sees it.</p>
-      <p class="fineprint">Below, the robot's real code runs in your browser: the Python that reads the camera, checks the board, and plans, and the compiled Arduino sketch that drives the motors. Only the camera picture, motors, and table are simulated.</p>
-    </div>
-  </div>
-
   <div class="rig" id="play" role="group" aria-label="Play Connect-4 against the robot">
+    <div class="hero-copy">
+      <h1 id="hero-title">A robot that checks its own moves.</h1>
+      <p class="lede">Our camera-guided robot plays Connect-4 against a person. It refuses boards that cannot happen, picks its move with minimax, drops a real token, and only believes the move once its camera sees it.</p>
+    </div>
+
     <div class="rig-play">
-      <div class="settings">
-        <fieldset class="seg" id="colour">
-          <legend>You play</legend>
-          <label><input type="radio" name="colour" value="1" checked><span class="swatch red"></span>Red</label>
-          <label><input type="radio" name="colour" value="2"><span class="swatch yellow"></span>Yellow</label>
-        </fieldset>
-        <label class="pick">Robot looks ahead
-          <select id="depth">
-            <option value="1">1 move</option><option value="2">2 moves</option><option value="3">3 moves</option><option value="4">4 moves</option>
-            <option value="5" selected>5 moves, as on the robot</option>
-          </select>
-        </label>
-        <label class="pick">Arduino speed
-          <select id="speed"><option value="0" selected>As fast as it runs</option><option value="1">Real time</option></select>
-        </label>
-        <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
-      </div>
       <p class="scores-cap" id="scores-cap" hidden>The robot's score for each column. The highlighted one is its pick.</p>
       <div class="scores" id="scores" aria-hidden="true"></div>
       <div class="dispenser" aria-hidden="true">
-        <div class="motors">
-          <span class="motor" id="motor-mag" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Magazine motor <b>off</b></span>
-          <span class="motor" id="motor-car" data-on="false"><svg class="motor-gear" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="3.53 3.53"/><circle cx="12" cy="12" r="6.6" fill="currentColor"/><circle cx="12" cy="12" r="2.3" fill="#0b1f5c"/></svg>Carriage motor <b>off</b></span>
-        </div>
-        <!-- The dispenser as the camera sees the board: the storage, motor disk,
-             and chute over column 7, and the rail along the board with the
-             carriage, a rod, inside it. At rest the rod covers every hole but
-             column 1; it slides toward the storage to open the target. One
-             unit is a hundredth of a board hole. -->
+        <!-- The dispenser from the player's side: the storage, motor disk, and
+             chute at the right end, over column 1, and the rail along the board
+             with the carriage, a rod, inside it. At rest the rod waits out of
+             the board past the storage end, and every hole is open; for column N
+             it slides in over columns 1 to N-1, and the released token rolls
+             along it to column N. One unit is a hundredth of a board hole. -->
         <svg class="mech" id="mech" viewBox="0 0 828 250" data-phase="">
           <defs>
             <pattern id="mx-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="9" height="9" fill="#59627f"/><rect width="3.5" height="9" fill="#8b93b3"/></pattern>
@@ -93,11 +70,11 @@
             <rect x="0" y="190" width="828" height="60" rx="10" fill="#2f3446"/>
             <rect x="8" y="198" width="812" height="32" rx="3" fill="#e3e7f1"/>
             <g id="mx-slots"></g>
-            <text class="mx-tag" x="812" y="220" text-anchor="end">Rail, open along the board</text>
+            <text class="mx-tag" x="16" y="220">Rail, open along the board</text>
           </g>
-          <g class="part p-rod" clip-path="url(#mx-chan)"><rect id="mx-rod" x="132" y="226" width="828" height="16" fill="url(#mx-hatch)"/></g>
+          <g class="part p-rod" clip-path="url(#mx-chan)"><rect id="mx-rod" x="820" y="226" width="828" height="16" fill="url(#mx-hatch)"/></g>
           <rect id="mx-roll" x="0" y="226" width="828" height="1" fill="none"/>
-          <g transform="translate(828 0) scale(-1 1)"><!-- the storage end, drawn once and mirrored to the right -->
+          <g transform="translate(828 0) scale(-1 1)"><!-- the storage end, drawn once and mirrored to the right, over column 1 -->
           <g class="part p-rod"><rect x="134" y="150" width="56" height="40" rx="7" fill="#ffc61a" stroke="#d99a00" stroke-width="3"/><circle cx="152" cy="170" r="6" fill="#d99a00"/></g>
           <g class="part p-store">
             <rect x="128" y="84" width="48" height="56" rx="7" fill="url(#mx-steel)"/>
@@ -118,54 +95,90 @@
       </div>
       <div class="board-wrap">
         <div class="cols" id="cols" role="group" aria-label="Choose a column to drop your token"></div>
-        <div class="board" id="board" aria-hidden="true"></div>
+        <div class="board" id="board" aria-hidden="true" data-boot></div>
         <div class="result" id="result" hidden><p id="result-text"></p><button type="button" class="btn btn-yellow" id="again">Play again</button></div>
+        <div class="result confirm" id="confirm" role="alertdialog" aria-labelledby="confirm-title" aria-describedby="confirm-text" hidden>
+          <p id="confirm-title">Start over?</p>
+          <span class="confirm-text" id="confirm-text">The game on the board will be cleared.</span>
+          <span class="confirm-actions"><button type="button" class="btn btn-yellow" id="confirm-yes">Start over</button><button type="button" class="btn btn-line" id="confirm-no">Keep playing</button></span>
+        </div>
+        <div class="power" id="power" aria-hidden="true"><p class="power-pill"><span class="lamp"></span><span id="power-pct">Powering on</span></p><p class="power-step" id="power-step">Downloading Python for the browser</p></div>
       </div>
-      <p class="status" id="status" role="status" aria-live="polite">Waking the robot's brain (Python in your browser, about 10 MB the first time)</p>
-      <div class="controls">
+      <p class="status" id="status" role="status" aria-live="polite">The robot is powering on. Pick a column any time: your move waits for it.</p>
+      <div class="dock">
+        <fieldset class="seg" id="colour">
+          <legend>You play</legend>
+          <label><input type="radio" name="colour" value="1" checked><span class="swatch red"></span>Red</label>
+          <label><input type="radio" name="colour" value="2"><span class="swatch yellow"></span>Yellow</label>
+        </fieldset>
+        <span class="setting">
+          <label class="pick">Moves ahead
+            <select id="depth">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+              <option value="5" selected>5, the robot's</option>
+            </select>
+          </label>
+          <button type="button" class="info" aria-controls="info-depth" aria-expanded="false" aria-label="About moves ahead"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
+          <span class="info-pop" id="info-depth" popover>
+            <b class="info-title">Moves ahead</b>
+            <span class="info-lead">Minimax plays out every line this many moves deep, yours and its own in turn, then picks the best column.</span>
+            <span class="info-rows"><b>5</b><span>What the robot ran</span><b>1 to 4</b><span>Answers sooner, plays weaker</span></span>
+          </span>
+        </span>
+        <span class="setting">
+          <label class="pick">Arduino
+            <select id="speed"><option value="0" selected>Full speed</option><option value="1">Real time</option></select>
+          </label>
+          <button type="button" class="info" aria-controls="info-speed" aria-expanded="false" aria-label="About the Arduino speed"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
+          <span class="info-pop" id="info-speed" popover>
+            <b class="info-title">Arduino speed</b>
+            <span class="info-lead">The compiled sketch runs on an emulated Arduino Uno.</span>
+            <span class="info-rows"><b>Full speed</b><span>As fast as your browser can. The Arduino tab shows how many times real time.</span><b>Real time</b><span>The Uno's own pace: each move takes as long as on the robot.</span></span>
+          </span>
+        </span>
+        <span class="setting">
+          <label class="toggle"><input type="checkbox" role="switch" id="step"> Step by step</label>
+          <button type="button" class="info" aria-controls="info-step" aria-expanded="false" aria-label="About step by step"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="4.2" r="1.5"/><rect x="6.8" y="6.7" width="2.4" height="6.3" rx="1.2"/></svg></button>
+          <span class="info-pop" id="info-step" popover>
+            <b class="info-title">Step by step</b>
+            <span class="info-lead">Pauses before each step of a move, so you can follow the camera, the brain, and the Arduino one at a time.</span>
+            <span class="info-rows"><b>Next</b><span>Goes on to the next step</span></span>
+          </span>
+        </span>
         <button type="button" class="btn-small btn-next" id="next" hidden>Next step</button>
-        <details class="cheat" id="cheat">
-          <summary>Try to cheat</summary>
-          <div class="cheat-menu">
-            <button type="button" data-cheat="two">Drop two at once</button>
-            <button type="button" data-cheat="vanish">Make a chip vanish</button>
-            <button type="button" data-cheat="float">Float a chip</button>
-            <button type="button" data-cheat="robot">Play the robot's colour</button>
-          </div>
-        </details>
         <button type="button" class="btn-small" id="reset">New game</button>
       </div>
     </div>
 
     <div class="rig-panel">
-      <div class="pane" role="group" aria-labelledby="cam-title">
-        <h2 class="pane-title" id="cam-title">Camera <small>Raspberry Pi, OpenCV</small></h2>
-        <ol class="stages">
-          <li class="stage" data-stage="camera" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>1. Read the board</strong><span class="stage-msg">Waiting for a move</span></div></li>
+      <div class="stepper">
+        <ol class="stages steps" aria-label="The robot's six steps for each move">
+          <li class="stage" data-stage="camera" data-device="Camera" data-long="1. Read the board" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Read the board</strong><span class="stage-msg">Waiting for a move</span></li>
+          <li class="stage" data-stage="gate1" data-device="Brain" data-long="2. Gate 1: is it a legal move?" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Legal move?</strong><span class="stage-msg">Waiting for a move</span></li>
+          <li class="stage" data-stage="think" data-device="Brain" data-long="3. Minimax picks a column" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Pick a column</strong><span class="stage-msg">Scores appear above each column</span></li>
+          <li class="stage" data-stage="serial" data-device="Arduino" data-long="4. The Pi sends the column" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Send the column</strong><span class="stage-msg">One byte at 9600 baud</span></li>
+          <li class="stage" data-stage="arduino" data-device="Arduino" data-long="5. Move, release a token, drop" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Drop a token</strong><span class="stage-msg">Waiting for a column</span></li>
+          <li class="stage" data-stage="gate2" data-device="Camera" data-long="6. Gate 2: did the token land?" data-state="idle"><span class="lamp" aria-hidden="true"></span><strong>Did it land?</strong><span class="stage-msg">Checks only the robot's own moves</span></li>
         </ol>
-        <div class="cam-views">
+        <p class="focus-cap" id="focus-cap" aria-hidden="true"><b></b> <span></span></p>
+      </div>
+      <div class="instrument">
+        <div class="tabs" role="tablist" aria-label="What the robot shows">
+          <button type="button" role="tab" id="tab-camera" aria-controls="panel-camera" aria-selected="false" tabindex="-1" data-tab="camera">Camera <small>Raspberry Pi, OpenCV</small></button>
+          <button type="button" role="tab" id="tab-arduino" aria-controls="panel-arduino" aria-selected="false" tabindex="-1" data-tab="arduino">Arduino <small id="ard-speed">Uno, the compiled sketch</small></button>
+          <button type="button" role="tab" id="tab-boot" aria-controls="panel-boot" aria-selected="true" data-tab="boot">Boot log</button>
+        </div>
+        <div class="panels">
+          <div class="tab-panel" role="tabpanel" id="panel-camera" aria-labelledby="tab-camera" data-panel="camera" data-off>
+            <div class="cam-views">
           <figure><canvas id="frame" width="640" height="480"></canvas><figcaption id="frame-cap">Camera picture, drawn by the page</figcaption></figure>
           <figure><div class="cam-img" id="cam-grid"></div><figcaption>Warped to a square</figcaption></figure>
           <figure><div class="mini" id="cam-board" role="img" aria-label="Board as read"></div><figcaption id="cam-read">Board as read</figcaption></figure>
         </div>
-        <p class="pane-note"><button type="button" class="link-btn" id="photo">Run the same code on a photo of our board</button> <span id="photo-out"></span></p>
-      </div>
-
-      <div class="pane" role="group" aria-labelledby="brain-title">
-        <h2 class="pane-title" id="brain-title">Brain <small>Raspberry Pi, Python</small></h2>
-        <ol class="stages">
-          <li class="stage" data-stage="gate1" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>2. Gate 1: is it a legal move?</strong><span class="stage-msg">Waiting for a move</span></div></li>
-          <li class="stage" data-stage="think" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>3. Minimax picks a column</strong><span class="stage-msg">Scores appear above each column</span></div></li>
-        </ol>
-      </div>
-
-      <div class="pane" role="group" aria-labelledby="ard-title">
-        <h2 class="pane-title" id="ard-title">Arduino <small id="ard-speed">Uno, running the compiled sketch</small></h2>
-        <ol class="stages">
-          <li class="stage" data-stage="serial" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>4. The Pi sends the column</strong><span class="stage-msg">One byte at 9600 baud</span></div></li>
-          <li class="stage" data-stage="arduino" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>5. Move, release a token, drop</strong><span class="stage-msg">Starting the Arduino</span></div></li>
-        </ol>
-        <div class="ard-live">
+            <p class="cam-note">The camera's picture is mirrored from your view: column 1 is on its left.</p>
+          </div>
+          <div class="tab-panel" role="tabpanel" id="panel-arduino" aria-labelledby="tab-arduino" data-panel="arduino" data-off>
+            <div class="ard-live">
           <pre class="serial" id="serial" role="log" aria-label="Serial monitor: what the Arduino prints" tabindex="0"></pre>
           <dl class="pins" id="pins">
             <div><dt>Magazine motor</dt><dd><span class="gear" id="gear"></span><span id="mag">off</span></dd></div>
@@ -173,16 +186,14 @@
             <div><dt>Carriage motor</dt><dd id="car">stopped at home</dd></div>
           </dl>
         </div>
-        <canvas class="traces" id="traces" width="720" height="210" role="img" aria-label="Signal traces from the Arduino's motor pins"></canvas>
-        <p class="pane-note" id="ard-note">The page draws the motors, encoder, and carriage around the real chip program. The encoder speed is an assumption; the carriage times are the sketch's own.</p>
+            <canvas class="traces" id="traces" width="720" height="210" role="img" aria-label="Signal traces from the Arduino's motor pins"></canvas>
+          </div>
+          <div class="tab-panel" role="tabpanel" id="panel-boot" aria-labelledby="tab-boot" data-panel="boot">
+            <pre class="serial boot-log" id="boot-log" tabindex="0"></pre>
+          </div>
+        </div>
       </div>
-
-      <div class="pane" role="group" aria-labelledby="check-title">
-        <h2 class="pane-title" id="check-title">Camera check <small>Raspberry Pi, the same vision code</small></h2>
-        <ol class="stages">
-          <li class="stage" data-stage="gate2" data-state="idle"><span class="lamp" aria-hidden="true"></span><div><strong>6. Gate 2: did the token land?</strong><span class="stage-msg">Checks only the robot's own moves</span></div></li>
-        </ol>
-      </div>
+      <p class="fineprint">The robot's real code runs in your browser: the Python that reads the camera, checks the board, and plans, and the compiled Arduino sketch that drives the motors. Only the camera picture, motors, and table are simulated; the encoder speed is an assumption, and the carriage times are the sketch's own.</p>
     </div>
   </div>
 </section>
@@ -269,7 +280,7 @@
     <ul>
     <li>All results come from one fixed camera mount and steady indoor light. Glare and other lighting shift the colour thresholds.</li>
     <li>The carriage has no position sensor, so the far columns miss more often.</li>
-    <li>Board detection assumes the camera sees only the grid. Our demo photo shows the board on its blue legs, which the robot's camera never saw: the legs join the blue frame, so automatic detection reads 32 of 42 holes right. With the grid's own corners, the same code reads all 42.</li>
+    <li>Board detection takes the largest blue shape as the grid, so it assumes the camera sees only the board's frame: anything else blue in view, such as the board's own legs, joins it.</li>
     <li>We did not keep the labelled images and drop logs behind the numbers above, so they cannot be re-run.</li>
     <li>The dashboard has no login: anyone on the same network can send moves.</li>
   </ul>

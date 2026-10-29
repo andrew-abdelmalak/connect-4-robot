@@ -18,9 +18,39 @@ async function install(names) {
   }
 }
 
+// The runtime's two large files and their sizes in the pinned version. They are
+// fetched first, so the page can show real download progress; Pyodide then reads
+// them from the browser cache (the CDN serves them with a one-year max-age).
+const RUNTIME_FILES = { "pyodide.asm.wasm": 9598218, "python_stdlib.zip": 2545637 };
+
+async function fetchRuntime() {
+  const total = Object.values(RUNTIME_FILES).reduce((a, b) => a + b);
+  let done = 0;
+  let shown = -1;
+  await Promise.all(
+    Object.keys(RUNTIME_FILES).map(async (name) => {
+      const res = await fetch(PYODIDE + name);
+      if (!res.ok) throw new Error(`could not load ${name} (${res.status})`);
+      const reader = res.body.getReader();
+      for (let r = await reader.read(); !r.done; r = await reader.read()) {
+        done += r.value.length;
+        const pct = Math.floor((done / total) * 100);
+        if (pct !== shown) {
+          shown = pct;
+          postMessage({ progress: "download", done, total });
+        }
+      }
+    }),
+  );
+}
+
 async function boot() {
-  const { loadPyodide } = await import(PYODIDE + "pyodide.mjs");
+  const pyodideModule = import(PYODIDE + "pyodide.mjs");
+  await fetchRuntime();
+  postMessage({ progress: "start" });
+  const { loadPyodide } = await pyodideModule;
   py = await loadPyodide({ indexURL: PYODIDE });
+  postMessage({ progress: "code" });
   py.FS.mkdirTree("/home/pyodide/connect4_robot");
   await install(GAME_MODULES);
   py.runPython(`
@@ -80,15 +110,11 @@ def reset_json():
 async function bootVision() {
   await py.loadPackage(["numpy", "opencv-python"]);
   await install(VISION_MODULES);
-  const photo = await fetch("img/board-sample.png");
-  if (!photo.ok) throw new Error(`could not load the board photo (${photo.status})`);
-  py.FS.writeFile("/home/pyodide/board-sample.png", new Uint8Array(await photo.arrayBuffer()));
   py.runPython(`
 import base64
 import cv2
-from connect4_robot.vision import CellClassifier, VisionPipeline, encode_jpeg, load_corners, warp_and_condition
+from connect4_robot.vision import CellClassifier, VisionPipeline, encode_jpeg
 
-PHOTO = cv2.imread("/home/pyodide/board-sample.png")
 b64 = lambda img, q: base64.b64encode(encode_jpeg(img, q)).decode()
 
 # One pipeline per game, like the robot's camera thread: corner smoothing carries over.
@@ -111,27 +137,11 @@ def camera_reset_json():
     global camera
     camera = None
     return "null"
-
-def vision_json(mode):
-    vp = VisionPipeline(CellClassifier())
-    if mode == "auto":
-        warped = vp.preprocess(PHOTO)  # what the robot does with every frame
-    else:
-        vp._src = load_corners(PHOTO.shape)  # the grid's own corners
-        warped = warp_and_condition(PHOTO, vp._src)
-    board, debug = vp.detect_board(warped)
-    overlay = vp.draw_detection_overlay(PHOTO)
-    return json.dumps({
-        "board": board,
-        "detected": bool(vp.board_detected),
-        "overlay": b64(cv2.resize(overlay, None, fx=0.5, fy=0.5), 80),
-        "grid": b64(cv2.resize(debug, None, fx=0.6, fy=0.6), 80),
-    })
 `);
 }
 
 const ready = boot();
-const VISION_OPS = new Set(["vision", "vision_load", "frame", "camera_reset"]);
+const VISION_OPS = new Set(["vision_load", "frame", "camera_reset"]);
 
 self.onmessage = async (event) => {
   const { id, op, args } = event.data;
