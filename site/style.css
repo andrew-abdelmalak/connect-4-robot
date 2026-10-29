@@ -307,7 +307,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .tab-panel { grid-area: 1 / 1; display: grid; gap: 0.6rem; align-content: start; min-width: 0; }
 .tab-panel[data-off] { visibility: hidden; }
 #panel-boot { align-content: stretch; }
-.boot-log { height: auto; min-height: 9rem; }
+.serial.boot-log { height: auto; min-height: 9rem; }
 .boot-log .ok { color: var(--yellow); }
 
 /* while Python loads, the board's holes light one by one with the bytes received */

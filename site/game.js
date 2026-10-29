@@ -1031,6 +1031,7 @@ function queueMove(col) {
 
 // ── boot ──────────────────────────────────────────────────────────────────
 draw();
+drawMagazine(); // the robot's tokens wait in the storage from the start
 drawFrame(physical);
 lock(true);
 resetStages();
