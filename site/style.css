@@ -121,10 +121,19 @@ a { color: inherit; text-underline-offset: 0.2em; }
 .info:hover, .info:focus-visible { border-color: var(--yellow); color: var(--yellow); }
 .info:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 .info-pop {
-  max-width: min(22rem, calc(100vw - 2rem)); margin: 0; padding: 0.75rem 0.9rem; border-radius: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35); background: var(--blue-ink); color: var(--on-blue);
-  font-size: 0.86rem; line-height: 1.45; box-shadow: 0 14px 30px rgba(0, 0, 0, 0.4);
+  width: min(21rem, calc(100vw - 2rem)); margin: 0; padding: 0.9rem 1rem 1rem; border-radius: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3); background: var(--blue-ink); color: var(--on-blue-soft);
+  font-size: 0.86rem; line-height: 1.45; box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45);
 }
+.info-pop:popover-open { display: grid; gap: 0.55rem; }
+.info-title { font: 800 1.02rem var(--display); color: var(--on-blue); }
+/* each option on its own row: the option in yellow, what it does beside it */
+.info-rows {
+  display: grid; grid-template-columns: max-content 1fr; gap: 0.4rem 0.8rem; padding-top: 0.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+.info-rows b { font-weight: 700; color: var(--yellow); }
+.info-rows span { color: var(--on-blue); }
 /* where the browser can anchor it, the note opens above its "i"; elsewhere it opens centred */
 @supports (position-area: top) {
   .info-pop { position-area: top; position-try-fallbacks: flip-block; margin-bottom: 0.5rem; }
@@ -249,6 +258,7 @@ a { color: inherit; text-underline-offset: 0.2em; }
   color: var(--on-blue); background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.45);
 }
 .btn-small:hover { background: rgba(255,255,255,0.2); }
+.btn-confirm, .btn-confirm:hover { background: var(--red); border-color: var(--red); color: var(--on-blue); }
 .btn-next { background: var(--yellow); border-color: var(--yellow); color: var(--blue-ink); }
 .btn-next:hover { background: #ffd34d !important; }
 .toggle { display: inline-flex; gap: 0.55rem; align-items: center; min-height: 2.4rem; font-size: 0.9rem; color: var(--on-blue-soft); cursor: pointer; }

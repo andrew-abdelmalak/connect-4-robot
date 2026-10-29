@@ -854,7 +854,65 @@ async function newGame() {
   lock(false);
   return true;
 }
-$("#reset").addEventListener("click", newGame);
+// New game in the middle of a game asks once: the button turns into the
+// confirmation, with Keep playing beside it, and goes back after six seconds.
+const resetBtn = $("#reset");
+const keepBtn = $("#keep");
+let confirmTimer = null;
+function unarm() {
+  clearTimeout(confirmTimer);
+  confirmTimer = null;
+  resetBtn.textContent = "New game";
+  resetBtn.classList.remove("btn-confirm");
+  keepBtn.hidden = true;
+}
+resetBtn.addEventListener("click", () => {
+  const midGame = physical.some((row) => row.some(Boolean)) && !(state && (state.winner || state.is_draw));
+  if (confirmTimer || !midGame) {
+    unarm();
+    newGame();
+    return;
+  }
+  resetBtn.textContent = "Yes, start over";
+  resetBtn.classList.add("btn-confirm");
+  keepBtn.hidden = false;
+  confirmTimer = setTimeout(unarm, 6000);
+});
+keepBtn.addEventListener("click", () => {
+  unarm();
+  resetBtn.focus();
+});
+
+// ── setting notes: open on hover or focus, stay open on click or tap ──────
+// Esc or a click outside closes a note (the browser's own popover behaviour).
+for (const btn of document.querySelectorAll(".info")) {
+  const note = document.getElementById(btn.getAttribute("aria-controls"));
+  let pinned = false;
+  let timer = 0;
+  const show = () => {
+    clearTimeout(timer);
+    if (!note.matches(":popover-open")) note.showPopover();
+  };
+  const hideSoon = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => !pinned && note.matches(":popover-open") && note.hidePopover(), 160);
+  };
+  btn.addEventListener("click", () => {
+    pinned = !(pinned && note.matches(":popover-open"));
+    if (pinned) show();
+    else note.hidePopover();
+  });
+  btn.addEventListener("pointerenter", (e) => e.pointerType === "mouse" && show());
+  btn.addEventListener("pointerleave", (e) => e.pointerType === "mouse" && hideSoon());
+  note.addEventListener("pointerenter", () => clearTimeout(timer));
+  note.addEventListener("pointerleave", hideSoon);
+  btn.addEventListener("focus", show);
+  btn.addEventListener("blur", hideSoon);
+  note.addEventListener("toggle", (e) => {
+    btn.setAttribute("aria-expanded", String(e.newState === "open"));
+    if (e.newState === "closed") pinned = false;
+  });
+}
 $("#again").addEventListener("click", newGame);
 document.querySelectorAll('[name="colour"]').forEach((r) => r.addEventListener("change", () => { if (state) newGame(); }));
 $("#depth").addEventListener("change", (ev) => call("depth", Number(ev.target.value)).catch(() => {}));
@@ -969,7 +1027,7 @@ function follow() {
   const busyNow = all.filter((s) => s.dataset.state === "busy");
   if (stages.camera.dataset.state === "busy" && busyNow.length === 1) tabPicked = false; // a new move
   const done = all.filter((s) => s.dataset.state !== "idle");
-  const next = PRIORITY.map((k) => busyNow.find((s) => s.dataset.stage === k)).find(Boolean) ?? done.find((s) => s.dataset.state === "fail") ?? done.at(-1) ?? focused ?? stages.camera;
+  const next = PRIORITY.map((k) => busyNow.find((s) => s.dataset.stage === k)).find(Boolean) ?? done.find((s) => s.dataset.state === "fail") ?? done.at(-1) ?? stages.camera; // a fresh board starts at step 1
   focused?.removeAttribute("data-focus");
   focused = next;
   next.setAttribute("data-focus", "");
