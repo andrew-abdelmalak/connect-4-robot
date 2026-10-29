@@ -22,6 +22,7 @@ const ROLL_COLS_PER_S = 8; // measured from our demo video: the token rolls alon
 const COUNTS_PER_TURN = 400; // supplement: encoder counts per turn of the motor disk
 // The dispenser drawing is on the board's grid: 100 units a hole, 16 a gap.
 const MECH_X0 = 16;
+const ROD_LENGTH = 828; // the rod's drawn length: its tip is the only part over the board
 const MECH_PITCH = 116;
 
 const $ = (sel) => document.querySelector(sel);
@@ -139,8 +140,9 @@ function columnAt(pos) {
 avr.onmessage = ({ data: m }) => {
   if (m.type === "tick") {
     ard.t = m.t;
-    // At rest the rod covers columns 2 to 7; driving it opens one more column toward the storage.
-    rod.setAttribute("x", (MECH_X0 + (1 + columnAt(m.pos)) * MECH_PITCH).toFixed(1));
+    // At rest the rod waits out of the board, past the storage end, and every hole
+    // is open. Driving it out slides its tip over columns 1, 2, ... in turn.
+    rod.setAttribute("x", (MECH_X0 + columnAt(m.pos) * MECH_PITCH - ROD_LENGTH).toFixed(1));
     $("#mx-disk").setAttribute("transform", `translate(152 112) rotate(${((m.total / COUNTS_PER_TURN) * 360).toFixed(1)})`);
     $("#enc").textContent = `${m.pulses} pulses`;
     $("#gear").style.setProperty("--turn", `${(m.total * 4.5) % 360}deg`);
@@ -202,9 +204,11 @@ function onLine(text) {
   if (!mv) return;
   const [word, arg] = text.split(" ");
   const msg = {
-    BUSY: `BUSY ${arg}: column ${arg} received. The carriage slides toward the storage for ${COLUMN_MS[arg - 1]} ms to open column ${arg}, then holds 2 s`,
-    MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls to the first open hole`,
-    DONE: `DONE ${arg}: carriage back home`,
+    BUSY: arg === "1"
+      ? "BUSY 1: column 1 received. Column 1 sits under the chute, so the rod stays out; it holds 2 s"
+      : `BUSY ${arg}: column ${arg} received. The rod slides out for ${COLUMN_MS[arg - 1]} ms to cover column${arg === "2" ? " 1" : `s 1 to ${arg - 1}`}, then holds 2 s`,
+    MAG_PULSES: `MAG_PULSES ${arg}: the encoder counted ${arg} pulses, one token released. It rolls over the rod to the first open hole`,
+    DONE: `DONE ${arg}: the rod is back out of the board, every hole open`,
   }[word];
   if (msg) setStage("arduino", word === "DONE" ? "pass" : "busy", msg);
   if (word === "DONE") mech.dataset.phase = "";
@@ -228,8 +232,8 @@ function drawMagazine() {
   }));
 }
 const settle = (anim, ms) => Promise.race([anim.finished, new Promise((r) => setTimeout(r, ms))]).catch(() => {});
-// The carriage has already opened the column: the released token rolls along
-// the rail from the storage end and drops through the first open hole.
+// The rod already covers the columns before the target: the released token
+// rolls along it from the storage end and drops through the first open hole.
 async function releaseToken(mv) {
   dropToken(mv);
   magazineLeft = Math.max(0, magazineLeft - 1);
@@ -250,7 +254,8 @@ function onMotor(m) {
     return;
   }
   if (ard.move) mech.dataset.phase = m.dir > 0 ? "cover" : m.dir < 0 ? "back" : ard.dir > 0 ? "hold" : "";
-  $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : m.pos > 1 ? `stopped over column ${Math.round(columnAt(m.pos)) + 1}` : "stopped at home";
+  const covered = Math.round(columnAt(m.pos)); // columns 1 to this one are under the rod
+  $("#car").textContent = m.dir > 0 ? "driving out" : m.dir < 0 ? "driving home" : covered > 0 ? `stopped over column${covered > 1 ? `s 1 to ${covered}` : " 1"}` : "stopped at home";
   ard.dir = m.dir;
 }
 function dropToken(mv) {
@@ -403,9 +408,8 @@ function draw() {
   }
 }
 
-// A token falls into its cell. The robot's first rolls along the rail from under
-// the chute, over column 7; a person's goes straight into the board's top slot,
-// below the rail, so it never passes through the rod.
+// A token falls into its cell through an open hole in the rail. The robot's
+// first rolls along the rod from under the chute, over column 1.
 async function fall(row, col, colour, { roll = false } = {}) {
   if (reduceMotion) return;
   const host = rigPlay.getBoundingClientRect();
@@ -413,13 +417,13 @@ async function fall(row, col, colour, { roll = false } = {}) {
   const size = cr.width * 0.86;
   const endX = cr.left - host.left + cr.width * 0.07;
   const endY = cr.top - host.top + cr.width * 0.07;
-  const startY = roll ? rollLine.getBoundingClientRect().top - host.top - size : cells[col].getBoundingClientRect().top - host.top + cr.width * 0.07;
+  const startY = rollLine.getBoundingClientRect().top - host.top - size;
   const el = document.createElement("span");
   el.className = "falling " + NAMES[colour];
   Object.assign(el.style, { left: `${endX}px`, top: "0px", width: `${size}px`, height: `${size}px` });
   rigPlay.append(el);
   const fallMs = 280 + Math.sqrt(Math.max(0, endY - startY)) * 18;
-  const rollCols = COLS - 1 - col; // from the storage end to the target
+  const rollCols = col; // from the storage end, over column 1, to the target
   const rollMs = roll ? (rollCols / ROLL_COLS_PER_S) * 1000 : 0;
   const pitch = cells[1].getBoundingClientRect().left - cells[0].getBoundingClientRect().left;
   const at = (ms) => (rollMs + ms) / (rollMs + fallMs);
@@ -430,13 +434,9 @@ async function fall(row, col, colour, { roll = false } = {}) {
     { transform: `translate(0, ${endY}px)`, offset: 1 },
   ];
   down[0].easing = "cubic-bezier(0.55, 0, 1, 0.45)";
-  if (!roll) {
-    down[0].opacity = 0; // a hand puts it in the top slot: it fades in there, then drops
-    down.splice(1, 0, { opacity: 1, offset: at(Math.min(140, fallMs * 0.3)) });
-  }
-  // from under the chute, over column 7, rolling left one turn per 3.14 token widths
+  // from under the chute, over column 1, rolling right one turn per 3.14 token widths
   const turn = Math.round(((rollCols * pitch) / (Math.PI * size)) * 360);
-  const frames = rollMs ? [{ transform: `translate(${rollCols * pitch}px, ${startY}px) rotate(${turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
+  const frames = rollMs ? [{ transform: `translate(${-rollCols * pitch}px, ${startY}px) rotate(${-turn}deg)`, offset: 0, easing: "cubic-bezier(0.2, 0.6, 0.6, 1)" }, ...down] : down;
   const anim = el.animate(frames, { duration: rollMs + fallMs });
   // A hidden tab freezes animations; the game goes on without waiting for this one.
   await Promise.race([anim.finished, new Promise((r) => setTimeout(r, rollMs + fallMs + 300))]);
